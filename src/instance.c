@@ -570,7 +570,7 @@ void multiplicity_free(multiplicity *mult) {
 }
 
 string default_repr(Instance *ins) {
-    return ins->name;
+    return strdup(ins->name);
 }
 
 string predicate_repr(Instance *ins) {
@@ -595,7 +595,7 @@ string predicate_repr(Instance *ins) {
         respbuff[0] = 0;
     
     snprintf(buff, 128, "(?%s(%s)%s)", ins->name, argsbuff, respbuff);
-    return buff;
+    return strdup(buff);
 }
 
 string constraint_repr(Instance *ins) {
@@ -620,7 +620,7 @@ string constraint_repr(Instance *ins) {
         respbuff[0] = 0;
     
     snprintf(buff, 128, "(#%s(%s)%s)", ins->name, argsbuff, respbuff);
-    return buff;
+    return strdup(buff);
 }
 
 string choice_repr(Instance *ins) {

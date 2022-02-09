@@ -199,7 +199,7 @@ extern uint               LAURE_GC_COLLECTED;
 extern uint               LAURE_RECURSION_DEPTH;
 
 #ifndef LAURE_RECURSION_DEPTH_LIMIT
-#define LAURE_RECURSION_DEPTH_LIMIT 300
+#define LAURE_RECURSION_DEPTH_LIMIT 350
 #endif
 
 laure_expression_set *laure_expression_set_link(laure_expression_set *root, laure_expression_t *new_link);

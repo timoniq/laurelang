@@ -4,13 +4,13 @@
 string bp_repr(Instance* ins) {
     char buff[64];
     snprintf(buff, 64, "(predicate %s)", ins->name);
-    return buff;
+    return strdup(buff);
 }
 
 string bc_repr(Instance* ins) {
     char buff[64];
     snprintf(buff, 64, "(constraint %s)", ins->name);
-    return buff;
+    return strdup(buff);
 }
 
 void laure_register_builtins(laure_session_t *session) {

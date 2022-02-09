@@ -67,8 +67,9 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
 
         laure_expression_set *expset = laure_expression_compose_one(res.exp);
         control_ctx *ncctx = laure_control_ctx_get(sess, expset);
+        LAURE_RECURSION_DEPTH = 0;
         qresp response = laure_eval(ncctx, expset);
-
+                
         up;
         erase;
 

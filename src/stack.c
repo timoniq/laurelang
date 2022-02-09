@@ -347,6 +347,7 @@ void laure_stack_show(laure_stack_t* stack) {
         long link = stack->current.cells[i].link_id;
         string r = instance != NULL ? instance->repr(instance) : NULL;
         printf("%d: name=%s link=%ld value=%s doc=%s\n", i, instance == NULL ? "?" : instance->name, link, r == NULL ? "(deleted)" : r, instance == NULL ? "" : (instance->doc == NULL ? "-" : "+"));
+        free(r);
     }
     printf("---\n");
 }
@@ -611,7 +612,9 @@ void laure_stack_show(laure_stack_t *stack) {
     printf("=== ID: %d, TMP: %s ===\n", stack->current.id, stack->is_temp ? "YES" : "NO");
     Cell cell;
     STACK_ITER(stack, cell, {
-        printf("%s: %s (%ld)\n", cell.instance->name, cell.instance->repr(cell.instance), cell.link_id);
+        string r = cell.instance->repr(cell.instance);
+        printf("%s: %s (%ld)\n", cell.instance->name, r, cell.link_id);
+        free(r);
     }, false);
     printf("---\n");
 }

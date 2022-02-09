@@ -89,6 +89,7 @@ void default_var_processor(laure_stack_t *stack, string name, void* _) {
     Instance *ins = laure_stack_get(stack, name);
     string s = ins->repr(ins);
     printf("  %s\n", s);
+    free(s);
 }
 
 bool laure_is_silent(void *cctx) {
@@ -396,6 +397,8 @@ qresp laure_showcast(laure_stack_t *stack, var_process_kit *vpk) {
             memset(showcast, 0, showcast_n + 1);
             snprintf(showcast, showcast_n, "  %s = %s", ins->name, repr);
         }
+
+        free(repr);
 
         last_string = showcast;
 
@@ -1339,6 +1342,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
 
                     control_ctx *ncctx = control_new(new_stack, nqctx, vpk, cctx->data);
                     LAURE_RECURSION_DEPTH++;
+
                     if (LAURE_RECURSION_DEPTH > LAURE_RECURSION_DEPTH_LIMIT) {
                         printf("Recursion depth limit of %d exceeded, running %s\n", LAURE_RECURSION_DEPTH_LIMIT, predicate_ins->name);
                         LAURE_RECURSION_DEPTH = 0;
