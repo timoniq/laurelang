@@ -3,6 +3,7 @@
 #include "predpub.h"
 #include <readline/readline.h>
 #include <errno.h>
+#include <signal.h>
 
 #define string char*
 #define up printf("\033[A")

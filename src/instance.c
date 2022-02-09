@@ -1,4 +1,11 @@
 #include "laureimage.h"
+#include <ctype.h>
+
+#ifndef isnumber
+int isnumber(int _c) {
+    return _c >= 48 && _c <= 57;
+}
+#endif
 
 ImageHead read_head(void *img) {
     struct ImageHead head;
