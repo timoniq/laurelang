@@ -1,0 +1,33 @@
+// Read docs at /docs/builtin.md#integer-add
+// ```a + b = c;
+// +(a, b) = c;```
+: ?+(int, int) -> int.
+// Read docs at /docs/builtin.md#integer-subtract
+// ```a - b = c;
+// -(a, b) = c;```
+: ?-(int, int) -> int.
+
+// `Greater than` constraint
+// read docs at /docs/builtin.md#constraints
+: #>(int, int).
+// `Less than` constraint
+// read docs at /docs/builtin.md#constraints
+: #<(int, int).
+
+#>(x, y) {__>(x, y)}
+#<(x, y) {__>(y, x)}
+
+?+(x, y) -> x __+ y.
+?-(y + z, y) -> z.
+
+// Plus-minus predicate.
+// ```x = (-b +- sqrt(D)) / (2 * a)```
+: ?+-(int, int) -> int.
+
+?+-(x, y) -> z {
+    z = x + y;
+}
+
+?+-(x, y) -> z {
+    z = x - y;
+}

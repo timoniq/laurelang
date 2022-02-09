@@ -1,0 +1,12 @@
+.vscode
+*.o
+src/*.o
+*.xml
+laure
+.DS_Store
+.tmp
+diff
+laurelang.so
+laurelanglib.o
+*.dSYM
+*.so

@@ -1,0 +1,4 @@
+: ?cle_include("test.so").
+
+: ?test().
+?test().

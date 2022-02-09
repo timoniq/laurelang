@@ -1,0 +1,26 @@
+: ?test_math_basic().
+: ?test_fibonacci().
+
+?test_math_basic() {
+    2 + 2 = 4;
+    a + 1 = 2;
+    2 - 2 = 0;
+    a = 1;
+    2 - a = a;
+    b ~ int;
+    b > 0;
+    a __gte b;
+    &all b {
+        b = 1
+    };
+    c __gte 0;
+    &exists c {
+        c = 0
+    };
+}
+
+?test_fibonacci() {
+    5 = fib(5);
+    x = fib(8);
+    &all x {x = 21};
+}

@@ -1,0 +1,4 @@
+: ?include(
+    "../examples",
+    "math.le"
+).

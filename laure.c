@@ -1,0 +1,453 @@
+#include "laurelang.h"
+#include "laureimage.h"
+#include "predpub.h"
+#include <readline/readline.h>
+#include <errno.h>
+
+#define string char*
+#define up printf("\033[A")
+#define down printf("\n")
+#define erase printf("\33[2K\r")
+#define PATH_MAX 1024
+
+#define str_eq(s1, s2) (s1 != NULL && s2 != NULL && strcmp(s1, s2) == 0)
+#define str_starts(s, start) (strncmp(start, s, strlen(start)) == 0)
+
+#define VERSION        "0.1"
+#define BUGTRACKER_URL "github.com/timoniq/laurelang"
+
+const struct laure_flag flags[] = {
+    // 0
+    {1, "-f", "Set main filename", true},
+    {2, "-q", "Startup query", true},
+    {3, "-norepl", "Don't run REPL after startup", false},
+    {4, "--version", "Show version and quit", false},
+    {5, "-clean", "Do not load std", false},
+    {6, "-signal", "Usage with -q <..>, returns error code if predicate fails", false},
+    {7, "--library", "Manually set lib_path", true}
+};
+
+struct cmd_info {
+    int id;
+    string name;
+    int argc; // -1 is any
+    string help;
+};
+
+const struct cmd_info commands[] = {
+    {0, ".consult", -1, "Consults files. Any number of args, each arg is a filename."},
+    {1, ".quit", 0, "Quits laurelang REPL."},
+    {2, ".help", 0, "Shows this message."},
+    {3, ".flags", 0, "Shows all available flags for laure interpreter."},
+    {4, ".stack", 0, "Shows global scope values; needed for debug."},
+    {5, ".gc", 0, "Runs garbage collector."},
+    {6, ".doc", 1, "Shows documentation for object."},
+    {7, ".getinfo", 0, "Shows information about reasoning system."},
+    {8, ".ast", -1, "Shows AST of query passed."}
+};
+
+struct filename_linked {
+    string filename;
+    struct filename_linked *next;
+};
+
+bool   FLAG_NOREPL = false;
+bool   FLAG_CLEAN = false;
+bool   FLAG_SIGNAL = false;
+string FLAG_QUERY = NULL;
+string FLAG_LIBRARY = NULL;
+
+string                  INTERPRETER_PATH = NULL;
+struct filename_linked *FILENAMES = NULL;
+char                   _PATH[PATH_MAX] = {0};
+
+typedef struct {
+    int argc;
+    string* argv;
+} args_parsed;
+
+args_parsed args_parse(string str) {
+    string* result = 0;
+    size_t count = 0;
+    string tmp = str;
+    string last_comma = 0;
+    char delim[2];
+    delim[0] = ' ';
+    delim[1] = 0;
+
+    while (*tmp) {
+        if (' ' == *tmp) {
+            count++;
+            last_comma = tmp;
+        }
+        tmp++;
+    }
+
+    count += last_comma < (str + strlen(str) - 1);
+    count++;
+    
+    result = malloc(sizeof(string) * count);
+
+    if (result) {
+        size_t idx  = 0;
+        string token = strtok(str, delim);
+
+        while (token) {
+            *(result + idx++) = strdup(token);
+            token = strtok(0, delim);
+        }
+        *(result + idx) = 0;
+    }
+
+    args_parsed ap;
+    ap.argc = (int)count-1;
+    ap.argv = result;
+    return ap;
+}
+
+string convert_filepath(string filepath) {
+    string new;
+    if (str_starts(filepath, "@/")) {
+        filepath++;
+        new = malloc(strlen(lib_path) + strlen(filepath));
+        strcpy(new, lib_path);
+        strcat(new, filepath);
+    } else {
+        new = strdup(filepath);
+    }
+    return new;
+}
+
+int laure_process_query(laure_session_t *session, string line) {
+
+    while(strlen(line) > 0 && line[0] == ' ')
+        line++;
+    
+    string startline = strdup(line);
+
+    if (line[0] == '.') {
+        args_parsed args = args_parse(line);
+        bool found = false;
+        for (int i = 0; i < sizeof(commands) / sizeof(struct cmd_info); i++) {
+            struct cmd_info cmd = commands[i];
+            if (str_eq(cmd.name, args.argv[0])) {
+                found = true;
+                if (cmd.argc != args.argc - 1 && cmd.argc != -1) {
+                    printf("Command %s requires %d arguments, got %d\n", cmd.name, cmd.argc, args.argc - 1);
+                    break;
+                }
+    // ----------
+    switch (cmd.id) {
+        case 0: {
+            if (args.argc == 1) {
+                printf("%sUsage: .consult {files}%s\n", RED_COLOR, NO_COLOR);
+                break;
+            }
+            for (int j = 1; j < args.argc; j++) {
+                string path = convert_filepath(args.argv[j]);
+                FILE *fs = fopen(path, "r");
+                if (! fs) {
+                    printf("%sUnable to open `%s`%s\n", RED_COLOR, path, NO_COLOR);
+                    free(path);
+                    free(args.argv);
+                    return 1;
+                }
+
+                fclose(fs);
+                string full_path = strdup( realpath(path, _PATH) );
+                laure_consult_recursive(session, full_path);
+                printf("  %s%s%s: consulted\n", GREEN_COLOR, args.argv[j], NO_COLOR);
+                free(path);
+            }
+            break;
+        }
+        case 1: {
+            return 0;
+        }
+        case 2: {
+            printf("help:\n");
+            for (int i = 0; i < sizeof(commands) / sizeof(struct cmd_info); i++) {
+                struct cmd_info cmd = commands[i];
+                printf("  %s - %s\n", cmd.name, cmd.help);
+            }
+            break;
+        }
+        case 3: {
+            printf("flags:\n");
+            for (int i = 0; i < sizeof(flags) / sizeof(struct laure_flag); i++) {
+                struct laure_flag flag = flags[i];
+                printf("  %s - %s [%s]\n", flag.name, flag.doc, flag.readword ? "takes arg" : "no args");
+            }
+            break;
+        }
+        case 4: {
+            laure_stack_show(session->stack);
+            break;
+        }
+        case 5: {
+            uint temp = LAURE_GC_COLLECTED;
+            LAURE_GC_COLLECTED = 0;
+            GC_ROOT = laure_gc_treep_destroy(GC_ROOT);
+            printf("Destroyed %zi garbage, summary %zi\n", LAURE_GC_COLLECTED, LAURE_GC_COLLECTED + temp);
+            LAURE_GC_COLLECTED += temp;
+            break;
+        }
+        case 6: {
+            Instance *ins = laure_stack_get(session->stack, args.argv[1]);
+
+            if (!ins) {
+                printf("sorry, can't find instance named `%s`\n", args.argv[1]);
+                free(args.argv);
+                return 1;
+            }
+
+            string doc = instance_get_doc(ins);
+
+            printf("   ");
+
+            if (!doc) {
+                printf("sorry, no documentation for this instance");
+            } else {
+                bool color_set = false;
+                for (int i = 0; i < strlen(doc); i++) {
+                    char c = doc[i];
+                    if (c == '\n') {
+                        printf("\n   ", GRAY_COLOR, NO_COLOR);
+                    } else if (c == '`') {
+                        printf("%s", color_set ? NO_COLOR : YELLOW_COLOR);
+                        color_set = color_set ? false : true;
+                    } else {
+                        printf("%c", c);
+                    }
+                }
+            }
+
+            printf("\n");
+            break;
+        }
+        case 7: {
+            printf("  laurelang %s\n", VERSION);
+            printf("  running `%s`\n", LAURE_INTERPRETER_PATH);
+            printf("  bugtracker %s\n", BUGTRACKER_URL);
+            printf("  build info:\n");
+            printf("    stack build: %s\n", 
+            #ifdef FEATURE_SCOPE2
+            "linked (production)"
+            #else
+            "stodgy (debug)"
+            #endif
+            );
+            #ifdef DISABLE_COLORING
+            printf("    coloring: disabled\n");
+            #else
+            printf("    coloring: %senabled%s\n", GREEN_COLOR, NO_COLOR);
+            #endif
+            printf("    lib_path: `%s`\n", lib_path);
+            printf("    trace limit: %d\n", LAURE_TRACE_LIMIT);
+            printf("    recursion depth limit: %d\n", LAURE_RECURSION_DEPTH_LIMIT);
+            printf("    compiled at: %s %s\n", __DATE__, __TIME__);
+            printf("  garbage collected: %d\n", LAURE_GC_COLLECTED);
+            printf("  flags: [ ");
+            if (FLAG_CLEAN) printf("CLEAN ");
+            if (FLAG_NOREPL) printf("NOREPL ");
+            if (FLAG_QUERY) printf("QUERY ");
+            if (FLAG_SIGNAL) printf("SIGNAL ");
+            printf("]\n");
+            break;
+        }
+        case 8: {
+            string q = startline + 5;
+            laure_parse_result result = laure_parse(q);
+            if (!result.is_ok) {
+                printf("query is invalid: %s\n", result.err);
+                break;
+            }
+            printf("\n");
+            laure_expression_show(result.exp, 0);
+            printf("\n");
+            break;
+        }
+        default: break;
+    }
+    // ----------
+            }
+        }
+        if (! found) {
+            printf("Unknown command `%s`, use `.help`\n", args.argv[0]);
+        }
+        free(args.argv);
+        return 1;
+    }
+
+    int code = 1;
+    
+    laure_parse_result res = laure_parse(line);
+    if (!res.is_ok) {
+        printf("  %ssyntax_error%s %s\n", RED_COLOR, NO_COLOR, res.err);
+        code = 2;
+    } else {
+
+        #ifdef DEBUG
+        laure_expression_show(res.exp, 0);
+        #endif
+
+        laure_expression_set *expset = laure_expression_compose_one(res.exp);
+
+        control_ctx *cctx = laure_control_ctx_get(session, expset);
+        qresp response = laure_eval(cctx, expset);
+
+        if (!laure_is_silent(cctx)) {
+            if (response.state == q_true) {
+            printf("  true\n");
+            } else if (response.state == q_false) {
+                code = 2;
+                printf("  false\n");
+            } else if (response.state == q_error) {
+                code = 2;
+                printf("  %serror%s %s\n", RED_COLOR, NO_COLOR, response.error);
+            }
+        }
+
+        // GC_ROOT = laure_gc_treep_destroy(GC_ROOT);
+        free(cctx);
+    }
+    return code;
+}
+
+void add_filename(string str) {
+    struct filename_linked filename = {str, NULL};
+    struct filename_linked *ptr = malloc(sizeof(struct filename_linked));
+    *ptr = filename;
+    if (! FILENAMES)
+        FILENAMES = ptr;
+    else {
+        struct filename_linked *l = FILENAMES;
+        while (l->next) {l = l->next;};
+        l->next = ptr;
+    }
+}
+
+int main(int argc, char *argv[]) {
+
+    for (int idx = 0; idx < argc; idx++) {
+        string str = argv[idx];
+        if (! idx) INTERPRETER_PATH = str;
+        else {
+            if (str[0] != '-') {
+                add_filename(str);
+                continue;
+            } else {
+                bool found = false;
+
+                for (int i = 0; i < sizeof(flags) / sizeof(struct laure_flag); i++) {
+                    struct laure_flag flag = flags[i];
+                    if (strcmp(flag.name, str) == 0) {
+                        found = true;
+                        string word = NULL;
+                        if (flag.readword) {
+                            if (idx == argc - 1) {
+                                printf("%sFlag %s requires an argument%s\n", RED_COLOR, flag.name, NO_COLOR);
+                                continue;
+                            }
+                            idx++;
+                            word = argv[idx];
+                        }
+            // ---------- 
+            switch (flag.id) {
+                case 1: {
+                    add_filename(word);
+                    break;
+                }
+                case 2: {
+                    FLAG_QUERY = word;
+                    break;
+                }
+                case 3: {
+                    FLAG_NOREPL = true;
+                    break;
+                }
+                case 4: {
+                    printf("%s\n", VERSION);
+                    return 0;
+                }
+                case 5: {
+                    FLAG_CLEAN = true;
+                    break;
+                }
+                case 6: {
+                    FLAG_SIGNAL = true;
+                    break;
+                }
+                case 7: {
+                    FLAG_LIBRARY = word;
+                    break;
+                }
+            }}}
+
+            if (!found)
+                printf("%sFlag %s is undefined%s\n", RED_COLOR, str, NO_COLOR);
+            }
+            // ----------
+        }
+    }
+
+    printf("(laurelang v%s (c) timoniq)\n", VERSION);
+    LAURE_INTERPRETER_PATH = INTERPRETER_PATH;
+
+    laure_session_t *session = laure_session_new();
+    laure_register_builtins(session);
+
+    if (! FLAG_CLEAN) {
+        string lp = FLAG_LIBRARY ? FLAG_LIBRARY : lib_path;
+        string real_path = realpath(lp, _PATH);
+        if (! real_path) {
+            printf("Can't load standard lib from `%s`\n", lp);
+        } else {
+            string path = strdup( real_path );
+            laure_consult_recursive(session, path);
+        }
+    }
+
+    struct filename_linked *filenames = FILENAMES;
+    while (filenames) {
+        string path = convert_filepath(filenames->filename);
+        FILE *fs = fopen(path, "r");
+        if (! fs) {
+            printf("%sUnable to open `%s`%s\n", RED_COLOR, path, NO_COLOR);
+            if (FLAG_SIGNAL) return SIGABRT;
+            filenames = filenames->next;
+            continue;
+        }
+        fclose(fs);
+
+        string full_path = strdup( realpath(path, _PATH) );
+        laure_consult_recursive(session, full_path);
+        printf("  %s%s%s: consulted\n", GREEN_COLOR, filenames->filename, NO_COLOR);
+        free(path);
+        filenames = filenames->next;
+    }
+
+    if (FLAG_QUERY) {
+        printf("| %s\n", FLAG_QUERY);
+        int result = laure_process_query(session, FLAG_QUERY);
+        if (FLAG_SIGNAL && result != 1) {
+            return SIGABRT;
+        }
+    }
+
+    if (FLAG_NOREPL) return 0;
+
+    string line;
+    while ((line = readline("| ")) != NULL) {
+        if (!strlen(line)) {
+            erase;
+            up;
+            continue;
+        }
+        int res = laure_process_query(session, line);
+        if (!res) break;
+        free(line);
+    }
+
+    return 0;
+}

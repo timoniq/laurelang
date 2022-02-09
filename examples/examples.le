@@ -1,0 +1,4 @@
+: ?include(
+    "factorial.le",
+    "fibonacci.le"
+).
