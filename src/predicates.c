@@ -323,6 +323,84 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
     }
 }
 
+qresp laure_predicate_integer_multiply(preddata *pd, control_ctx* cctx) {
+    Instance *var1 = pd_get_arg(pd, 0);
+    Instance *var2 = pd_get_arg(pd, 1);
+    Instance *prod = pd->resp;
+
+    ASSERT_IS_INT(NULL, cctx->stack, var1);
+    ASSERT_IS_INT(NULL, cctx->stack, var2);
+    ASSERT_IS_INT(NULL, cctx->stack, prod);
+
+    struct IntImage *var1_im = (struct IntImage*)var1->image;
+    struct IntImage *var2_im = (struct IntImage*)var2->image;
+    struct IntImage *prod_im = (struct IntImage*)prod->image;
+
+    int var1_i = var1_im->state == 1;
+    int var2_i = var2_im->state == 1;
+    int prod_i  = prod_im->state == 1;
+
+    if (var1_i && var2_i && prod_i) {
+        bigint *real_prod = malloc(sizeof(bigint));
+        bigint_init(real_prod);
+
+        bigint_mul(real_prod, var1_im->i_data, var2_im->i_data);
+        
+        bool cmp = bigint_cmp(real_prod, prod_im->i_data) == 0;
+        free(real_prod->words);
+        free(real_prod);
+
+        return respond((qresp_state)cmp, NULL);
+
+    } else if (var1_i && var2_i && !prod_i) {
+        bigint *bi_prod = malloc(sizeof(bigint));
+        bigint_init(bi_prod);
+
+        bigint_mul(bi_prod, var1_im->i_data, var2_im->i_data);
+
+        INT_ASSIGN(prod_im, bi_prod);
+        return respond(q_true, NULL);
+
+    } else if (var1_i && !var2_i && prod_i) {
+        bigint *bi = malloc(sizeof(bigint));
+        bigint_init(bi);
+        void *success = bigint_div(bi, prod_im->i_data, var1_im->i_data, true);
+        if (success == NULL) return respond(q_false, NULL);
+
+        INT_ASSIGN(var2_im, bi);
+        return respond(q_true, NULL);
+
+    } else if (!var1_i && var2_i && prod_i) {
+        bigint *bi = malloc(sizeof(bigint));
+        bigint_init(bi);
+
+        void *success = bigint_div(bi, prod_im->i_data, var2_im->i_data, true);
+        if (success == NULL) return respond(q_false, NULL);
+
+        INT_ASSIGN(var1_im, bi);
+        return respond(q_true, NULL);
+    } else if (!var1_i && !var2_i && prod_i) {
+        struct SumCtx *sum_ctx = malloc(sizeof(struct SumCtx));
+        sum_ctx_init(sum_ctx, prod_im->i_data, cctx, var1, var2, image_deepcopy(cctx->stack, var2->image));
+        gen_resp gr = image_generate(cctx->stack, var1_im, integer_mul_sum_known_rec, sum_ctx);
+        return sum_ctx->found_any ? respond(q_yield, NULL) : respond(q_false, NULL);
+    } else if (var1_i && !var2_i && !prod_i) {
+        struct Sum2Ctx *sum_ctx = malloc(sizeof(struct Sum2Ctx));
+        sum_ctx2_init(sum_ctx, var1_im->i_data, cctx, prod, var2, image_deepcopy(cctx->stack, var2_im));
+
+        gen_resp gr = image_generate(cctx->stack, prod_im, integer_mul_one_known_rec, sum_ctx);
+        return sum_ctx->found_any ? respond(q_yield, NULL) : respond(q_false, NULL);
+    } else if (var1_i && !var2_i && prod_i) {
+        struct Sum2Ctx *sum_ctx = malloc(sizeof(struct Sum2Ctx));
+        sum_ctx2_init(sum_ctx, var2_im->i_data, cctx, prod, var1, image_deepcopy(cctx->stack, var1_im));
+
+        gen_resp gr = image_generate(cctx->stack, prod_im, integer_mul_one_known_rec, sum_ctx);
+        return sum_ctx->found_any ? respond(q_yield, NULL) : respond(q_false, NULL);
+    } else {
+        return respond(q_error, strdup("cannot instantiate"));
+    }
+}
+
 
 qresp laure_constraint_gte(preddata *pd, control_ctx* cctx) {
     Instance *i = pd_get_arg(pd, 0);

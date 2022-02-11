@@ -5,13 +5,15 @@
 #include <ctype.h>
 #include "utils.h"
 
+#define ERR_MAX_LEN 100
+
 #define error_result(err_) do {laure_parse_result lpr; lpr.is_ok = false; lpr.err = err_; return lpr;} while (0)
-#define error_format(err_, ...) do {char _errmsg[64]; snprintf(_errmsg, 64, err_, __VA_ARGS__); error_result(_errmsg);} while (0)
-#define lineinfo(str) do {char info[64]; snprintf(info, 64, "%s:%d", __FILE__, __LINE__); str = strdup(info);} while (0)
+#define error_format(err_, ...) do {char _errmsg[ERR_MAX_LEN]; snprintf(_errmsg, ERR_MAX_LEN, err_, __VA_ARGS__); error_result(strdup(_errmsg));} while (0)
+#define lineinfo(str) do {char info[ERR_MAX_LEN]; snprintf(info, ERR_MAX_LEN, "%s:%d", __FILE__, __LINE__); str = strdup(info);} while (0)
 #define printindent(indent) for (int __i = 0; __i < indent; __i++) printf(" ");
 
 string DIGITS = "0123456789";
-string RESTRICTED = "[]()/. ";
+string RESTRICTED = "[](). ";
 
 #ifndef LAURE_SYNTAX_INFIX_PREPOSITION
 #define LAURE_SYNTAX_INFIX_PREPOSITION "of"
@@ -435,6 +437,13 @@ laure_parse_result laure_parse(string query) {
 
     if (len == 0)
         error_result("query is empty");
+
+    if (query[0] == '(' && lastc(query) == ')'){
+        query = strdup(query);
+        query++;
+        lastc(query) = 0;
+        return laure_parse(query);
+    }
     
     char det = query[0];
     query++;

@@ -1,0 +1,31 @@
+: ?test_NtoZ().
+: ?test_fibonacci().
+: ?test_factorial().
+
+// belonging to fibonacci row
+: ?test_fibonacci_row().
+
+?test_NtoZ() {
+    nz(0) = 0;
+    nz(1) = 1;
+    nz(9) = 5;
+    nz(10) = x;
+    x = -5;
+}
+
+?test_fibonacci() {
+    5 = fib(5);
+    x = fib(8);
+    &all x {x = 21};
+}
+
+?test_factorial() {
+    fac(0) = _a;
+    &all _a {_a = 1};
+    fac(60) = 8320987112741390144276341183223364380754172606361245952449277696409600000000000000;
+}
+
+?test_fibonacci_row() {
+    fibr(0, 1) = 1;
+    fibr(0, 1) = 5;
+}

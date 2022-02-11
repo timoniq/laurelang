@@ -530,7 +530,6 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                         if (cell2.instance == NULL) continue;
                         if (cell.link_id == cell2.link_id && cell.instance != cell2.instance) {
                             if (! img_equals(cell.instance->image, cell2.instance->image)) {
-                                printf("not eq triggered\n");
                                 return respond(q_false, NULL);
                             }
                         }
@@ -607,6 +606,10 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                         } else {
                             from = rvar_ins;
                             to = lvar_ins;
+                        }
+
+                        if (to->locked) {
+                            RESPOND_ERROR("%s is locked", to->name);
                         }
 
                         struct ImageHead h = read_head(to->image);
@@ -1344,7 +1347,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                     LAURE_RECURSION_DEPTH++;
 
                     if (LAURE_RECURSION_DEPTH > LAURE_RECURSION_DEPTH_LIMIT) {
-                        printf("Recursion depth limit of %d exceeded, running %s\n", LAURE_RECURSION_DEPTH_LIMIT, predicate_ins->name);
+                        // printf("Recursion depth limit of %d exceeded, running %s\n", LAURE_RECURSION_DEPTH_LIMIT, predicate_ins->name);
                         LAURE_RECURSION_DEPTH = 0;
                         RESPOND_ERROR("recursion depth limit of %d exceeded", LAURE_RECURSION_DEPTH_LIMIT);
                     }

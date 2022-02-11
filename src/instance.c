@@ -1,11 +1,8 @@
 #include "laureimage.h"
-#include <ctype.h>
 
-#ifndef isnumber
-int isnumber(int _c) {
+int char_isnumber(int _c) {
     return _c >= 48 && _c <= 57;
 }
-#endif
 
 ImageHead read_head(void *img) {
     struct ImageHead head;
@@ -894,13 +891,13 @@ bool int_translator(laure_expression_t *exp, void* rimg, laure_stack_t *stack) {
         strncpy(right, _temp, right_n);
 
         for (int i = 0; i < strlen(left); i++) 
-            if (!isnumber(left[i])) {
+            if (!char_isnumber(left[i])) {
                 free(left); free(right);
                 return false;
             };
         
         for (int i = 0; i < strlen(right); i++) 
-            if (!isnumber(right[i])) {
+            if (!char_isnumber(right[i])) {
                 free(left); free(right);
                 return false;
             };
@@ -931,7 +928,7 @@ bool int_translator(laure_expression_t *exp, void* rimg, laure_stack_t *stack) {
     else if (raw[0] == '+') raw++;
 
     for (int i = 0; i < strlen(raw); i++) 
-        if (!isnumber(raw[i])) return false;
+        if (!char_isnumber(raw[i])) return false;
     
     bigint *bi = malloc(sizeof(bigint));
     bigint_init(bi);

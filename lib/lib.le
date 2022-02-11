@@ -1,11 +1,21 @@
+index ~ int.
+index __gte 0.
+
 // Read docs at /docs/builtin.md#integer-add
 // ```a + b = c;
 // +(a, b) = c;```
 : ?+(int, int) -> int.
+
 // Read docs at /docs/builtin.md#integer-subtract
 // ```a - b = c;
 // -(a, b) = c;```
 : ?-(int, int) -> int.
+
+// Multiplication predicate
+: ?*(int, int) -> int.
+
+// Integer division predicate
+: ?/(int, int) -> int.
 
 // `Greater than` constraint
 // read docs at /docs/builtin.md#constraints
@@ -19,6 +29,8 @@
 
 ?+(x, y) -> x __+ y.
 ?-(y + z, y) -> z.
+?*(x, y) -> x __* y.
+?/(x * y, y) -> x.
 
 // Plus-minus predicate.
 // ```x = (-b +- sqrt(D)) / (2 * a)```
@@ -31,3 +43,17 @@
 ?+-(x, y) -> z {
     z = x - y;
 }
+
+// Integer pow predicate
+: ?pow(int, int) -> int.
+?pow(x, 0) -> 1.
+?pow(x, 1) -> x.
+
+?pow(Value, Pow) -> R {
+    Pow > 1;
+    R = Value * pow(Value, Pow - 1);
+}
+
+// Integer pow predicate (shortcut to `pow`)
+: ?^(int, int) -> int.
+?^(v, p) -> pow(v, p).
