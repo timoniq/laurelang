@@ -1,5 +1,4 @@
-index ~ int.
-index __gte 0.
+
 
 // Read docs at /docs/builtin.md#integer-add
 // ```a + b = c;
@@ -54,6 +53,14 @@ index __gte 0.
     R = Value * pow(Value, Pow - 1);
 }
 
+// Absolute value predicate
+// absolute of -5 = 5
+: ?absolute(int) -> int.
+?absolute(x) -> x when x __gte 0.
+?absolute(x) -> -x when x < 0.
+
 // Integer pow predicate (shortcut to `pow`)
 : ?^(int, int) -> int.
 ?^(v, p) -> pow(v, p).
+
+// index __gte 0.

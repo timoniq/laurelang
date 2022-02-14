@@ -33,6 +33,7 @@ qcontext *qcontext_new(laure_expression_set *expset) {
     qctx->expset = expset;
     qctx->next = NULL;
     qctx->forbidden_ambiguation = false;
+    qctx->mark = false;
     return qctx;
 }
 
@@ -55,10 +56,10 @@ control_ctx *control_new(laure_stack_t* stack, qcontext* qctx, var_process_kit* 
     return cctx;
 }
 
-Instance *pd_get_arg(preddata *pd, int index) {
+void *pd_get_arg(preddata *pd, int index) {
     for (int i = 0; i < pd->argc; i++) {
         if (pd->argv[i].index == index) {
-            return pd->argv[i].instance;
+            return pd->argv[i].arg;
         }
     }
     return NULL;
@@ -426,21 +427,50 @@ qresp laure_showcast(laure_stack_t *stack, var_process_kit *vpk) {
     return respond(q_true, 0);
 }
 
+qresp laure_send(laure_stack_t *stack, var_process_kit *vpk) {
+    #ifdef LAURE_SENDER_USE_JSON_SENDER
+    printf("not implemented json sender\n");
+    exit(-1);
+    #else
+    char reprs[1024] = {0};
+    strcpy(reprs, "=");
+    for (int i = 0; i < vpk->tracked_vars_len; i++) {
+        string repr;
+        Instance *tracked = laure_stack_get(stack, vpk->tracked_vars[i]);
+        if (!tracked) repr = strdup("UNKNOWN");
+        else {
+            repr = tracked->repr(tracked);
+        }
+        strcat(reprs, repr);
+        free(repr);
+        if (i != vpk->tracked_vars_len - 1) strcat(reprs, ";");
+    }
+    bool result = vpk->sender_receiver(strdup(reprs), vpk->payload);
+    return respond(result ? q_true : q_stop, result ? 0 : "");
+    #endif
+}
+
+string array_repr(Instance *ins);
+
 qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
     laure_stack_t *stack = cctx->stack;
     var_process_kit *vpk = cctx->vpk;
     qcontext *qctx = cctx->qctx;
 
     if (laure_expression_get_count(expression_set) == 0) {
-        if ((!qctx || qctx->next == NULL) || stack->next == NULL) {
+        if ((!qctx || qctx->next == NULL) || (stack->next == NULL && !stack->repeat)) {
             if (!vpk || cctx->silent) return respond(q_true, 0);
-            qresp qr = laure_showcast(stack, vpk);
-            return qr;
+            if (qctx) qctx->mark = true;
+            if (vpk->mode == INTERACTIVE) {
+                qresp qr = laure_showcast(stack, vpk);
+                return qr;
+            } else if (vpk->mode == SENDER) {
+                return laure_send(stack, vpk);
+            }
         } else {
             laure_stack_t *nstack;
 
             if (stack->repeat > 0) {
-                printf("repeating stack\n");
                 stack->repeat--;
                 nstack = stack;
             } else if (stack != stack->next) {
@@ -556,6 +586,10 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                 nstack = stack->next;
             } else {
                 nstack = stack->next;
+            }
+            
+            if (qctx) {
+                qctx->mark = true;
             }
 
             qcontext *qctx_new = qctx ? qctx->next : qctx;
@@ -698,7 +732,9 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
         case let_image: {
             laure_expression_t *exp1 = laure_expression_set_get_by_idx(ent_exp->ba->set, 0);
             laure_expression_t *exp2 = laure_expression_set_get_by_idx(ent_exp->ba->set, 1);
+
             if (exp1->t == let_var && exp2->t == let_var) {
+
                 Instance *var1 = laure_stack_get(stack, exp1->s);
                 Instance *var2 = laure_stack_get(stack, exp2->s);
 
@@ -720,17 +756,33 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                 } else if (var1 || var2) {
                     Instance *from;
                     string    new_var_name;
+                    uint nesting;
 
                     if (var1) {
                         from = var1;
                         new_var_name = exp2->s;
+                        nesting = exp1->flag;
                     } else {
                         from = var2;
                         new_var_name = exp1->s;
+                        nesting = exp2->flag;
+                    }
+
+                    Instance *ins = instance_deepcopy(stack, new_var_name, from);
+
+                    if (nesting) {
+                        while (nesting) {
+                            void *img = array_u_new(ins);
+                            ins = instance_new(strdup("el"), NULL, img);
+                            ins->repr = array_repr;
+                            nesting--;
+                        }
+                        ins->name = strdup(new_var_name);
+                        ins->repr = array_repr;
                     }
                     
                     Cell cell;
-                    cell.instance = instance_deepcopy(stack, new_var_name, from);
+                    cell.instance = ins;
                     cell.link_id = laure_stack_get_uid(stack);
                     cell.instance->locked = false;
                     laure_stack_insert(stack, cell);
@@ -755,7 +807,6 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                 // assert them
                 if (instantiated(v1.instance) || instantiated(v2.instance)) {
                     qresp result = img_equals(v1.instance->image, v2.instance->image) ? RESPOND_OK : RESPOND_FALSE;
-                    
                     return result;
                 } else {
                     laure_stack_change_lid(stack, v2_exp->s, v1.link_id);
@@ -792,6 +843,43 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
             if (!gr.r) return gr.qr;
 
             return respond(q_yield, 0);
+        }
+        case let_imply: {
+            laure_expression_t *fact = ent_exp->ba->set->expression;
+            laure_expression_set *implies_for = ent_exp->ba->set->next;
+            laure_expression_set *fact_expset = fact->ba->set;
+
+            qcontext *n_fact_qctx = qcontext_new(fact_expset);
+            qcontext *n_if_qctx = qcontext_new(implies_for);
+
+            n_fact_qctx->next = n_if_qctx;
+            n_if_qctx->next = qcontext_new_shifted(qctx, expression_set);
+
+            laure_stack_t *nstack = laure_stack_clone(stack, true);
+            if (is_global(stack))
+                nstack->global = nstack;
+            nstack->repeat = 2;
+
+            control_ctx *ncctx = create_control_ctx(nstack, n_fact_qctx, vpk, cctx->data);
+
+            qresp qr = laure_eval(ncctx, fact_expset);
+
+            if (qr.error) {
+                return qr;
+            }
+
+            if (! qr.state) {
+                laure_stack_free(nstack);
+                if (n_fact_qctx->mark) {
+                    return respond(q_false, NULL);
+                } else {
+                    return RESPOND_OK;
+                }
+            } else {
+                laure_stack_add_to(nstack, stack);
+                laure_stack_free(nstack);
+                return respond(q_true, NULL);
+            }
         }
         case let_quant: {
             string vname = ent_exp->s;
@@ -957,6 +1045,12 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                     for (int idx = 0; idx < ent_exp->ba->body_len; idx++) {
                         laure_expression_t *arg_exp = laure_expression_set_get_by_idx(ent_exp->ba->set, idx);
 
+                        if (str_eq(pf->c.hints[idx]->hint, "$")) {
+                            struct predicate_arg pa = {idx, arg_exp, false};
+                            preddata_push(pd, pa);
+                            continue;
+                        }
+
                         switch (arg_exp->t) {
                             case let_var: {
                                 string argn = strdup(pf->c.hints[idx]->name);
@@ -1006,7 +1100,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
 
                                 laure_stack_insert(new_stack, new_cell);
 
-                                struct predicate_arg pa = {idx, arg};
+                                struct predicate_arg pa = {idx, arg, true};
                                 preddata_push(pd, pa);
                                 break;
                             }
@@ -1031,7 +1125,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
 
                                 laure_stack_insert(new_stack, cell);
 
-                                struct predicate_arg pa = {idx, arg};
+                                struct predicate_arg pa = {idx, arg, true};
                                 preddata_push(pd, pa);
                                 break;
                             }
@@ -1057,6 +1151,8 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                                 RESPOND_ERROR("specification of %s's response is needed", predicate_ins->name);
                             pd->resp = instance_deepcopy(stack, strdup("$R"), hint_instance);
                             laure_gc_treep_add(GC_ROOT, GCPTR_INSTANCE, pd->resp);
+                        } else if (str_eq(pf->c.resp_hint, "$")) {
+                            pd->resp = resp_exp;
                         } else {
                             switch (resp_exp->t) {
                                 case let_var: {
@@ -1161,6 +1257,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                     }
 
                     qresp continued_resp = laure_eval(ncctx, NULL);
+                    qctx->mark = nextqctx->mark;
 
                     // __query_free_scopes_nqctx;
                     free(ncctx);
@@ -1354,6 +1451,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
 
                     qresp resp = laure_eval(ncctx, nqctx->expset);
                     LAURE_RECURSION_DEPTH--;
+                    qctx->mark = nextqctx->mark;
                     free(ncctx);
 
                     if (resp.error != NULL) {

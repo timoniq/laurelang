@@ -507,8 +507,24 @@ laure_parse_result laure_parse(string query) {
             laure_expression_set *set = NULL;
             uint body_len = 0;
             bool has_resp = 0;
-            
-            if (body && strlen(body)) {
+
+            if (!body && ((resp && strstr(resp, " when ")) || (strstr(query + strlen(name) + strlen(args) + 3, " when ")))) {
+                // body declaration using `when`
+                if (resp) {
+                    body = strdup( strstr(resp, " when ") + 5 );
+                    resp[strlen(resp) - strlen(body) - 5] = 0;
+                } else {
+                    body = strdup( strstr(query + strlen(name) + strlen(args) + 3, " when") + 5 );
+                }
+                laure_parse_many_result lpmr = laure_parse_many(body, ',', set);
+                if (!lpmr.is_ok) {
+                    laure_expression_set_destroy(set);
+                    error_result("failed parse body");
+                } else {
+                    body_len = laure_expression_get_count(lpmr.exps);
+                    set = lpmr.exps;
+                }
+            } else if (body && strlen(body)) {
                 laure_parse_many_result lpmr = laure_parse_many(body, ';', set);
                 if (!lpmr.is_ok) {
                     laure_expression_set_destroy(set);
@@ -634,6 +650,53 @@ laure_parse_result laure_parse(string query) {
         }
         default: {
             query--;
+
+            string _temp = read_til(query, '-');
+            if (_temp && (query + strlen(_temp) + 1)[0] == '>') {
+                // implication
+                laure_parse_result left_result = laure_parse(_temp);
+                if (!left_result.is_ok) {
+                    error_format("left side of implication is invalid: %s", left_result.err);
+                }
+
+                laure_expression_set *implication_expset = laure_expression_set_link(NULL, laure_expression_create(let_set, NULL, false, strdup(_temp), 0, laure_bodyargs_create(
+                    laure_expression_compose_one(left_result.exp),
+                    0,
+                    false
+                )));
+
+                string implies_for = query + strlen(_temp) + 3;
+                while(implies_for[0] == ' ') implies_for++;
+
+                if (implies_for[0] == '{' && lastc(implies_for) == '}') {
+                    string q = malloc(strlen(implies_for) - 1);
+                    strcpy(q, implies_for + 1);
+                    lastc(q) = 0;
+                    q = string_clean(q);
+                    laure_parse_many_result q_result = laure_parse_many(q, ';', implication_expset);
+                    if (! q_result.is_ok) {
+                        free(q);
+                        free(implication_expset);
+                        laure_expression_destroy(left_result.exp);
+                        error_format("right side of implication is invalid: %s", q_result.err);
+                    }
+                    implication_expset = laure_expression_set_link_branch(implication_expset, laure_expression_compose(q_result.exps));
+                } else {
+                    laure_parse_many_result q_result = laure_parse_many(implies_for, ',', implication_expset);
+                    if (! q_result.is_ok) {
+                        free(implication_expset);
+                        error_format("right side of implication is invalid: %s", q_result.err);
+                    }
+                    implication_expset = laure_expression_set_link_branch(implication_expset, laure_expression_compose(q_result.exps));
+                }
+
+                laure_expression_compact_bodyargs *ba = laure_bodyargs_create(implication_expset, laure_expression_get_count(implication_expset), false);
+                laure_expression_t *exp = laure_expression_create(let_imply, NULL, false, strdup(_temp), 0, ba);
+                laure_parse_result res;
+                res.is_ok = true;
+                res.exp = exp;
+                return res;
+            }
 
             laure_parse_result lpr;
             lpr.is_ok = true;
@@ -827,8 +890,25 @@ laure_parse_result laure_parse(string query) {
                     return lpr;
                 }
 
-                if (is_fine_name_for_var(query)) {
-                    lpr.exp = laure_expression_create(let_var, "", false, strdup(query), 0, NULL);
+                string dup = strdup(query);
+
+                if (dup[0] == '-' && is_fine_name_for_var(dup + 1)) {
+                    // negate variable
+                    // {x = -y} means {x = y * -1}
+                    string var_name = dup + 1;
+                    char nquery[256];
+                    snprintf(nquery, 256, "__*(-1, %s)", dup + 1);
+                    return laure_parse(strdup(nquery));
+                }
+
+                uint nesting = 0;
+                while (strlen(dup) > 2 && str_eq(dup + strlen(dup) - 2, "[]")) {
+                    nesting++;
+                    dup[strlen(dup) - 2] = 0;
+                }
+
+                if (is_fine_name_for_var(dup)) {
+                    lpr.exp = laure_expression_create(let_var, "", false, dup, nesting, NULL);
                     return lpr;
                 }
 
@@ -836,7 +916,7 @@ laure_parse_result laure_parse(string query) {
                 // integer/string/custom image macros
                 laure_parse_result lpr;
                 lpr.is_ok = true;
-                lpr.exp = laure_expression_create(let_custom, "", false, strdup(query), 0, NULL);
+                lpr.exp = laure_expression_create(let_custom, "", false, dup, nesting, NULL);
                 return lpr;
             }
 

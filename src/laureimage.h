@@ -171,13 +171,13 @@ struct StructureElement {
 // next_uid - next uid for uname generation
 
 typedef struct {
-    int                  argc;
+    int                   argc;
     struct predicate_arg *argv;
-    Instance*            resp;
-    laure_stack_t       *stack;
+    void*                 resp;
+    laure_stack_t        *stack;
 } preddata;
 
-Instance *pd_get_arg(preddata *pd, int index);
+void *pd_get_arg(preddata *pd, int index);
 
 // work with control when generating
 typedef struct ControlCtx {
@@ -338,7 +338,8 @@ struct Translator *new_translator(bool (*invoke)(string, void*, laure_stack_t*))
 
 struct predicate_arg {
     int index;
-    Instance* instance;
+    void* arg;
+    bool is_instance;
 };
 
 struct InstanceSet {

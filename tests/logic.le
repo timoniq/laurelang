@@ -1,0 +1,31 @@
+: ?test_imply().
+: ?test_choicepoint().
+
+// 1
+// 2
+// 3
+// 4
+: ?test_unify(int).
+
+?test_imply() {
+    int x = 10;
+    y ~ int;
+    x > 20 -> y = 2;
+    x > 10 -> y = 3;
+    x = 10 -> y = 4;
+    &all y {y = 4};
+}
+
+?test_choicepoint() {
+    x ~ int;
+    x = 11|22;
+    x = 11 * n;
+    x = 11 -> n = 1;
+    x = 22 -> n = 2;
+}
+
+?test_unify(x) {
+    x > 0;
+    x < 5;
+    x?;
+}

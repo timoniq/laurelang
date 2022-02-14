@@ -52,3 +52,14 @@ If infix arity of predicate equals to 2 then we can write predicate name between
 ```
 
 Bearing in mind such notation may help you choosing the appropriate name for predicate.
+
+## Implication
+
+You can use implify operation like this:
+
+```
+?absolute(x) -> y {
+    x >= 0 -> y = x;
+    x < 0 -> y = -x;
+}
+```

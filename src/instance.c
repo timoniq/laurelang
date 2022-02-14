@@ -63,7 +63,7 @@ void *array_u_new(Instance *element) {
     struct ArrayUData u_data;
     u_data.length = int_domain_new();
 
-    IntValue zero = {INCLUDED, 0};
+    IntValue zero = {INCLUDED, bigint_create(0)};
     int_domain_gt(u_data.length, zero);
 
     img->t = ARRAY;
@@ -407,7 +407,8 @@ gen_resp generate_array(bigint *length_, void *ctx_) {
     }
 
     GenArrayCtx *gen_ary_ctx = malloc(sizeof(GenArrayCtx));
-    gen_ary_ctx->aid = array_i_new(malloc(sizeof(void*) * length), length);
+    gen_ary_ctx->aid = array_i_new(malloc(sizeof(void*) * length), 0);
+    gen_ary_ctx->aid->arr_el = arr_im->arr_el;
     gen_ary_ctx->length = length;
     gen_ary_ctx->im = ctx->im;
     gen_ary_ctx->external_ctx = ctx->external_ctx;
@@ -415,6 +416,37 @@ gen_resp generate_array(bigint *length_, void *ctx_) {
     gen_ary_ctx->stack = ctx->stack;
     return image_generate(ctx->stack, get_image(gen_ary_ctx->im->arr_el), generate_array_tail, gen_ary_ctx);
 }
+
+struct unify_array_ctx {
+    gen_resp (*rec)(void*, void*);
+    void *external_ctx;
+    laure_stack_t *stack;
+    Instance *element;
+    uint idx;
+    struct ArrayImage *im;
+};
+
+gen_resp unify_array(void *img, struct unify_array_ctx *ctx) {
+    struct ArrayImage *arr = image_deepcopy(ctx->stack, ctx->im);
+    arr->i_data.array[ctx->idx]->image = img; 
+
+    GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR_IMAGE, img);
+
+    for (int i = ctx->idx + 1; i < ctx->im->i_data.length; i++) {
+        struct unify_array_ctx *uctx = malloc(sizeof(struct unify_array_ctx));
+        uctx->rec = ctx->rec;
+        uctx->idx = i;
+        uctx->im = arr;
+        uctx->external_ctx = ctx->external_ctx;
+        uctx->element = arr->i_data.array[i];
+        uctx->stack = ctx->stack;
+        gen_resp gr = image_generate(ctx->stack, uctx->element->image, unify_array, uctx);
+        free(uctx);
+        return gr;
+    }
+    ctx->im = arr;
+    return ctx->rec(ctx->im, ctx->external_ctx);
+};
 
 struct MultGenCtx {
     gen_resp (*rec)(void*, void*);
@@ -458,6 +490,21 @@ gen_resp image_generate(laure_stack_t *stack, void* img, gen_resp (*rec)(void*, 
         case ARRAY: {
             struct ArrayImage *im = (struct ArrayImage*)img;
             if (im->state == I) {
+                for (int i = 0; i < im->i_data.length; i++) {
+                    Instance *el = im->i_data.array[i];
+
+                    struct unify_array_ctx *uctx = malloc(sizeof(struct unify_array_ctx));
+                    uctx->rec = rec;
+                    uctx->stack = stack;
+                    uctx->element = el;
+                    uctx->external_ctx = external_ctx;
+                    uctx->idx = i;
+                    uctx->im = im;
+
+                    gen_resp gr =  image_generate(stack, el->image, unify_array, uctx);
+                    free(uctx);
+                    return gr;
+                }
                 return rec(im, external_ctx);
             } else if (im->state == M) {
                 return multiplicity_generate(im->mult, rec, external_ctx);
@@ -489,8 +536,10 @@ gen_resp image_generate(laure_stack_t *stack, void* img, gen_resp (*rec)(void*, 
             return gr;
         }
         default: {
-            printf("not impl %d\n", head.t);
-            break;
+            gen_resp gr;
+            gr.qr = respond(q_error, strdup("cannot instantiate"));
+            gr.r = false;
+            return gr;
         }
     }
     gen_resp gr;
@@ -580,8 +629,8 @@ string default_repr(Instance *ins) {
 string predicate_repr(Instance *ins) {
     char buff[128];
 
-    char argsbuff[64];
-    char respbuff[64];
+    char argsbuff[64] = {0};
+    char respbuff[64] = {0};
 
     struct PredicateImage *img = (struct PredicateImage*)ins->image;
 
@@ -645,24 +694,28 @@ string choice_repr(Instance *ins) {
     return strdup("todo repr");
 }
 
-string array_img_repr(struct ArrayImage *img) {
-    printf("todo repr\n");
-    return strdup("todo repr");
-}
-
 string array_repr(Instance *ins) {
-
     struct ArrayImage *img = (struct ArrayImage*)ins->image;
-
-    if (img->state == M) {
-        char buffer[64];
-        strcat(buffer, "{");
-        printf("todo array_repr\n");
-        strcat(buffer, "}");
-        return buffer;
-    } else {
-        return array_img_repr(img);
+    char buff[512];
+    if (img->state == I) {
+        strcpy(buff, "[");
+        for (int i = 0; i < img->i_data.length; i++) {
+            Instance *el = img->i_data.array[i];
+            string repr = img->arr_el->repr(el);
+            strcat(buff, repr);
+            free(repr);
+            if (i != img->i_data.length - 1)
+                strcat(buff, ", ");
+        }
+        strcat(buff, "]");
+    } else if (img->state == U) {
+        string arr_el_repr = img->arr_el->repr(img->arr_el);
+        string length_repr = int_domain_repr(img->u_data.length);
+        snprintf(buff, 512, "[%s, ...] of length %s", arr_el_repr, length_repr);
+        free(arr_el_repr);
+        free(length_repr);
     }
+    return strdup(buff);
 }
 
 Instance *instance_new(string name, string doc, void *image) {
@@ -995,7 +1048,36 @@ bool char_translator(laure_expression_t *exp, void* rimg, laure_stack_t *stack) 
 }
 
 bool array_translator(laure_expression_t *exp, void* rimg, laure_stack_t *stack) {
-    printf("translate array\n");
+    struct ArrayImage *array = (struct ArrayImage*)rimg;
+    uint length = laure_expression_get_count(exp->ba->set);
+    Instance **ptrs = malloc(sizeof(void*) * length);
+    laure_gc_treep_t *local_gc = NULL;
+
+    for (int i = 0; i < length; i++) {
+        laure_expression_t *el_exp = laure_expression_set_get_by_idx(exp->ba->set, i);
+        void *img;
+        if (el_exp->t == let_var) {
+            Instance *el = laure_stack_get(stack, el_exp->s);
+            if (! el) {
+                laure_gc_treep_destroy(local_gc);
+                return false;
+            }
+            img = el->image;
+        } else {
+            img = image_deepcopy(stack, array->arr_el->image);
+            local_gc = laure_gc_treep_add(local_gc, GCPTR_IMAGE, img);
+
+            bool result = read_head(array->arr_el->image).translator->invoke(el_exp, img, stack);
+            if (! result) {
+                laure_gc_treep_destroy(local_gc);
+                return false;
+            }
+        }
+        ptrs[i] = instance_new(strdup("element"), NULL, img);
+    }
+    array->i_data.length = length;
+    array->i_data.array = ptrs;
+    array->state = I;
     return true;
 }
 
@@ -1230,6 +1312,7 @@ bool image_free(void *img_raw, bool free_ptr) {
             break;
         }
         case ARRAY: {
+            /*
             struct ArrayImage *img = (struct ArrayImage*)img_raw;
             free(img->arr_el);
             if (img->state == I) {
@@ -1246,6 +1329,7 @@ bool image_free(void *img_raw, bool free_ptr) {
             }
             if (free_ptr)
                 free(img_raw);
+            */
             break;
         }
         default: return false;

@@ -31,6 +31,7 @@ typedef enum {
     let_unify,
     let_quant,
     let_domain,
+    let_imply,
     let_nope
 } laure_expression_type;
 
@@ -68,7 +69,7 @@ typedef struct laure_expression {
     bool is_header;
 
     char *s;
-    uint flag;
+    uint flag; // nesting for let_var
     laure_expression_compact_bodyargs *ba;
 } laure_expression_t;
 
@@ -280,7 +281,7 @@ void laure_stack_change_lid(laure_stack_t *stack, char *key, long lid);
 void laure_stack_add_to(laure_stack_t *from, laure_stack_t *to);
 
 typedef void (*single_proc)(laure_stack_t*, char*, void*);
-typedef void (*sender_rec)(char*, void*);
+typedef bool (*sender_rec)(char*, void*);
 
 typedef struct _laure_qresp qresp;
 typedef struct ControlCtx control_ctx;

@@ -1,5 +1,6 @@
 : ?include(
     "../examples",
     "math.le",
-    "function.le"
+    "function.le",
+    "logic.le"
 ).

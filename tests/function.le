@@ -1,6 +1,7 @@
 : ?test_NtoZ().
 : ?test_fibonacci().
 : ?test_factorial().
+: ?test_nope().
 
 // belonging to fibonacci row
 : ?test_fibonacci_row().
@@ -29,3 +30,5 @@
     fibr(0, 1) = 1;
     fibr(0, 1) = 5;
 }
+
+?test_nope().

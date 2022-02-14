@@ -1,8 +1,9 @@
 : ?test_math_basic().
 : ?test_math_multiply().
 : ?test_math_pow().
+: ?test_math_plus_minus().
+: ?test_math_absolute().
 : ?test_bigint().
-
 
 ?test_math_basic() {
     2 + 2 = 4;
@@ -35,6 +36,20 @@
     2 pow 10 = 1024;
     0 pow 0 = 1;
     7 pow 1 = 7;
+}
+
+?test_math_plus_minus() {
+    1 +- 1 = 0;
+    1 +- 1 = 2;
+    x +- 2 = 3;
+    x = 1;
+}
+
+?test_math_absolute() {
+    absolute(0) = 0;
+    absolute(-5) = 5;
+    absolute(x) = 11;
+    x = 0 +- 11;
 }
 
 ?test_bigint() {

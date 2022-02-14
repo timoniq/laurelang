@@ -11,6 +11,31 @@
 
 #define DOC_tests_run "used to run all tests\ntest name should start with `test_`"
 
+struct receiver_payload {
+    char **data;
+    uint data_cnt;
+    bool passed;
+    uint idx;
+};
+
+bool test_suite_receiver(string repr, struct receiver_payload *payload) {
+    if (! payload->data) {
+        return true;
+    }
+    assert(repr[0] == '=');
+    repr++;
+    if (payload->idx > payload->data_cnt - 1) {
+        payload->passed = false;
+        return false;
+    } else if (strcmp(repr, payload->data[payload->idx]) != 0) {
+        payload->passed = false;
+        return false;
+    } else {
+        payload->idx++;
+        return true;
+    }
+}
+
 qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     printf("\n(Running test suite v%s)\n", test_suite_version);
     printf("--- Collecting tests ---\n");
@@ -54,11 +79,36 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
 
     for (int i = 0; i < len; i++) {
         Instance *predicate = tests[i];
+        struct PredicateImage *pred_im = (struct PredicateImage*)predicate->image;
         printf("%s: %srunning%s\n", predicate->name, YELLOW_COLOR, NO_COLOR);
+
+        int argc = 0;
+        char **data = 0;
+        if (predicate->doc && pred_im->header.args->len > 0) {
+            argc = 1;
+            for (int j = 0; j < strlen(predicate->doc); j++) {
+                if (predicate->doc[j] == '\n') argc++;
+            }
+            data = malloc(sizeof(void*) * argc);
+            char *ptr = strtok(predicate->doc, "\n");
+            int j = 0;
+            while (ptr) {
+                data[j] = ptr;
+                j++;
+                ptr = strtok(NULL, "\n");
+            }
+        }
 
         char query[256] = {0};
         strcpy(query, predicate->name);
-        strcat(query, "()");
+        strcat(query, "(");
+        for (int j = 0; j < pred_im->header.args->len; j++) {
+            char argn[12];
+            snprintf(argn, 12, "__%d", j);
+            strcat(query, argn);
+            if (j != pred_im->header.args->len - 1) strcat(query, ",");
+        }
+        strcat(query, ")");
 
         laure_parse_result res = laure_parse(query);
         if (!res.is_ok) {
@@ -67,29 +117,50 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
 
         laure_expression_set *expset = laure_expression_compose_one(res.exp);
         control_ctx *ncctx = laure_control_ctx_get(sess, expset);
+        ncctx->vpk->sender_receiver = test_suite_receiver;
+        struct receiver_payload *payload = malloc(sizeof(struct receiver_payload));
+        payload->idx = 0;
+        payload->passed = true;
+        payload->data = data;
+        payload->data_cnt = argc;
+        ncctx->vpk->payload = payload;
+        ncctx->vpk->mode = SENDER;
+
         LAURE_RECURSION_DEPTH = 0;
         qresp response = laure_eval(ncctx, expset);
 
         up;
         erase;
 
-        switch (response.state) {
-            case q_true: {
-                printf("%s: %spassed%s\n", predicate->name, GREEN_COLOR, NO_COLOR);
-                tests_passed++;
-                break;
-            }
-            case q_false:
-            case q_error: {
-                laure_trace_erase();
-                printf("%s: %sfailed%s\n", predicate->name, RED_COLOR, NO_COLOR);
-                break;
-            }
-            default: {
-                printf("%s: %sunknown%s\n", predicate->name, GRAY_COLOR, NO_COLOR);
-                break;
+        if (! payload->passed) {
+            printf("%s: %sfailed%s (incorrect gen)%s\n", predicate->name, RED_COLOR, GRAY_COLOR, NO_COLOR);
+        } else if (payload->idx != payload->data_cnt) {
+            printf("%s: %sfailed%s (%d ignored)%s\n", predicate->name, RED_COLOR, GRAY_COLOR, payload->data_cnt - payload->idx, NO_COLOR);
+        } else if (payload->data_cnt > 0) {
+            // all found
+            printf("%s: %spassed%s\n", predicate->name, GREEN_COLOR, NO_COLOR);
+            tests_passed++;
+        } else {
+            switch (response.state) {
+                case q_true: {
+                    printf("%s: %spassed%s\n", predicate->name, GREEN_COLOR, NO_COLOR);
+                    tests_passed++;
+                    break;
+                }
+                case q_false:
+                case q_error: {
+                    laure_trace_erase();
+                    printf("%s: %sfailed%s\n", predicate->name, RED_COLOR, NO_COLOR);
+                    break;
+                }
+                default: {
+                    printf("%s: %sunknown%s\n", predicate->name, GRAY_COLOR, NO_COLOR);
+                    break;
+                }
             }
         }
+
+        
     }
 
     laure_stack_free(sess->stack);

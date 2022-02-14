@@ -447,14 +447,15 @@ qresp laure_constraint_gt(preddata *pd, control_ctx* cctx) {
     if (i_i && gt_i) {
         return bigint_cmp(i_im->i_data, gt_im->i_data) > 0 ? respond(q_true, 0) : respond(q_false, 0);
     } else if (!i_i && gt_i) {
-        if (!int_check(i_im, gt_im->i_data)) return respond(q_false, 0);
+        if (i_im->u_data->lborder.t == SECLUDED && bigint_cmp(gt_im->i_data, i_im->u_data->lborder.data) == 0) return respond(q_true, 0);
+        else if (!int_check(i_im, gt_im->i_data)) return respond(q_false, 0);
         struct IntValue v;
         v.t = SECLUDED;
         v.data = bigint_copy(gt_im->i_data);
         int_domain_gt(i_im->u_data, v);
         return respond(q_true, 0);
     } else if (i_i && !gt_i) {
-        if (!int_check(gt_im, i_im->i_data)) return respond(q_false, 0);
+        // if (!int_check(gt_im, i_im->i_data)) return respond(q_false, 0);
         struct IntValue v;
         v.t = SECLUDED;
         v.data = bigint_copy(i_im->i_data);
@@ -464,4 +465,9 @@ qresp laure_constraint_gt(preddata *pd, control_ctx* cctx) {
         printf("todo\n");
         return respond(q_true, 0);
     }
+}
+
+qresp laure_predicate_repr(preddata *pd, control_ctx *cctx) {
+    // repr(x) = y
+    return respond(q_error, strdup("not implemented"));
 }
