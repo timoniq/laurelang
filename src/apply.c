@@ -11,7 +11,9 @@
 #endif
 
 apply_result_t respond_apply(apply_status_t status, string e) {
-    apply_result_t ar = {status, e};
+    apply_result_t ar;
+    ar.status = status;
+    ar.error = e;
     return ar;
 };
 
@@ -324,6 +326,10 @@ string consult_single(laure_session_t *session, string fname, FILE *file) {
             string line_ = strdup(line);
             LAURE_CURRENT_ADDRESS = fname;
             apply_result_t result = laure_apply(session, line_);
+            if (result.error) {
+                ;
+                // printf("apply error while consulting: %s\n", result.error);
+            }
             buff[0] = 0;
         }
     }

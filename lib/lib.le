@@ -63,4 +63,5 @@
 : ?^(int, int) -> int.
 ?^(v, p) -> pow(v, p).
 
-// index __gte 0.
+// Always failing predicate
+: ?fail().

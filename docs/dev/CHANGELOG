@@ -1,20 +1,23 @@
 > 3.11.21 <
-add atoms
+atoms
 
 > 27.11.21 <
-add structures
+structures
 
 > 31.12.21 <
-add include header and an ability to include packages
+include header and an ability to include packages
 
 > 02.01.22 <
-add unify operation
+unify operation
 
 > 10.01.22 <
-add integer range declarations via From..To
+integer range declarations via From..To
 
 > 02.02.22 <
-implement garbage collector
+garbage collector
 
 > 07.02.22 <
-add test suite (@/test)
+test suite (@/test)
+
+> 15.02.22 <
+implication

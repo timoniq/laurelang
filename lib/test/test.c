@@ -16,6 +16,7 @@ struct receiver_payload {
     uint data_cnt;
     bool passed;
     uint idx;
+    string got_invalid;
 };
 
 bool test_suite_receiver(string repr, struct receiver_payload *payload) {
@@ -24,11 +25,16 @@ bool test_suite_receiver(string repr, struct receiver_payload *payload) {
     }
     assert(repr[0] == '=');
     repr++;
+    if (strcmp(payload->data[payload->idx], "..") == 0) {
+        payload->idx++;
+        return false;
+    }
     if (payload->idx > payload->data_cnt - 1) {
         payload->passed = false;
         return false;
     } else if (strcmp(repr, payload->data[payload->idx]) != 0) {
         payload->passed = false;
+        payload->got_invalid = strdup( repr );
         return false;
     } else {
         payload->idx++;
@@ -69,13 +75,17 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     uint tests_passed = 0;
 
     laure_session_t *sess = malloc(sizeof(laure_session_t));
-    sess->stack = laure_stack_init(cctx->stack->global);
+    sess->stack = laure_stack_clone(cctx->stack->global, true);
     sess->_included_filepaths[0] = 0;
     sess->_doc_buffer = NULL;
     sess->signal = 0;
+
     laure_trace_init();
     void *old_sess = LAURE_SESSION;
     LAURE_SESSION = sess;
+
+    string comments[256];
+    memset(comments, 0, sizeof(void*) * 256);
 
     for (int i = 0; i < len; i++) {
         Instance *predicate = tests[i];
@@ -103,8 +113,8 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         strcpy(query, predicate->name);
         strcat(query, "(");
         for (int j = 0; j < pred_im->header.args->len; j++) {
-            char argn[12];
-            snprintf(argn, 12, "__%d", j);
+            char argn[64];
+            snprintf(argn, 64, "%s_%d", predicate->name, j);
             strcat(query, argn);
             if (j != pred_im->header.args->len - 1) strcat(query, ",");
         }
@@ -118,11 +128,13 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         laure_expression_set *expset = laure_expression_compose_one(res.exp);
         control_ctx *ncctx = laure_control_ctx_get(sess, expset);
         ncctx->vpk->sender_receiver = test_suite_receiver;
+
         struct receiver_payload *payload = malloc(sizeof(struct receiver_payload));
         payload->idx = 0;
         payload->passed = true;
         payload->data = data;
         payload->data_cnt = argc;
+        payload->got_invalid = NULL;
         ncctx->vpk->payload = payload;
         ncctx->vpk->mode = SENDER;
 
@@ -132,10 +144,22 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         up;
         erase;
 
-        if (! payload->passed) {
-            printf("%s: %sfailed%s (incorrect gen)%s\n", predicate->name, RED_COLOR, GRAY_COLOR, NO_COLOR);
+        if (! payload->passed && payload->got_invalid) {
+            printf("%s: %sfailed GF1%s\n", predicate->name, RED_COLOR, NO_COLOR);
+            char buff[128];
+            strcpy(buff, "[GF1] incorrect value generated, expected [ ");
+            for (int j = 0; j < payload->data_cnt; j++) {
+                strcat(buff, payload->data[j]);
+                strcat(buff, " ");
+            }
+            strcat(buff, "], got ");
+            strcat(buff, payload->got_invalid);
+            comments[i] = strdup( buff );
         } else if (payload->idx != payload->data_cnt) {
-            printf("%s: %sfailed%s (%d ignored)%s\n", predicate->name, RED_COLOR, GRAY_COLOR, payload->data_cnt - payload->idx, NO_COLOR);
+            printf("%s: %sfailed GF2%s\n", predicate->name, RED_COLOR, NO_COLOR);
+            char buff[64];
+            snprintf(buff, 64, "[GF2] %d relations expected, %d generated", payload->data_cnt, payload->idx);
+            comments[i] = strdup( buff );
         } else if (payload->data_cnt > 0) {
             // all found
             printf("%s: %spassed%s\n", predicate->name, GREEN_COLOR, NO_COLOR);
@@ -151,6 +175,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
                 case q_error: {
                     laure_trace_erase();
                     printf("%s: %sfailed%s\n", predicate->name, RED_COLOR, NO_COLOR);
+                    comments[i] = response.error;
                     break;
                 }
                 default: {
@@ -166,9 +191,18 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     laure_stack_free(sess->stack);
     free(sess);
 
+    printf("--- Done. Showing check results ---\n");
+
+    for (int i = 0; i < len; i++) {
+        if (comments[i]) {
+            printf("%s: %s\n", tests[i]->name, comments[i]);
+            free(comments[i]);
+        }
+    }
+
     double passed_percent = ((double)tests_passed / (double)len) * 100;
 
-    printf("--- Result %s%d%%%s ---\n", passed_percent >= 70 ? GREEN_COLOR : RED_COLOR, (int)round(passed_percent), NO_COLOR);
+    printf("--- Result %d/%d (%s%d%%%s) ---\n", tests_passed, len, passed_percent >= 70 ? GREEN_COLOR : RED_COLOR, (int)round(passed_percent), NO_COLOR);
 
     LAURE_SESSION = old_sess;
     return respond(tests_passed == len ? q_true : q_false, NULL);

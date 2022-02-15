@@ -1,4 +1,7 @@
 : ?test_imply().
+
+// -3
+: ?test_imply_nested(int).
 : ?test_choicepoint().
 
 // 1
@@ -7,6 +10,26 @@
 // 4
 : ?test_unify(int).
 
+// 1;-3
+// 1;10
+// 5;-3
+// 5;10
+: ?test_combine(int, int).
+
+: ?test_fail().
+
+// 10
+// -3
+: ?test_nested_1(int).
+
+// 5
+// 4
+// 8
+// 12
+// 16
+// ...
+: ?test_nested_2(int).
+
 ?test_imply() {
     int x = 10;
     y ~ int;
@@ -14,6 +37,14 @@
     x > 10 -> y = 3;
     x = 10 -> y = 4;
     &all y {y = 4};
+}
+
+?test_imply_nested(x) {
+    int y = 11;
+    y > 5 -> {
+        y < 11 -> x = 1;
+        y > 7 -> y > 10 -> x = -3;
+    };
 }
 
 ?test_choicepoint() {
@@ -28,4 +59,40 @@
     x > 0;
     x < 5;
     x?;
+}
+
+?test_combine(x, y) {
+    x = 1|5;
+    y = -3|10;
+}
+
+?test_fail() {
+    fail() -> fail();
+}
+
+: ?nested_help(int, int).
+?nested_help(1, 4).
+?nested_help(x, x) when x > 0.
+?nested_help(10, -3).
+?nested_help(x, x - 8) when x < 0.
+
+?test_nested_1(x) {
+    nested_help(20, -3) -> fail();
+    nested_help(4, 1) -> fail();
+    nested_help(1, 4);
+    nested_help(-1, -9);
+    nested_help(100, 100);
+    nested_help(10, x);
+    x?;
+}
+
+: ?nested_help2(int) -> int.
+?nested_help2(x) -> 5 when nested_help(x, 4).
+?nested_help2(7) -> 7.
+?nested_help2(x) -> x when x +- 4 = 10.
+?nested_help2(4) -> x when n > 0, x = 4 * n.
+
+?test_nested_2(x) {
+    nested_help(a, 4);
+    x = nested_help2(nested_help2(a));
 }

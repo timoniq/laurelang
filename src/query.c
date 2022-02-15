@@ -162,7 +162,7 @@ gen_resp image_generator_rec(void *img, igctx *ctx) {
             gen_resp gr = {0, r};
             return gr;
         }
-        gen_resp gr = {r.state == q_error || r.state == q_stop ? 0 : 1, respond(q_false, NULL)};
+        gen_resp gr = {r.state == q_error || r.state == q_stop ? 0 : 1, r};
         return gr;
     }
 
@@ -305,10 +305,11 @@ gen_resp quantif_exists_gen(void *image, void *ctx_r) {
     Cell cell = laure_stack_get_cell_by_lid(stack, ctx->lid, true);
 
     cell.instance->image = image;
+    control_ctx *ncctx = create_control_ctx(stack, ctx->cctx->qctx, ctx->cctx->vpk, ctx->cctx->data);
 
     qresp qr = laure_eval(
-        ctx->cctx,
-        ctx->cctx->qctx->expset
+        ncctx,
+        ncctx->qctx->expset
     );
 
     if (qr.state == q_true || qr.state == q_true_s || qr.error != NULL) {

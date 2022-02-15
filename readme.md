@@ -22,26 +22,6 @@ make auto
 
 Also you may need to run tests with `make test`. Useful settings and tips for installation [may be found here](/docs/installation.md).
 
-## First query
-
-Consult [examples/factorial.le](/examples/factorial.le), its contents are:
-
-```laurelang
-: ?fac(int) -> int.
-
-?fac(0) -> 1.
-?fac(n) -> f {
-    n > 0;
-    f = n * fac(n - 1);
-}
-```
-
-Run a query to find factorial of n:
-
-```
-f = fac(n)
-```
-
 # Documentation
 
 [Read documentation](/docs/index.md)

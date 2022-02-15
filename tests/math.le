@@ -1,8 +1,15 @@
 : ?test_math_basic().
 : ?test_math_multiply().
 : ?test_math_pow().
-: ?test_math_plus_minus().
-: ?test_math_absolute().
+: ?test_math_divide().
+
+// 1
+// 5
+: ?test_math_plus_minus(int).
+
+// 11
+// -11
+: ?test_math_absolute(int).
 : ?test_bigint().
 
 ?test_math_basic() {
@@ -32,24 +39,29 @@
     x * x = 64;
 }
 
+?test_math_divide() {
+    5 / 1 = 5;
+    5 / 5 = 1;
+    200 / 4 = x;
+    &all x {x = 50};
+}
+
 ?test_math_pow() {
     2 pow 10 = 1024;
     0 pow 0 = 1;
     7 pow 1 = 7;
 }
 
-?test_math_plus_minus() {
+?test_math_plus_minus(x) {
     1 +- 1 = 0;
     1 +- 1 = 2;
     x +- 2 = 3;
-    x = 1;
 }
 
-?test_math_absolute() {
+?test_math_absolute(x) {
     absolute(0) = 0;
     absolute(-5) = 5;
     absolute(x) = 11;
-    x = 0 +- 11;
 }
 
 ?test_bigint() {

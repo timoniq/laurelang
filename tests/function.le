@@ -2,9 +2,11 @@
 : ?test_fibonacci().
 : ?test_factorial().
 : ?test_nope().
+: ?test_factorial_row().
 
-// belonging to fibonacci row
-: ?test_fibonacci_row().
+// 10
+// 2
+: ?test_with_when(int).
 
 ?test_NtoZ() {
     nz(0) = 0;
@@ -26,9 +28,18 @@
     fac(60) = 8320987112741390144276341183223364380754172606361245952449277696409600000000000000;
 }
 
-?test_fibonacci_row() {
-    fibr(0, 1) = 1;
-    fibr(0, 1) = 5;
+?test_factorial_row() {
+    i > 0;
+    &exists i {
+        fac(i) = 120;
+        &all i {
+            i = 5;
+        };
+    };
 }
 
 ?test_nope().
+
+?test_with_when(x) when x = 10.
+?test_with_when(x) when x = 2.
+?test_with_when(x) when x = 3, fail().

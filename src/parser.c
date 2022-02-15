@@ -488,7 +488,7 @@ laure_parse_result laure_parse(string query) {
                 resp = query + strlen(sp) + 2;
                 
                 free(sp);
-            } else if (easy_pattern_parse(query, ".*(.*)")) {
+            } else if (easy_pattern_parse(query, ".*(.*).*")) {
 
                 name = read_til(query, '(');
                 query = query + strlen(name) + 1;
@@ -508,13 +508,13 @@ laure_parse_result laure_parse(string query) {
             uint body_len = 0;
             bool has_resp = 0;
 
-            if (!body && ((resp && strstr(resp, " when ")) || (strstr(query + strlen(name) + strlen(args) + 3, " when ")))) {
+            if (!body && ((resp && strstr(resp, " when ")) || (strstr(query + strlen(args), " when ")))) {
                 // body declaration using `when`
                 if (resp) {
                     body = strdup( strstr(resp, " when ") + 5 );
                     resp[strlen(resp) - strlen(body) - 5] = 0;
                 } else {
-                    body = strdup( strstr(query + strlen(name) + strlen(args) + 3, " when") + 5 );
+                    body = strdup( strstr(query, " when ") + 5 );
                 }
                 laure_parse_many_result lpmr = laure_parse_many(body, ',', set);
                 if (!lpmr.is_ok) {
@@ -618,6 +618,7 @@ laure_parse_result laure_parse(string query) {
 
             body++;
             lastc(body) = 0;
+            body = string_clean(body);
 
             str_lower(quant_name);
 
@@ -638,7 +639,7 @@ laure_parse_result laure_parse(string query) {
                 if (!res.is_ok)
                     error_result(res.err);
                 count = laure_expression_get_count(res.exps);
-                set = res.exps;
+                set = laure_expression_compose(res.exps);
             }
             
             laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, count, false);
