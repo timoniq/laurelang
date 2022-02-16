@@ -11,7 +11,6 @@ typedef enum {
     q_stop, // 4
     q_continue, // 5
     q_true_s, // 6
-    q_postpone, // 7
 } qresp_state;
 
 typedef struct _laure_qresp {
@@ -73,6 +72,7 @@ typedef struct QContext {
     bool constraint_mode;
     bool forbidden_ambiguation;
     bool mark;
+    bool cut;
 } qcontext;
 
 struct BuiltinPredHint {

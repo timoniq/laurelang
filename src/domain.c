@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#ifndef INFINITY_STR
+#define INFINITY_STR "∞"
+#endif
+
 Domain *int_domain_new() {
     Domain *dom = malloc(sizeof(Domain));
 
@@ -107,8 +111,13 @@ void int_domain_constraint(Domain *dom, IntValue v) {
 string int_domain_repr(Domain *dom) {
     switch (dom->t) {
         case DOMAIN: {
-            string ls = strdup("(-∞");
-            string rs = strdup("∞)");
+            char ls[520];
+            strcpy(ls, "(-");
+            strcat(ls, INFINITY_STR);
+
+            char rs[520];
+            strcpy(rs, INFINITY_STR);
+            strcat(rs, ")");
 
             IntValue l = dom->lborder;
             IntValue r = dom->rborder;
@@ -121,7 +130,7 @@ string int_domain_repr(Domain *dom) {
 
                     char buff2[520];
                     snprintf(buff2, 520, "[%s", buff);
-                    ls = strdup(buff2);
+                    strcpy(ls, buff2);
                     break;
                 }
                 case SECLUDED: {
@@ -130,7 +139,7 @@ string int_domain_repr(Domain *dom) {
 
                     char buff2[520];
                     snprintf(buff2, 520, "(%s", buff);
-                    ls = strdup(buff2);
+                    strcpy(ls, buff2);
                     break;
                 }
                 default:
@@ -144,7 +153,7 @@ string int_domain_repr(Domain *dom) {
 
                     char buff2[520];
                     snprintf(buff2, 520, "%s]", buff);
-                    rs = strdup(buff2);
+                    strcpy(rs, buff2);
                     break;
                 }
                 case SECLUDED: {
@@ -153,17 +162,15 @@ string int_domain_repr(Domain *dom) {
 
                     char buff2[520];
                     snprintf(buff2, 520, "%s)", buff);
-                    rs = strdup(buff2);
+                    strcpy(rs, buff2);
                     break;
                 }
                 default:
                     break;
             }
 
-            char buff[1024];
-            snprintf(buff, 1024, "%s;%s", ls, rs);
-            free(ls);
-            free(rs);
+            char buff[1040];
+            snprintf(buff, 1040, "%s;%s", ls, rs);
 
             return strdup(buff);
         }

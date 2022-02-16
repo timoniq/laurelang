@@ -34,6 +34,7 @@ qcontext *qcontext_new(laure_expression_set *expset) {
     qctx->next = NULL;
     qctx->forbidden_ambiguation = false;
     qctx->mark = false;
+    qctx->cut = false;
     return qctx;
 }
 
@@ -462,12 +463,13 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
         if ((!qctx || qctx->next == NULL) || (stack->next == NULL && !stack->repeat)) {
             if (!vpk || cctx->silent) return respond(q_true, 0);
             if (qctx) qctx->mark = true;
+            qresp qr;
             if (vpk->mode == INTERACTIVE) {
-                qresp qr = laure_showcast(stack, vpk);
-                return qr;
+                qr = laure_showcast(stack, vpk);
             } else if (vpk->mode == SENDER) {
-                return laure_send(stack, vpk);
+                qr = laure_send(stack, vpk);
             }
+            return qr;
         } else {
             laure_stack_t *nstack;
 
@@ -833,6 +835,8 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
 
             if (!unifcell.instance)
                 RESPOND_ERROR("%s is undefined", ent_exp->s);
+            else if (unifcell.instance->locked)
+                RESPOND_ERROR("%s is locked", ent_exp->s);
             
             igctx ctx[1];
             ctx->cctx = cctx;
@@ -844,6 +848,10 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
             if (!gr.r) return gr.qr;
 
             return respond(q_yield, 0);
+        }
+        case let_cut: {
+            qctx->cut = true;
+            return RESPOND_OK;
         }
         case let_imply: {
             laure_expression_t *fact = ent_exp->ba->set->expression;
@@ -877,6 +885,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                     return RESPOND_OK;
                 }
             } else {
+                qctx->cut = n_if_qctx->cut;
                 laure_stack_add_to(nstack, stack);
                 laure_stack_free(nstack);
                 return respond(q_true, NULL);
@@ -1260,6 +1269,10 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                     qresp continued_resp = laure_eval(ncctx, NULL);
                     qctx->mark = nextqctx->mark;
 
+                    qcontext *first = nextqctx;
+                    while (first && first->expset == NULL) first = first->next;
+                    if (first) qctx->cut = first->cut;
+
                     // __query_free_scopes_nqctx;
                     free(ncctx);
 
@@ -1455,8 +1468,21 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                     qctx->mark = nextqctx->mark;
                     free(ncctx);
 
+
                     if (resp.error != NULL) {
                         return resp;
+                    }
+
+                    qcontext *anyqctx = nextqctx;
+                    qcontext *realqctx = qctx;
+                    while (anyqctx && realqctx) {
+                        realqctx->cut = anyqctx->cut;
+                        anyqctx = anyqctx->next;
+                        realqctx = realqctx->next;
+                    }
+
+                    if (nqctx->cut) {
+                        return respond(q_true, NULL);
                     }
 
                     if (resp.state == q_true || resp.state == q_yield) {

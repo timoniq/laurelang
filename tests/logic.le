@@ -30,6 +30,14 @@
 // ...
 : ?test_nested_2(int).
 
+// 5
+// -100
+// 5
+// 42
+// -100
+// 42
+: ?test_cut(int).
+
 ?test_imply() {
     int x = 10;
     y ~ int;
@@ -95,4 +103,22 @@
 ?test_nested_2(x) {
     nested_help(a, 4);
     x = nested_help2(nested_help2(a));
+}
+
+: ?cut_help(int) -> int.
+?cut_help(x) -> 5 when x > 10, x cons 18, x > 12 -> !.
+?cut_help(x) -> 42.
+
+?test_cut(x) {
+    cut_help(15) = x;
+}
+?test_cut(-100).
+?test_cut(x) {
+    cut_help(12) = x;
+}
+?test_cut(-100).
+?test_cut(x) {
+    cut_help(3) = x;
+    cut_help(-10) = x;
+    cut_help(18) = x;
 }

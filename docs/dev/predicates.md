@@ -59,6 +59,5 @@ all possible states:
 * `q_stop` (4) - forcely stops iterating over choicepoint
 * `q_continue` (5) - continues iteration over choicepoint
 * `q_true_s` (6) - true but silent, needed for interactive interface
-* `q_postpone` (7) - moves query to the end of query set
 
 to return state `respond(qresp_state state, string error)` is used, error is `NULL` unless state is error.

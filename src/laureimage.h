@@ -365,6 +365,8 @@ Instance *instance_deepcopy_with_image(laure_stack_t*, string name, Instance *fr
 size_t instance_get_size_deep(Instance *instance);
 string instance_repr(Instance*);
 string instance_get_doc(Instance *ins);
+void instance_lock(Instance *ins);
+void instance_unlock(Instance *ins);
 
 void *instance_free(Instance* instance);
 

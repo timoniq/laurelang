@@ -1,5 +1,3 @@
-
-
 // Read docs at /docs/builtin.md#integer-add
 // ```a + b = c;
 // +(a, b) = c;```
@@ -65,3 +63,23 @@
 
 // Always failing predicate
 : ?fail().
+
+// Simple constraint
+: #cons(int, int).
+#cons(a, b) {
+    a = b -> fail();
+}
+
+// Predicate saying all elements in array are different
+: #diff(int[]).
+
+#diff([]).
+#diff(arr) when length of arr = 1.
+#diff([a, b]) when cons(a, b).
+
+#diff(arr) {
+    length of arr = l;
+    arr[i] = el;
+    cons(arr[i], arr[i + 1]);
+    diff(arr from (i + 2));
+}

@@ -444,6 +444,13 @@ laure_parse_result laure_parse(string query) {
         lastc(query) = 0;
         return laure_parse(query);
     }
+
+    if (strcmp(query, "!") == 0) {
+        laure_parse_result lpr;
+        lpr.is_ok = true;
+        lpr.exp = laure_expression_create(let_cut, NULL, false, strdup("!"), 0, NULL);
+        return lpr;
+    }
     
     char det = query[0];
     query++;
@@ -1026,6 +1033,22 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
             break;
         }
 
+        case let_imply: {
+            printindent(indent);
+            printf("imply [\n");
+            laure_expression_t *ptr = NULL;
+            EXPSET_ITER(exp->ba->set->expression->ba->set, ptr, {
+                laure_expression_show(ptr, indent + 2);
+            });
+            printindent(indent); printf("] for [\n");
+            ptr = NULL;
+            EXPSET_ITER(exp->ba->set->next, ptr, {
+                laure_expression_show(ptr, indent + 2);
+            });
+            printindent(indent); printf("]\n");
+            break;
+        }
+
         case let_custom: {
             printindent(indent);
             printf("custom %s\n", exp->s);
@@ -1034,7 +1057,7 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
     
         default: {
             printindent(indent);
-            printf("idk\n");
+            printf("idk (%d)\n", exp->t);
             break;
         }
     }

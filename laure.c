@@ -44,7 +44,9 @@ const struct cmd_info commands[] = {
     {5, ".gc", 0, "Runs garbage collector."},
     {6, ".doc", 1, "Shows documentation for object."},
     {7, ".getinfo", 0, "Shows information about reasoning system."},
-    {8, ".ast", -1, "Shows AST of query passed."}
+    {8, ".ast", -1, "Shows AST of query passed."},
+    {9, ".lock", -1, "Locks instances."},
+    {10, ".unlock", -1, "Unlocks instances."}
 };
 
 struct filename_linked {
@@ -267,6 +269,41 @@ int laure_process_query(laure_session_t *session, string line) {
             laure_expression_show(result.exp, 0);
             printf("\n");
             break;
+        }
+        case 9: {
+            if (args.argc == 1) {
+                printf("%sUsage: .lock {names}%s\n", RED_COLOR, NO_COLOR);
+            } else {
+                for (int j = 1; j < args.argc; j++) {
+                    string name = args.argv[j];
+                    Instance *to_lock = laure_stack_get(session->stack, name);
+                    if (! to_lock) {
+                        printf("  %s %sis undefined%s\n", name, RED_COLOR, NO_COLOR);
+                    } else {
+                        instance_lock(to_lock);
+                        printf("  %s %slocked%s\n", name, GREEN_COLOR, NO_COLOR);
+                    }
+                    
+                }
+            }
+            break;
+        }
+        case 10: {
+            if (args.argc == 1) {
+                printf("%sUsage: .unlock {names}%s\n", RED_COLOR, NO_COLOR);
+            } else {
+                for (int j = 1; j < args.argc; j++) {
+                    string name = args.argv[j];
+                    Instance *to_unlock = laure_stack_get(session->stack, name);
+                    if (! to_unlock) {
+                        printf("  %s %sis undefined%s\n", name, RED_COLOR, NO_COLOR);
+                    } else {
+                        instance_unlock(to_unlock);
+                        printf("  %s %sunlocked%s\n", name, GREEN_COLOR, NO_COLOR);
+                    }
+                    
+                }
+            }
         }
         default: break;
     }

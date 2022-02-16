@@ -1423,6 +1423,13 @@ size_t image_get_size_deep(void *image) {
     return sz;
 }
 
+void instance_lock(Instance *ins) {
+    ins->locked = true;
+}
+
+void instance_unlock(Instance *ins) {
+    ins->locked = false;
+}
 
 string instance_repr(Instance *ins) {
     return ins->repr(ins);
