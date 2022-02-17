@@ -82,7 +82,7 @@ You can use implify operation like this:
 }
 ```
 
-## fail()
+## Predicate `fail()`
 
 Fail predicate always fails. You can use it with implication to negate statements:
 

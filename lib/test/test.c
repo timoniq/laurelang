@@ -11,6 +11,10 @@
 
 #define DOC_tests_run "used to run all tests\ntest name should start with `test_`"
 
+// error codes
+#define GENERATOR_FAULT_VALUE "GF1"
+#define GENERATOR_FAULT_COUNT "GF2"
+
 struct receiver_payload {
     char **data;
     uint data_cnt;
@@ -42,9 +46,25 @@ bool test_suite_receiver(string repr, struct receiver_payload *payload) {
     }
 }
 
+void headerprint(string s, uint maxnlen, uint colorcodes) {
+    uint filler = 8 + maxnlen;
+    uint len_s = laure_string_strlen(s) + 9 - (colorcodes * 6);
+    if (filler < len_s)
+        printf("--- %s ---\n", s);
+    else {
+        filler = (filler - len_s) / 2;
+        printf("---");
+        for (int j = 0; j < filler; j++) printf(" ");
+        printf(" %s ", s);
+        for (int j = 0; j < filler; j++) printf(" ");
+        if (maxnlen % 2 == 0 && ! colorcodes) printf(" ");
+        printf("---\n");
+    }
+}
+
 qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     printf("\n(Running test suite v%s)\n", test_suite_version);
-    printf("--- Collecting tests ---\n");
+    printf("(Collecting tests)\n");
 
     Instance *tests[256];
     memset(tests, 0, sizeof(void*) * 256);
@@ -71,7 +91,6 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     }
 
     printf("Collected %d tests.\n", len);
-    printf("--- Running tests ---\n");
     uint tests_passed = 0;
 
     laure_session_t *sess = malloc(sizeof(laure_session_t));
@@ -87,10 +106,26 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     string comments[256];
     memset(comments, 0, sizeof(void*) * 256);
 
+    uint max_name_len = 0;
+
+    for (int i = 0; i < len; i++) {
+        Instance *predicate = tests[i];
+        if (laure_string_strlen(predicate->name) > max_name_len) {
+            max_name_len = laure_string_strlen(predicate->name);
+        }
+    }
+
+    headerprint("Running tests", max_name_len, 0);
+
     for (int i = 0; i < len; i++) {
         Instance *predicate = tests[i];
         struct PredicateImage *pred_im = (struct PredicateImage*)predicate->image;
-        printf("%s: %srunning%s\n", predicate->name, YELLOW_COLOR, NO_COLOR);
+        char spaces[28] = {0};
+        for (int j = laure_string_strlen(predicate->name); j < max_name_len; j++) {
+            strcat(spaces, " ");
+            if (j >= 27) break;
+        }
+        printf("%s: %s%srunning%s\n", predicate->name, spaces, YELLOW_COLOR, NO_COLOR);
 
         int argc = 0;
         char **data = 0;
@@ -145,9 +180,11 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         erase;
 
         if (! payload->passed && payload->got_invalid) {
-            printf("%s: %sfailed GF1%s\n", predicate->name, RED_COLOR, NO_COLOR);
+            printf("%s: %s%sfailed (%s)%s\n", predicate->name, spaces, RED_COLOR, GENERATOR_FAULT_VALUE, NO_COLOR);
             char buff[128];
-            strcpy(buff, "[GF1] incorrect value generated, expected [ ");
+            strcpy(buff, "[");
+            strcat(buff, GENERATOR_FAULT_VALUE);
+            strcat(buff, "] incorrect value generated, expected [ ");
             for (int j = 0; j < payload->data_cnt; j++) {
                 strcat(buff, payload->data[j]);
                 strcat(buff, " ");
@@ -156,30 +193,30 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
             strcat(buff, payload->got_invalid);
             comments[i] = strdup( buff );
         } else if (payload->idx != payload->data_cnt) {
-            printf("%s: %sfailed GF2%s\n", predicate->name, RED_COLOR, NO_COLOR);
+            printf("%s: %s%sfailed (%s)%s\n", predicate->name, spaces, RED_COLOR, GENERATOR_FAULT_COUNT, NO_COLOR);
             char buff[64];
-            snprintf(buff, 64, "[GF2] %d relations expected, %d generated", payload->data_cnt, payload->idx);
+            snprintf(buff, 64, "[%s] %d relations expected, %d generated", GENERATOR_FAULT_COUNT, payload->data_cnt, payload->idx);
             comments[i] = strdup( buff );
         } else if (payload->data_cnt > 0) {
             // all found
-            printf("%s: %spassed%s\n", predicate->name, GREEN_COLOR, NO_COLOR);
+            printf("%s: %s%spassed%s\n", predicate->name, spaces, GREEN_COLOR, NO_COLOR);
             tests_passed++;
         } else {
             switch (response.state) {
                 case q_true: {
-                    printf("%s: %spassed%s\n", predicate->name, GREEN_COLOR, NO_COLOR);
+                    printf("%s: %s%spassed%s\n", predicate->name, spaces, GREEN_COLOR, NO_COLOR);
                     tests_passed++;
                     break;
                 }
                 case q_false:
                 case q_error: {
                     laure_trace_erase();
-                    printf("%s: %sfailed%s\n", predicate->name, RED_COLOR, NO_COLOR);
+                    printf("%s: %s%sfailed%s\n", predicate->name, spaces, RED_COLOR, NO_COLOR);
                     comments[i] = response.error;
                     break;
                 }
                 default: {
-                    printf("%s: %sunknown%s\n", predicate->name, GRAY_COLOR, NO_COLOR);
+                    printf("%s: %s%sunknown%s\n", predicate->name, spaces, GRAY_COLOR, NO_COLOR);
                     break;
                 }
             }
@@ -191,7 +228,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     laure_stack_free(sess->stack);
     free(sess);
 
-    printf("--- Done. Showing check results ---\n");
+    headerprint("Showing results", max_name_len, 0);
 
     for (int i = 0; i < len; i++) {
         if (comments[i]) {
@@ -202,8 +239,16 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
 
     double passed_percent = ((double)tests_passed / (double)len) * 100;
 
-    printf("--- Result %d/%d (%s%d%%%s) ---\n", tests_passed, len, passed_percent >= 70 ? GREEN_COLOR : RED_COLOR, (int)round(passed_percent), NO_COLOR);
+    char buff[128];
+    snprintf(buff, 128, "Result %d/%d (%s%d%%%s)", tests_passed, len, passed_percent >= 70 ? GREEN_COLOR : RED_COLOR, (int)round(passed_percent), NO_COLOR);
 
+    headerprint(buff, max_name_len, 
+        #ifdef DISABLE_COLORING
+        0
+        #else
+        2
+        #endif
+    );
     LAURE_SESSION = old_sess;
     return respond(tests_passed == len ? q_true : q_false, NULL);
 }
