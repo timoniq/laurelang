@@ -82,3 +82,27 @@
     int el = 5;
     arr by_idx x = el;
 }
+
+: ?test_array_length().
+?test_array_length() {
+    int[] arr = [100, 200, 300];
+    length of arr = x;
+    &all x {x = 3};
+}
+
+// [2, 2, 2]
+// [2, 2, 3]
+// [2, 3, 2]
+// [2, 3, 3]
+// [3, 2, 2]
+// [3, 2, 3]
+// [3, 3, 2]
+// [3, 3, 3]
+: ?test_array_length_gen_array(int[]).
+
+?test_array_length_gen_array(x) {
+    int el = <1..3;
+    arr ~ el[];
+    length of arr = 3;
+    x = arr;
+}

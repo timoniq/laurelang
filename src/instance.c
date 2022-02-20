@@ -1185,6 +1185,10 @@ bool img_equals(void* img1, void* img2) {
             struct ArrayImage *img1_t = (struct ArrayImage*)img1;
             struct ArrayImage *img2_t = (struct ArrayImage*)img2;
 
+            if (! img1_t->arr_el || ! img2_t->arr_el) {
+                return img1_t->arr_el == img2_t->arr_el;
+            }
+
             if (strcmp(img1_t->arr_el->name, img2_t->arr_el->name) != 0) return false;
 
             if (img1_t->state == I && img2_t->state == I) {

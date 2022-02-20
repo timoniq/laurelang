@@ -18,6 +18,7 @@ typedef struct IntValue {
 
 enum DomainT {
     DOMAIN,
+    SINGLE,
     EMPTY
 };
 

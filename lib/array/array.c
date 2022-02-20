@@ -7,6 +7,9 @@
 
 #define DOC_each "Array enumerating predicate\n```each(array) = element```"
 #define DOC_by_idx "Predicate of idx to element relation in array\n```array by_idx idx = element```"
+#define DOC_length "Array length declaration"
+
+#define TOO_AMBIG respond(q_error, strdup( "too much ambiguations [wip]") );
 
 qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
     Instance *arr_ins = pd_get_arg(pd, 0);
@@ -61,7 +64,7 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
         bool result = img_equals(arr_img->arr_el->image, el_ins->image);
         return respond(result ? q_true : q_false, 0);
     } else {
-        return respond(q_error, strdup( "cannot instantiate, too much ambugiations") );
+        return TOO_AMBIG;
     }
     return respond(q_true, 0);
 }
@@ -165,10 +168,30 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
     } else if (instantiated(el_ins)) {
 
     } else {
-        return respond(q_error, strdup( "cannot instantiate, too much ambugiations") );
+        return TOO_AMBIG;
     }
 }
 
+qresp array_predicate_length(preddata *pd, control_ctx *cctx) {
+    Instance *arr_ins = pd_get_arg(pd, 0);
+    Instance *len_ins = pd->resp;
+
+    struct ArrayImage *arr_img = (struct ArrayImage*)arr_ins->image;
+    struct IntImage *len_img = (struct IntImage*)len_ins->image;
+
+    if (instantiated(arr_ins)) {
+        uint real_len = arr_img->i_data.length;
+        void *real_len_img = integer_i_new(real_len);
+        bool result = img_equals(len_img, real_len_img);
+        image_free(real_len_img, true);
+        return respond(result ? q_true : q_false, 0);
+    } else if (instantiated(len_ins)) {
+        arr_img->u_data.length->t = SINGLE;
+        arr_img->u_data.length->lborder.data = len_img->i_data;
+    } else {
+        return TOO_AMBIG;
+    }
+}
 
 int package_include(laure_session_t *session) {
     laure_cle_add_predicate(
@@ -182,6 +205,12 @@ int package_include(laure_session_t *session) {
         array_predicate_by_idx, 
         2, "arr:_ idx:int", NULL, false, 
         DOC_by_idx
+    );
+    laure_cle_add_predicate(
+        session, "length", 
+        array_predicate_length, 
+        1, "arr:_", "int", false, 
+        DOC_length
     );
     return 0;
 }

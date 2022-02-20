@@ -29,6 +29,14 @@ Domain *int_domain_new() {
     return dom;
 }
 
+Domain *int_domain_single(bigint *bi) {
+    Domain *dom = malloc(sizeof(Domain));
+    dom->t = SINGLE;
+    dom->lborder.t = INCLUDED;
+    dom->lborder.data = bi;
+    return dom;
+}
+
 void int_convert_to_secluded(IntValue *v, bool gt) {
     switch (v->t) {
         case INCLUDED: {
@@ -176,6 +184,13 @@ string int_domain_repr(Domain *dom) {
         }
         case EMPTY:
             return strdup("∅");
+        case SINGLE: {
+            char buff[10];
+            strcpy(buff, "{");
+            bigint_write(buff, 8, dom->lborder.data);
+            strcat(buff, "}");
+            return strdup( buff );
+        }
     }
 }
 
@@ -335,6 +350,9 @@ gen_resp int_domain_generate(Domain *dom, gen_resp (*receiver)(bigint*, void*), 
         }
         case EMPTY:
             break;
+        case SINGLE: {
+            return (receiver)(dom->lborder.data, context);
+        }
     }
     gen_resp r = {1, respond(q_yield, NULL)};
     return r;
@@ -357,17 +375,4 @@ Domain *int_domain_copy(Domain *dom) {
 void int_domain_free(Domain *dom) {
     if (dom == NULL) return;
     //free(dom);
-}
-
-Domain *int_domain_single(bigint *p) {
-    Domain *dom = int_domain_new();
-    IntValue v1;
-    v1.t = INCLUDED;
-    v1.data = p;
-    IntValue v2;
-    v2.t = SECLUDED;
-    v2.data = p;
-    int_domain_gt(dom, v1);
-    int_domain_lt(dom, v2);
-    return dom;
 }
