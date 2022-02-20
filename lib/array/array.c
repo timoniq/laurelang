@@ -1,0 +1,187 @@
+#include <laurelang.h>
+#include <predpub.h>
+#include <laureimage.h>
+#include <builtin.h>
+#include <math.h>
+#include <builtin.h>
+
+#define DOC_each "Array enumerating predicate\n```each(array) = element```"
+#define DOC_by_idx "Predicate of idx to element relation in array\n```array by_idx idx = element```"
+
+qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
+    Instance *arr_ins = pd_get_arg(pd, 0);
+    Instance *el_ins = pd->resp;
+
+    if (! arr_ins || ! el_ins) {
+        return respond(q_error, strdup( "each cannot operate on non-hinted instances, add hints or use generic" ) );
+    } 
+
+    struct ArrayImage *arr_img = arr_ins->image;
+
+    if (instantiated(arr_ins)) {
+        if (instantiated(el_ins)) {
+            for (int idx = 0; idx < arr_img->i_data.length; idx++) {
+                Instance *el = arr_img->i_data.array[idx];
+                if (! img_equals(el_ins->image, el->image))
+                    return respond(q_false, NULL);
+            }
+            return respond(q_true, NULL);
+        } else {
+            Instance *el_ins_copy = instance_deepcopy(cctx->stack, el_ins->name, el_ins);
+
+            bool found = false;
+
+            for (int idx = 0; idx < arr_img->i_data.length; idx++) {
+                void *img_copy = image_deepcopy(cctx->stack, el_ins_copy->image);
+                Instance *el = arr_img->i_data.array[idx];
+
+                if (img_equals(img_copy, el->image)) {
+
+                    // choicepoint created
+                    el_ins->image = img_copy;
+
+                    laure_stack_t *nstack = laure_stack_clone(cctx->stack, true);
+                    control_ctx *ncctx = control_new(nstack, cctx->qctx, cctx->vpk, cctx->data);
+
+                    qresp result = laure_eval(ncctx, ncctx->qctx->expset);
+
+                    if (result.error) return result;
+                    else if (result.state == q_true) found = true;
+
+                    free(ncctx);
+                    laure_stack_free(nstack);
+                }
+
+                GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR_INSTANCE, el_ins_copy);
+            }
+            return respond(q_yield, (void*)found);
+        }
+    } else if (instantiated(el_ins)) {
+        // every array element is el_ins
+        bool result = img_equals(arr_img->arr_el->image, el_ins->image);
+        return respond(result ? q_true : q_false, 0);
+    } else {
+        return respond(q_error, strdup( "cannot instantiate, too much ambugiations") );
+    }
+    return respond(q_true, 0);
+}
+
+qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
+    Instance *arr_ins = pd_get_arg(pd, 0);
+    Instance *idx_ins = pd_get_arg(pd, 1);
+    Instance *el_ins  = pd->resp;
+
+    struct IntImage *idx_img = (struct IntImage*)idx_ins->image;
+    struct ArrayImage *arr_img = (struct ArrayImage*)arr_ins->image;
+    void *el_img = el_ins->image;
+
+    if (instantiated(arr_ins)) {
+        uint len = arr_img->i_data.length;
+        if (instantiated(idx_ins)) {
+            uint idx = (uint)bigint_double(idx_img->i_data);
+            if (idx < 0 || idx >= len) return RESPOND_FALSE;
+            Instance *ins = arr_img->i_data.array[idx];
+            bool result = img_equals(el_ins->image, ins->image);
+            return respond(result ? q_true : q_false, 0);
+        } else if (instantiated(el_ins)) {
+            bool found = false;
+            void *idx_with_dom = image_deepcopy(cctx->stack, idx_img);
+            
+            for (int idx = 0; idx < len; idx++) {
+                bigint *idx_bi = bigint_create(idx);
+                bool idx_check = int_check(idx_with_dom, idx_bi);
+                if (! idx_check) {bigint_free(idx_bi); continue;}
+                Instance *ins = arr_img->i_data.array[idx];
+                if (img_equals(ins->image, el_ins->image)) {
+
+                    idx_img->state = I;
+                    idx_img->i_data = idx_bi;
+                    found = true;
+
+                    laure_stack_t *nstack = laure_stack_clone(cctx->stack, true);
+                    control_ctx *ncctx = control_new(nstack, cctx->qctx, cctx->vpk, cctx->data);
+
+                    qresp result = laure_eval(ncctx, ncctx->qctx->expset);
+
+                    if (result.error) return result;
+                    else if (result.state == q_true) found = true;
+
+                    free(ncctx);
+                    laure_stack_free(nstack);
+                    GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR, idx_bi->words);
+                    GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR, idx_bi);
+                } else {
+                    bigint_free(idx_bi);
+                }
+            }
+            image_free(idx_with_dom, true);
+            return respond(q_yield, (void*)found);
+        } else {
+            bool found = false;
+            void *idx_img_copy = image_deepcopy(cctx->stack, idx_img);
+            void *el_img_u = image_deepcopy(cctx->stack, el_img);
+
+            for (int idx = 0; idx < len; idx++) {
+                bigint *idx_bi = bigint_create(idx);
+                bool idx_check = int_check(idx_img_copy, idx_bi);
+
+                if (! idx_check) {bigint_free(idx_bi); continue;}
+
+                Instance *ins = arr_img->i_data.array[idx];
+                void *el_img_copy = image_deepcopy(cctx->stack, el_img_u);
+
+                bool check = img_equals(el_img_copy, ins->image);
+                if (! check) {
+                    GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR_IMAGE, el_img_copy);
+                    continue;
+                }
+
+                el_ins->image = el_img_copy;
+                idx_img->state = I;
+                idx_img->i_data = idx_bi;
+
+                laure_stack_t *nstack = laure_stack_clone(cctx->stack, true);
+                control_ctx *ncctx = control_new(nstack, cctx->qctx, cctx->vpk, cctx->data);
+
+                qresp result = laure_eval(ncctx, ncctx->qctx->expset);
+
+                if (result.error) return result;
+                else if (result.state == q_true) found = true;
+
+                free(ncctx);
+                laure_stack_free(nstack);
+
+                GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR_IMAGE, el_img_copy);
+                GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR, idx_bi->words);
+                GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR, idx_bi);
+            }
+
+            image_free(idx_img_copy, true);
+            image_free(el_img_u, true);
+            return respond(q_yield, (void*)found);
+        }
+    } else if (instantiated(idx_ins)) {
+
+    } else if (instantiated(el_ins)) {
+
+    } else {
+        return respond(q_error, strdup( "cannot instantiate, too much ambugiations") );
+    }
+}
+
+
+int package_include(laure_session_t *session) {
+    laure_cle_add_predicate(
+        session, "each", 
+        array_predicate_each, 
+        1, "arr:_", NULL, false, 
+        DOC_each
+    );
+    laure_cle_add_predicate(
+        session, "by_idx", 
+        array_predicate_by_idx, 
+        2, "arr:_ idx:int", NULL, false, 
+        DOC_by_idx
+    );
+    return 0;
+}

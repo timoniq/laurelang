@@ -47,7 +47,7 @@ bool test_suite_receiver(string repr, struct receiver_payload *payload) {
 }
 
 void headerprint(string s, uint maxnlen, uint colorcodes) {
-    uint filler = 8 + maxnlen;
+    uint filler = 9 + maxnlen;
     uint len_s = laure_string_strlen(s) + 9 - (colorcodes * 6);
     if (filler < len_s)
         printf("--- %s ---\n", s);
@@ -57,7 +57,6 @@ void headerprint(string s, uint maxnlen, uint colorcodes) {
         for (int j = 0; j < filler; j++) printf(" ");
         printf(" %s ", s);
         for (int j = 0; j < filler; j++) printf(" ");
-        if (maxnlen % 2 == 0 && ! colorcodes) printf(" ");
         printf("---\n");
     }
 }
@@ -221,8 +220,6 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
                 }
             }
         }
-
-        
     }
 
     laure_stack_free(sess->stack);

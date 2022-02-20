@@ -80,7 +80,7 @@ void *abstract_new(string atom) {
     return NULL;
 }
 
-void *predicate_header_new(struct InstanceSet *args, Instance *resp, bool is_constraint) {
+struct PredicateImage *predicate_header_new(struct InstanceSet *args, Instance *resp, bool is_constraint) {
     struct PredicateImage *img = malloc(sizeof(struct PredicateImage));
 
     img->t = !is_constraint ? PREDICATE_FACT : CONSTRAINT_FACT;
@@ -88,6 +88,8 @@ void *predicate_header_new(struct InstanceSet *args, Instance *resp, bool is_con
     struct PredicateHeaderImage header;
     header.args = args;
     header.resp = resp;
+    header.nestings = 0;
+    header.response_nesting = 0;
     
     img->translator = NULL;
     img->header = header;
@@ -642,9 +644,9 @@ string predicate_repr(Instance *ins) {
         } else strcpy(argsbuff, argn);
     }
 
-    if (img->header.resp != NULL)
+    if (img->header.resp != NULL) {
         snprintf(respbuff, 64, " -> %s", img->header.resp->name);
-    else
+    } else
         respbuff[0] = 0;
     
     snprintf(buff, 128, "(?%s(%s)%s)", ins->name, argsbuff, respbuff);
@@ -1049,6 +1051,7 @@ bool char_translator(laure_expression_t *exp, void* rimg, laure_stack_t *stack) 
 
 bool array_translator(laure_expression_t *exp, void* rimg, laure_stack_t *stack) {
     struct ArrayImage *array = (struct ArrayImage*)rimg;
+    if (array->t != ARRAY || exp->t != let_array) return false;
     uint length = laure_expression_get_count(exp->ba->set);
     Instance **ptrs = malloc(sizeof(void*) * length);
     laure_gc_treep_t *local_gc = NULL;
@@ -1179,14 +1182,44 @@ bool img_equals(void* img1, void* img2) {
         }
         case ARRAY: {
             //! fixme
-            if (((struct ArrayImage*)img1)->state != I || ((struct ArrayImage*)img2)->state != I) return true;
-            if (((struct ArrayImage*)img1)->i_data.length != ((struct ArrayImage*)img2)->i_data.length) return false;
+            struct ArrayImage *img1_t = (struct ArrayImage*)img1;
+            struct ArrayImage *img2_t = (struct ArrayImage*)img2;
 
-            for (int i = 0; i < ((struct ArrayImage*)img1)->i_data.length; i++) {
-                if (!img_equals(((struct ArrayImage*)img1)->i_data.array[i]->image, ((struct ArrayImage*)img2)->i_data.array[i]->image)) return false;
+            if (strcmp(img1_t->arr_el->name, img2_t->arr_el->name) != 0) return false;
+
+            if (img1_t->state == I && img2_t->state == I) {
+                if (((struct ArrayImage*)img1)->i_data.length != ((struct ArrayImage*)img2)->i_data.length) return false;
+
+                for (int i = 0; i < ((struct ArrayImage*)img1)->i_data.length; i++) {
+                    if (!img_equals(((struct ArrayImage*)img1)->i_data.array[i]->image, ((struct ArrayImage*)img2)->i_data.array[i]->image)) return false;
+                }
+
+                return true;
+            } else if (img1_t->state == I || img2_t->state == I) {
+                struct ArrayImage *from;
+                struct ArrayImage *to;
+
+                if (img1_t->state == I) {
+                    from = img1_t;
+                    to = img2_t;
+                } else {
+                    from = img2_t;
+                    to = img1_t;
+                }
+
+                bigint *bi_len = bigint_create(from->i_data.length);
+
+                if (! int_domain_check(to->u_data.length, bi_len)) {bigint_free(bi_len); return false;}
+                bigint_free(bi_len);
+                int_domain_free(to->u_data.length);
+                to->i_data.length = from->i_data.length;
+                to->i_data.array = from->i_data.array;
+                to->state = I;
+                return true;
+            } else {
+                printf("both arrays are amguative, todo\n");
+                return true;
             }
-
-            return true;
         }
         case ATOM: {
             struct AtomImage *img1_t = (struct AtomImage*)img1;
@@ -1440,7 +1473,7 @@ qresp respond(qresp_state s, string e) {
     qr.state = s;
     qr.error = e;
     if (qr.state == q_error) {
-        if (LAURE_TRACE->length > 1)
+        if (LAURE_TRACE && LAURE_TRACE->length > 1)
             laure_trace_print();
     } else {
         laure_trace_linked *l = laure_trace_last_linked();

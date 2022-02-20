@@ -1,0 +1,84 @@
+: ?include("@/array").
+
+// [1, 2, 3]
+: ?test_array_basic(int[]).
+
+// [5, 4, -5]
+// [5, 5, -5]
+: ?test_array_with_domain(int[]).
+
+?test_array_basic(arr) {
+    int[][] _a = [100, 200, 300] -> fail();
+    int[][] _a = [[1, 2], [3]];
+    arr = [1, 2, 3];
+}
+
+?test_array_with_domain(arr) {
+    int c = <3..5;
+    arr = [5, c, -5];
+    arr?;
+}
+
+// 1
+// 2
+// 3
+: ?test_array_each(int).
+
+?test_array_each(x) {
+    int[] arr = [1, 2, 3];
+    x = each of arr;
+}
+
+// [1, 2]
+// [3, 4]
+// [5]
+: ?test_array_each_2(int[]).
+
+: ?test_array_each_2(element) {
+    int[][] arr = [[1, 2], [3, 4], [5]];
+    int[] x = [1, 2];
+    each of arr = x -> fail();
+    int[][] arr2 = [[1, 2], [1, 2], [1, 2]];
+    each of arr2 = x;
+    int one = 1;
+    each of arr2 = one -> fail();
+    int[] arr3 = [1, 1, 1];
+    each(arr3) = one;
+    element = each(arr);
+}
+
+// []
+// [1]
+// [1, 1]
+// [1, 1, 1]
+// ...
+: ?test_array_each_gen_array(int[]).
+
+: ?test_array_each_gen_array(arr) {
+    int element = 1;
+    element = each(arr);
+}
+
+// 5
+// -1
+// 3
+// 5
+: ?test_array_by_idx(int).
+
+?test_array_by_idx(x) {
+    int[] arr = [1, 2, 3, 5, 8, 13, 21];
+    arr by_idx 3 = x;
+    y ~ int;
+    arr by_idx x = y;
+    &all y {
+        y = 13;
+    }
+}
+
+?test_array_by_idx(-1).
+
+?test_array_by_idx(x) {
+    int[] arr = [1, 2, 3, 5, 8, 5, 3, 2, 1];
+    int el = 5;
+    arr by_idx x = el;
+}

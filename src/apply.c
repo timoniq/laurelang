@@ -63,6 +63,35 @@ string get_work_dir_path(string f_addr) {
     return naddr;
 }
 
+string get_nested_ins_name(Instance *atom, uint nesting, laure_stack_t *stack) {
+    assert(atom != NULL);
+    char buff[64];
+    strcpy(buff, atom->name);
+    for (int i = 0; i < nesting; i++) {
+        strcat(buff, "[]");
+    }
+    if (!laure_stack_get(stack, buff)) {
+        Instance *ins = atom;
+        
+        while (nesting) {
+            void *img = array_u_new(ins);
+            ins = instance_new(strdup("el"), NULL, img);
+            ins->repr = array_repr;
+            nesting--;
+        }
+
+        ins->name = strdup(buff);
+        ins->repr = array_repr;
+
+        // create constant nested type
+        Cell cell;
+        cell.instance = ins;
+        cell.link_id = laure_stack_get_uid(stack);
+        laure_stack_insert(stack, cell);
+    }
+    return strdup(buff);
+}
+
 apply_result_t laure_consult_predicate(laure_session_t *session, laure_stack_t *stack, laure_expression_t *predicate_exp, string address) {
     assert(predicate_exp->t == let_pred || predicate_exp->t == let_constraint);
     Instance *pred_ins = laure_stack_get(stack, predicate_exp->s);
@@ -128,18 +157,44 @@ apply_result_t laure_consult_predicate(laure_session_t *session, laure_stack_t *
         uint all_count = laure_expression_get_count(predicate_exp->ba->set);
         if (predicate_exp->ba->has_resp) all_count--;
 
+        uint idx = 0;
+        uint *nestings = malloc(sizeof(void*) * (all_count - predicate_exp->ba->body_len));
+
         for (int i = predicate_exp->ba->body_len; i < all_count; i++) {
-            string tname = laure_expression_set_get_by_idx(predicate_exp->ba->set, i)->s;
+            laure_expression_t *aexp = laure_expression_set_get_by_idx(predicate_exp->ba->set, i);
+            uint nesting = aexp->flag;
+            string tname;
+            if (nesting) {
+                Instance *to_nest = laure_stack_get(stack, aexp->s);
+                if (!to_nest) {
+                    return respond_apply(apply_error, "error reaching instance to nest");
+                }
+                tname = get_nested_ins_name(to_nest, nesting, stack);
+            } else {
+                tname = aexp->s;
+            }
             Instance *arg = laure_stack_get(stack, tname);
             if (! arg) {
                 return respond_apply(apply_error, "predicate argument hint is undefined in scope");
             }
             instance_set_push(args_set, arg);
+            nestings[idx] = nesting;
+            idx++;
         }
 
         Instance *resp;
+        uint resp_nesting = 0;
         if (predicate_exp->ba->has_resp) {
-            string tname = laure_expression_set_get_by_idx(predicate_exp->ba->set, predicate_exp->ba->body_len)->s;
+            laure_expression_t *rexp = laure_expression_set_get_by_idx(predicate_exp->ba->set, idx);
+            string tname;
+            resp_nesting = rexp->flag;
+            if (resp_nesting) {
+                Instance *to_nest = laure_stack_get(stack, rexp->s);
+                if (!to_nest) {
+                    return respond_apply(apply_error, "error reaching instance to nest");
+                }
+                tname = get_nested_ins_name(to_nest, resp_nesting, stack);
+            } else tname = rexp->s;
             resp = laure_stack_get(stack, tname);
             if (! resp) {
                 return respond_apply(apply_error, "predicate response hint is undefined in scope");
@@ -148,7 +203,9 @@ apply_result_t laure_consult_predicate(laure_session_t *session, laure_stack_t *
             resp = NULL;
         }
 
-        void *img = predicate_header_new(args_set, resp, predicate_exp->t == let_constraint);
+        struct PredicateImage *img = predicate_header_new(args_set, resp, predicate_exp->t == let_constraint);
+        img->header.nestings = nestings;
+        img->header.response_nesting = resp_nesting;
 
         string name = strdup(predicate_exp->s);
         Instance *ins = instance_new(name, session->_doc_buffer, img);

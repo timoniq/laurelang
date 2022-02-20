@@ -220,7 +220,9 @@ struct PredicateImageVariationSet {
 
 struct PredicateHeaderImage {
     struct InstanceSet *args;
+    uint *nestings;
     Instance* resp;
+    uint response_nesting;
 };
 
 
@@ -286,7 +288,7 @@ void *integer_u_new();
 void *array_i_new(Instance **array, int length);
 void *array_u_new(Instance *element);
 void *abstract_new(string atom);
-void *predicate_header_new(struct InstanceSet *args, Instance *resp, bool is_constraint);
+struct PredicateImage *predicate_header_new(struct InstanceSet *args, Instance *resp, bool is_constraint);
 
 void *image_deepcopy(laure_stack_t *stack, void *img);
 bool image_free(void *img, bool free_ptr);
@@ -353,6 +355,7 @@ struct PredicateCImageHint *hint_new(string, Instance*);
 void laure_ensure_bigint(struct IntImage* img);
 
 size_t image_get_size_deep(void *image);
+string array_repr(Instance *ins);
 
 
 // --- methods ---

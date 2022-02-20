@@ -340,7 +340,7 @@ size_t laure_stack_get_size_deep(laure_stack_t *stack) {
 
 void laure_stack_show(laure_stack_t* stack) {
     printf("--- stodgy stack for debug ---\n");
-    printf("=== ID: %d, CNT: %d, SZ: %zu ===\n", stack->current.id, stack->current.count, laure_stack_get_size_deep(stack));
+    printf("=== ID: %d, CNT: %d, SZ: %zu ===\n", stack->current.id, stack->current.count, 0 /*laure_stack_get_size_deep(stack)*/);
     for (int i = 0; i < stack->current.count; i++) {
         if (!stack->current.cells) continue;
         Instance *instance = stack->current.cells[i].instance;

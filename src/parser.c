@@ -1193,7 +1193,7 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
 
             for (int i = 0; i < exp->ba->body_len; i++) {
                 laure_expression_t *arg_exp = laure_expression_set_get_by_idx(exp->ba->set, i);
-                if (arg_exp->t == let_var || arg_exp->t == let_custom) {
+                if (arg_exp->t == let_var || arg_exp->t == let_custom || arg_exp->t == let_array) {
                     args = laure_expression_set_link(args, arg_exp);
                 } else {
                     assert(LAURE_SESSION);

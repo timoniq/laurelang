@@ -378,6 +378,9 @@ qresp laure_showcast(laure_stack_t *stack, var_process_kit *vpk) {
                 ncell.instance = instance_deepcopy(stack->global, strdup(ins->name), ins);
                 laure_stack_insert(stack->global, ncell);
             } else {
+                if (instantiated(cell.instance)) {
+                    if (img_equals(cell.instance->image, ins->image)) continue;
+                }
                 if (cell.instance->image != ins->image) {
                     image_free(cell.instance->image, true);
                 }
@@ -547,6 +550,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                         ctx->cctx = cctx;
                         ctx->lid = cell.link_id;
                         ctx->force = false;
+                        ctx->expset = expression_set;
                         gen_resp gr = image_generate(stack, cell.instance->image, image_generator_rec, ctx);
                         if (gr.r == true) return respond(q_yield, NULL);
                         else return gr.qr;
@@ -1068,7 +1072,6 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                                 Cell arg_cell = laure_stack_get_cell_only_locals(prev_stack, arg_exp->s/*arg_exp->s*/);
                                 Instance *arg = arg_cell.instance;
                                 
-                                
                                 if (str_eq(argn, "!")) {
                                     argn = (arg) ? arg->name : "__A";
                                 }
@@ -1084,7 +1087,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                                         arg = instance_deepcopy(stack, argn, hint_instance);
                                     } else {
                                         __query_free_scopes_nqctx;
-                                        RESPOND_ERROR("specification of %s's argument %s is needed", argn);
+                                        RESPOND_ERROR("specification of %s's argument %s is needed", predicate_ins->name, argn);
                                     }
 
                                     Cell arg_cell_in_stack;
@@ -1153,7 +1156,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                         }
                     }
 
-                    if (pf->c.resp_hint) {
+                    if (ent_exp->ba->has_resp) {
                         laure_expression_t *resp_exp = laure_expression_set_get_by_idx(ent_exp->ba->set, ent_exp->ba->body_len);
                         if (!resp_exp) {
                             Instance *hint_instance = pf->c.resp_hint;
@@ -1256,6 +1259,9 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                     // todo `q_postpone`
 
                     if (resp.state == q_false || resp.state == q_yield) {
+                        if (resp.state == q_yield) {
+                            if (resp.error) found = true;
+                        }
                         free(ncctx);
                         continue;
                     }
@@ -1350,10 +1356,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                                 Instance *hint_instance = pred_img->header.args->data[j];
                                 if (! hint_instance)
                                     RESPOND_ERROR("predicate %s has no hint for argument", predicate_ins->name);
-                                
-                                //! temporary
-                                assert(arg_exp->t == let_custom);
-                                
+                                                                
                                 Instance *arg = instance_deepcopy(stack, argn, hint_instance);
                                 bool result = read_head(arg->image).translator->invoke(arg_exp, arg->image, prev_stack);
 

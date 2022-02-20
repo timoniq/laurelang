@@ -1,0 +1,4 @@
+: ?cle_include("array.so").
+
+: ?each_int(int[]) -> int.
+?each_int(arr) -> element when each(arr) = element.
