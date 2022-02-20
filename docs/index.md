@@ -1,6 +1,6 @@
 # Welcome to laurelang
 
-All the information about installation, building and troubshooting notes:
+All the information about installation, building and troubleshooting notes:
 
 [Installation guides](./installation.md)
 

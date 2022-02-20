@@ -234,7 +234,7 @@ int laure_process_query(laure_session_t *session, string line) {
             printf("  bugtracker %s\n", BUGTRACKER_URL);
             printf("  build info:\n");
             printf("    stack build: %s\n", 
-            #ifdef FEATURE_SCOPE2
+            #ifdef FEATURE_LINKED_SCOPE
             "linked (production)"
             #else
             "stodgy (debug)"

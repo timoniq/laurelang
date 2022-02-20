@@ -100,7 +100,7 @@ typedef struct GCTreep {
     struct GCTreep *right  ;
 } laure_gc_treep_t;
 
-#ifndef FEATURE_SCOPE2
+#ifndef FEATURE_LINKED_SCOPE
 
 #define SCOPE_SIZE 2000
 #define SCOPE_MAX_COUNT 2000

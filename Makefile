@@ -9,8 +9,8 @@ ifeq ($(DEBUG), 1)
 	CFLAGS := $(CFLAGS) -DDEBUG=1
 endif
 
-ifeq ($(FEATURE_SCOPE2), 1)
-    CFLAGS := $(CFLAGS) -DFEATURE_SCOPE2=1
+ifeq ($(FEATURE_LINKED_SCOPE), 1)
+    CFLAGS := $(CFLAGS) -DFEATURE_LINKED_SCOPE=1
 endif
 
 .PHONY: all clean

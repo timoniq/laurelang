@@ -82,7 +82,7 @@ laure_gc_treep_t *laure_gc_treep_destroy(laure_gc_treep_t *gct) {
     return NULL;
 }
 
-#ifndef FEATURE_SCOPE2
+#ifndef FEATURE_LINKED_SCOPE
 
 laure_stack_t *laure_stack_parent() {
     laure_stack_t *stack = malloc(sizeof(laure_stack_t));

@@ -46,7 +46,7 @@ Instance *b = pd_get_arg(pd, 1);
 Instance *c = pd->resp;
 ```
 
-also predicate function receives control_ct
+also predicate function receives control_ctx
 
 predicate function may ideologically return boolean, but because of some reasons they may also return other states;
 

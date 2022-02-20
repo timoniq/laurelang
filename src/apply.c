@@ -165,6 +165,7 @@ apply_result_t laure_consult_predicate(laure_session_t *session, laure_stack_t *
         if (! pred_ins)
             return respond_apply(apply_error, "header for predicate is undefined");
         predicate_addvar(pred_ins->image, predicate_exp, 0);
+        return respond_apply(apply_ok, NULL);
     }
 }
 
@@ -215,7 +216,7 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
 }
 
 int laure_init_structures(laure_session_t *session) {
-    #ifndef FEATURE_SCOPE2
+    #ifndef FEATURE_LINKED_SCOPE
     return 0;
     #else
     int count = 0;

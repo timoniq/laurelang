@@ -225,7 +225,7 @@ gen_resp image_rec1(void *image, void *ctx_r) {
     return gr;
 }
 
-#ifdef FEATURE_SCOPE2
+#ifdef FEATURE_LINKED_SCOPE
 
 void instant_referred(laure_stack_t *stack, Cell cell1) {
     Cell cell2;
@@ -480,7 +480,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
 
                 // instantiating referred instances n^2
 
-                #ifdef FEATURE_SCOPE2
+                #ifdef FEATURE_LINKED_SCOPE
                 
                 Cell cell;
                 STACK_ITER(stack, cell, {
