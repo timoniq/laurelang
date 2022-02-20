@@ -298,7 +298,7 @@ string consult_single(laure_session_t *session, string fname, FILE *file) {
     while (ifp[0]) {
         string fp = *ifp;
         if (str_eq(fp, fname)) {
-            printf("\\ %sfile%s %swas already consulted%s\n", RED_COLOR, NO_COLOR, fname, RED_COLOR, NO_COLOR);
+            printf("\\ %sfile%s %s was already consulted%s\n", RED_COLOR, NO_COLOR, fname, RED_COLOR, NO_COLOR);
             return NULL;
         }
         ifp++;

@@ -6,9 +6,9 @@
 #include "predicates.h"
 
 Instance builtin_integer();
-/*
 Instance builtin_char();
 Instance builtin_string();
+/*
 Instance builtin_index();
 */
 
@@ -18,11 +18,8 @@ struct Builtin {
 
 struct Builtin BUILTIN_INSTANCES[] = {
     {builtin_integer},
-    /*
     {builtin_char},
-    {builtin_string},
-    {builtin_index},
-    */
+    {builtin_string}
 };
 
 const struct BuiltinPred BUILTIN_PREDICATES[] = {

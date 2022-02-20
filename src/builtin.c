@@ -112,6 +112,35 @@ Instance builtin_integer() {
     return instance;
 }
 
+Instance builtin_char() {
+    struct CharImage *img = malloc(sizeof(struct CharImage));
+    img->t = CHAR;
+    img->is_set = false;
+    img->c = 0;
+    img->translator = new_translator(char_translator);
+
+    Instance instance;
+    instance.name = "char";
+    instance.derived = NULL;
+    instance.doc = "";
+    instance.locked = true;
+    instance.repr = char_repr;
+    instance.image = img;
+    return instance;
+}
+
+Instance builtin_string() {
+    Instance instance;
+    instance.name = "string";
+    instance.derived = NULL;
+    instance.doc = "";
+    instance.locked = true;
+    instance.repr = string_repr;
+    instance.image = array_u_new(laure_stack_get(LAURE_SESSION->stack, "char"));
+    ((struct ArrayImage*)instance.image)->translator = new_translator(string_translator);
+    return instance;
+}
+
 Instance *laure_cle_add_predicate(
     laure_session_t *session,
     string name,

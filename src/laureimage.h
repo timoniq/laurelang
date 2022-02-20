@@ -18,14 +18,15 @@ enum ImageState {
 
 // Image types
 enum ImageT {
-    INTEGER, // 0
-    ARRAY, // 1
-    ATOM, // 2
-    PREDICATE_FACT, // 3,
-    CONSTRAINT_FACT, // 4
-    STRUCTURE, // 5
-    CHOICE, // 6
-    IMG_CUSTOM_T, // 7
+    INTEGER,
+    CHAR,
+    ARRAY,
+    ATOM,
+    PREDICATE_FACT,
+    CONSTRAINT_FACT,
+    STRUCTURE,
+    CHOICE,
+    IMG_CUSTOM_T,
 };
 
 typedef struct {
@@ -83,8 +84,6 @@ enum PredicateT {
 
 enum IntImageT {
     BINT,
-    CINT,
-    CHAR_T,
     MULT,
 };
 
@@ -96,11 +95,15 @@ struct IntImage {
     enum IntImageT datatype;
     union {
         bigint* i_data;
-        int i_data_cint;
-        char i_data_char;
         Domain *u_data;
         multiplicity *mult;
     };
+};
+
+struct CharImage {
+    IMAGE_HEAD;
+    bool is_set;
+    int c;
 };
 
 typedef struct {
@@ -356,7 +359,8 @@ void laure_ensure_bigint(struct IntImage* img);
 
 size_t image_get_size_deep(void *image);
 string array_repr(Instance *ins);
-
+string char_repr(Instance *ins);
+string string_repr(Instance *ins);
 
 // --- methods ---
 

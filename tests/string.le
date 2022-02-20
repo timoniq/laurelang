@@ -1,0 +1,19 @@
+: ?test_string().
+
+?test_string() {
+    string s = "abc def";
+}
+
+// 'т'
+// 'δ'
+: ?test_string_unicode(char).
+?test_string_unicode(ch) {
+    string s = "Жертвоприношение";
+    c ~ char;
+    s by_idx 3 = c;
+    ch = c;
+    length of s = 16;
+}
+: ?test_string_unicode(ch) {
+    ch = 'δ';
+}

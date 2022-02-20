@@ -63,7 +63,9 @@ bool is_fine_name_for_var(string s) {
     size_t sz = laure_string_strlen(s);
     
     if (!sz) return false;
-    int ch = laure_string_char_at_pos(s, sz, 0);
+
+    if ((s[0] == '\'' && lastc(s) == '\'') || (s[0] == '"' && lastc(s) == '"')) return false;
+    int ch = laure_string_char_at_pos(s, strlen(s), 0);
 
     if (ch == '-' && laure_string_strlen(s) > 1) return false;
 
@@ -72,7 +74,7 @@ bool is_fine_name_for_var(string s) {
     }
 
     for (int i = 0; i < sz; i++) {
-        int c = laure_string_char_at_pos(s, sz, i);
+        int c = laure_string_char_at_pos(s, strlen(s), i);
         for (int j = 0; j < strlen(RESTRICTED); j++) {
             if (RESTRICTED[j] == c) return false;
         }
@@ -135,7 +137,7 @@ string read_til(const string s, int c) {
     // reads string until char
     size_t sz = laure_string_strlen(s);
 
-    if (laure_string_char_at_pos(s, sz, 0) == c) {
+    if (laure_string_char_at_pos(s, strlen(s), 0) == c) {
         return "";
     }
 
@@ -148,7 +150,7 @@ string read_til(const string s, int c) {
     bool text = 0;
 
     for (uint i = 0; i < sz; i++) {
-        int ch = laure_string_char_at_pos(s, sz, i);
+        int ch = laure_string_char_at_pos(s, strlen(s), i);
 
         if (ch == '\\') {
             escaped = 1;
@@ -167,7 +169,7 @@ string read_til(const string s, int c) {
             
             for (int j = 0; j < cur_i + 1; j++) {
                 char nch[4];
-                int n = laure_string_char_at_pos(s, sz, j);
+                int n = laure_string_char_at_pos(s, strlen(s), j);
                 laure_string_put_char(nch, n);
                 strcat(slice, nch);
             }
@@ -334,7 +336,7 @@ laure_parse_many_result laure_parse_many(const string query_, char divisor, laur
     uint last_i = 0;
 
     for (uint i = 0; i < sz; i++) {
-        int ch = laure_string_char_at_pos(s, sz, i);
+        int ch = laure_string_char_at_pos(s, strlen(s), i);
 
         if (ch == '\\') {
             escaped = 1;
@@ -354,7 +356,7 @@ laure_parse_many_result laure_parse_many(const string query_, char divisor, laur
             string slice = malloc(sizeof(char) * (cur_i - last_i + 1) * 4);
             for (int j = last_i; j < cur_i + 1; j++) {
                 char nch[4];
-                int n = laure_string_char_at_pos(s, sz, j);
+                int n = laure_string_char_at_pos(s, strlen(s), j);
                 laure_string_put_char(nch, n);
                 strcat(slice, nch);
             }
@@ -403,7 +405,7 @@ laure_parse_many_result laure_parse_many(const string query_, char divisor, laur
             string slice = malloc(sizeof(char) * (sz - last_i + 1) * 4);
             for (int j = last_i; j < sz; j++) {
                 char nch[4];
-                int n = laure_string_char_at_pos(s, sz, j);
+                int n = laure_string_char_at_pos(s, strlen(s), j);
                 laure_string_put_char(nch, n);
                 strcat(slice, nch);
             }

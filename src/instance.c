@@ -121,12 +121,7 @@ void *image_deepcopy(laure_stack_t *stack, void *img) {
                     new_img->i_data = malloc(sizeof(bigint));
                     bigint_init(new_img->i_data);
                     bigint_cpy(new_img->i_data, old_img->i_data);
-                } else if (old_img->datatype == CINT)
-                    new_img->i_data_cint = old_img->i_data_cint;
-                else if (old_img->datatype == CHAR_T)
-                    new_img->i_data_char = old_img->i_data_char;
-                else
-                    printf("Unknown datatype for int\n");
+                }
             } else if (old_img->state == M) {
                 new_img->mult = multiplicity_deepcopy(stack, old_img->mult);
             } else {
@@ -194,6 +189,16 @@ void *image_deepcopy(laure_stack_t *stack, void *img) {
                 return img;
             }
             return ehead.copy(img);
+        }
+        case CHAR: {
+            struct CharImage *old = (struct CharImage*)img;
+            struct CharImage *new = malloc(sizeof(struct CharImage));
+            new->t = CHAR;
+            new->is_set = old->is_set;
+            new->c = old->c;
+            new->translator = old->translator;
+            new_img_ptr = new;
+            break;
         }
         default: {
             printf("not implemented deepcopy %d\n", head.t);
@@ -570,20 +575,6 @@ void laure_ensure_bigint(struct IntImage* img) {
     if (img->state != I) return;
     switch (img->datatype) {
         case BINT: return;
-        case CINT: {
-            bigint *bi = malloc(sizeof(bigint));
-            bigint_init(bi);
-            bigint_from_int(bi, img->i_data_cint);
-            img->i_data = bi;
-            break;
-        }
-        case CHAR_T: {
-            bigint *bi = malloc(sizeof(bigint));
-            bigint_init(bi);
-            bigint_from_int(bi, (int)img->i_data_char);
-            img->i_data = bi;
-            break;
-        }
         default: break;
     }
     img->datatype = BINT;
@@ -694,6 +685,37 @@ string choice_repr(Instance *ins) {
         }
     }*/
     return strdup("todo repr");
+}
+
+string char_repr(Instance *ins) {
+    struct CharImage *img = (struct CharImage*)ins->image;
+    if (img->is_set) {
+        char buff[10];
+        laure_string_put_char(buff, img->c);
+        char buff2[20];
+        snprintf(buff2, 20, "'%s'", buff);
+        return strdup( buff2 );
+    } else {
+        return strdup( "(char)" );
+    }
+}
+
+string string_repr(Instance *ins) {
+    struct ArrayImage *arr = (struct ArrayImage*)ins->image;
+    if (arr->state == I) {
+        char buff[512];
+        strcpy(buff, "\"");
+        for (int idx = 0; idx < arr->i_data.length; idx++) {
+            int c = ((struct CharImage*)arr->i_data.array[idx]->image)->c;
+            char mbuff[5];
+            laure_string_put_char(mbuff, c);
+            strcat(buff, mbuff);
+        }
+        strcat(buff, "\"");
+        return strdup( buff );
+    } else {
+        return strdup( "(string)" );
+    }
 }
 
 string array_repr(Instance *ins) {
@@ -844,6 +866,8 @@ bool instantiated(Instance *ins) {
             /* return laure_structure_instantiated(ins->image); */ return 1;
         case CHOICE:
             return true;
+        case CHAR:
+            return ((struct CharImage*)ins->image)->is_set;
     }
 };
 
@@ -1045,7 +1069,20 @@ void* mul_eq(multiplicity *mult, void* img) {
 
 
 bool char_translator(laure_expression_t *exp, void* rimg, laure_stack_t *stack) {
-    printf("translate char\n");
+    if (exp->t != let_custom) return false;
+    else if (strlen(exp->s) < 3 || exp->s[0] != '\'' || lastc(exp->s) != '\'') return false;
+    struct CharImage *img = (struct CharImage*)rimg;
+
+    string cs = malloc(strlen(exp->s) - 1);
+    strncpy(cs, exp->s + 1, strlen(exp->s) - 2);
+    int c = laure_string_get_char(&cs);
+    
+    if (img->is_set) {
+        return c == img->c;
+    } else {
+        img->c = c;
+        img->is_set = true;
+    }
     return true;
 }
 
@@ -1099,7 +1136,27 @@ char convert_escaped_char(char c) {
 }
 
 bool string_translator(laure_expression_t *exp, void *rimg, laure_stack_t *stack) {
-    printf("translate string\n");
+    if (exp->t != let_custom || strlen(exp->s) < 2 || exp->s[0] != '"' || lastc(exp->s) != '"') return false;
+    struct ArrayImage *arr_img = (struct ArrayImage*)rimg;
+    string str = malloc(strlen(exp->s) - 1);
+    strncpy(str, exp->s + 1, strlen(exp->s) - 2);
+    uint len = laure_string_strlen(str);
+    Instance **array = malloc(sizeof(void*) * len);
+    for (int idx = 0; idx < len; idx++) {
+        int c = laure_string_char_at_pos(str, strlen(str), idx);
+
+        struct CharImage *c_img = malloc(sizeof(struct CharImage));
+        c_img->translator = read_head(laure_stack_get(stack, "char")->image).translator;
+        c_img->t = CHAR;
+        c_img->is_set = true;
+        c_img->c = c;
+        
+        Instance *c_ins = instance_new(NULL, NULL, c_img);
+        array[idx] = c_ins;
+    }
+    arr_img->state = I;
+    arr_img->i_data.array = array;
+    arr_img->i_data.length = len;
     return true;
 }
 
@@ -1264,6 +1321,20 @@ bool img_equals(void* img1, void* img2) {
             // return laure_structures_eq(img1, img2);
             return 0;
         }
+        case CHAR: {
+            struct CharImage *c1 = (struct CharImage*)img1;
+            struct CharImage *c2 = (struct CharImage*)img2;
+            if (c1->is_set && c2->is_set) {
+                return c1->c == c2->c;
+            } else if (c1->is_set) {
+                c2->c = c1->c;
+                c2->is_set = true;
+            } else if (c2->is_set) {
+                c1->c = c2->c;
+                c1->is_set = true;
+            }
+            return true;
+        }
     }
 }
 
@@ -1417,10 +1488,6 @@ size_t image_get_size_deep(void *image) {
                 if (img->datatype == BINT) {
                     sz = sz + (img->i_data->capacity * sizeof(*img->i_data->words));
                     sz = sz + sizeof(bigint);
-                } else if (img->datatype == CINT) {
-                    sz = sz + sizeof(int);
-                } else if (img->datatype == CHAR_T) {
-                    sz = sz + sizeof(char);
                 }
             } else if (img->state == M) {
                 sz = sz + sizeof(multiplicity);

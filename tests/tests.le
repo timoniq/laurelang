@@ -3,5 +3,6 @@
     "math.le",
     "function.le",
     "logic.le",
-    "array.le"
+    "array.le",
+    "string.le"
 ).
