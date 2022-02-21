@@ -2,6 +2,12 @@
 
 ?test_string() {
     string s = "abc def";
+    s = "abc fed" -> fail();
+    s = "abc def";
+    string e = "abc def";
+    s = e;
+    string f = "abc fed";
+    s = f -> fail();
 }
 
 // 'т'
