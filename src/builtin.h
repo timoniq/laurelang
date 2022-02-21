@@ -8,9 +8,6 @@
 Instance builtin_integer();
 Instance builtin_char();
 Instance builtin_string();
-/*
-Instance builtin_index();
-*/
 
 struct Builtin {
     Instance (*generate)();
@@ -26,7 +23,8 @@ const struct BuiltinPred BUILTIN_PREDICATES[] = {
     {"__+", laure_predicate_integer_plus, 2, "builtin addition predicate", {"x:int y:int", "int"}, false},
     {"__>", laure_constraint_gt, 2, "builtin greater than predicate", {"x:int y:int", NULL}, true},
     {"__gte", laure_constraint_gte, 2, "builtin greater than/equal predicate", {"x:int y:int", NULL}, true},
-    {"__*", laure_predicate_integer_multiply, 2, "builtin multiplication predicate", {"x:int y:int", "int"}, false}
+    {"__*", laure_predicate_integer_multiply, 2, "builtin multiplication predicate", {"x:int y:int", "int"}, false},
+    {"__message", laure_predicate_message, 1, "builtin message predicate", {"m:string", NULL}, false}
     /*
     {"__message", laure_predicate_message, 1, "Builtin predicate to operate with IO with strings", {"s:string", NULL}, false},
     {"__getchar", laure_predicate_getchar, 0, "Builtin predicate to operate with IO with chars", {"", "char"}, false},

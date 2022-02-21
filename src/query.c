@@ -378,9 +378,6 @@ qresp laure_showcast(laure_stack_t *stack, var_process_kit *vpk) {
                 ncell.instance = instance_deepcopy(stack->global, strdup(ins->name), ins);
                 laure_stack_insert(stack->global, ncell);
             } else {
-                if (instantiated(cell.instance)) {
-                    if (img_equals(cell.instance->image, ins->image)) continue;
-                }
                 if (cell.instance->image != ins->image) {
                     image_free(cell.instance->image, true);
                 }

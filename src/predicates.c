@@ -474,3 +474,26 @@ qresp laure_predicate_repr(preddata *pd, control_ctx *cctx) {
     // repr(x) = y
     return respond(q_error, strdup("not implemented"));
 }
+
+qresp laure_predicate_message(preddata *pd, control_ctx *cctx) {
+    Instance *str = pd_get_arg(pd, 0);
+    struct ArrayImage *arr = (struct ArrayImage*)str->image;
+    if (instantiated(str)) {
+        for (int i = 0; i < arr->i_data.length; i++) {
+            struct CharImage *ch = (struct CharImage*)arr->i_data.array[i]->image;
+            char buff[5];
+            laure_string_put_char(buff, ch->c);
+            printf("%s", buff);
+        }
+        printf("\n");
+        return respond(q_true, 0);
+    } else {
+        string s = readline("> ");
+        char buff[256];
+        snprintf(buff, 256, "\"%s\"", s);
+        laure_expression_t *s_exp = laure_expression_create(let_custom, NULL, 0, strdup( buff ), 0, NULL);
+        //! s_exp pointer lost
+        bool result = arr->translator->invoke(s_exp, arr, cctx->stack);
+        return respond(result ? q_true : q_false, 0);
+    }
+}
