@@ -909,6 +909,18 @@ laure_parse_result laure_parse(string query) {
                     char nquery[256];
                     snprintf(nquery, 256, "__*(-1, %s)", dup + 1);
                     return laure_parse(strdup(nquery));
+                } else if (lastc(dup) == ']' && dup[strlen(dup)-2] != '[') {
+                    string vname = read_til(dup, '[');
+                    if (! vname || ! is_fine_name_for_var(vname)) {
+                        error_format("invalid declaration `%s` for array by_idx, must be var", vname);
+                    } else {
+                        string idx_s = malloc(strlen(dup) - strlen(vname) - 1);
+                        strncpy(idx_s, dup + strlen(vname) + 1, strlen(dup) - strlen(vname) - 2);
+                        char nquery[256];
+                        snprintf(nquery, 256, "by_idx(%s, %s)", vname, idx_s);
+                        free(idx_s);
+                        return laure_parse(strdup(nquery));
+                    }
                 }
 
                 uint nesting = 0;

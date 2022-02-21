@@ -106,3 +106,17 @@
     length of arr = 3;
     x = arr;
 }
+
+// 2
+// 1
+// 5
+: ?test_array_by_idx_syntax(int).
+?test_array_by_idx_syntax(x) {
+    int[] arr = [1, 2, 3];
+    arr[1] = x;
+}
+?test_array_by_idx_syntax(idx) {
+    int[] arr = [1, 4, 3, 8, -4, 4];
+    int seek = 4;
+    arr[idx] = seek;
+}
