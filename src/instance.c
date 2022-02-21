@@ -365,7 +365,7 @@ GenArrayCtx *copy_gen_ary_ctx(GenArrayCtx *old) {
     ctx->aid->t = old->aid->t;
     ctx->aid->state = old->aid->state;
     ctx->aid->translator = old->aid->translator;
-    ctx->aid->i_data.array = malloc(sizeof(void*) * old->aid->i_data.length);
+    ctx->aid->i_data.array = malloc(sizeof(void*) * old->length);
     for (int i = 0; i < old->aid->i_data.length; i++) {
         ctx->aid->i_data.array[i] = instance_deepcopy(old->stack, "el", old->aid->i_data.array[i]);
     }
@@ -380,13 +380,14 @@ gen_resp generate_array_tail(void *img, void *ctx_) {
     GenArrayCtx *old_ctx = (GenArrayCtx*)ctx_;
     GenArrayCtx *ctx = copy_gen_ary_ctx(old_ctx);
 
-    ctx->aid->i_data.array[ctx->aid->i_data.length] = instance_new("el", "", img);
+    Instance *el_ins = instance_new("el", "", img);
+
+    ctx->aid->i_data.array[ctx->aid->i_data.length] = el_ins;
     ctx->aid->i_data.length++;
 
     if (ctx->length == ctx->aid->i_data.length) {
-
-        gen_resp gr = ctx->rec(image_deepcopy(ctx->stack, ctx->aid), ctx->external_ctx);
-        // ctx->aid->i_data.length--;
+        void *copy = image_deepcopy(ctx->stack, ctx->aid);
+        gen_resp gr = ctx->rec(copy, ctx->external_ctx);
         ctx->aid->i_data.length--;
         return gr;
     } else {
@@ -416,6 +417,7 @@ gen_resp generate_array(bigint *length_, void *ctx_) {
     GenArrayCtx *gen_ary_ctx = malloc(sizeof(GenArrayCtx));
     gen_ary_ctx->aid = array_i_new(malloc(sizeof(void*) * length), 0);
     gen_ary_ctx->aid->arr_el = arr_im->arr_el;
+    gen_ary_ctx->aid->i_data.length = 0;
     gen_ary_ctx->length = length;
     gen_ary_ctx->im = ctx->im;
     gen_ary_ctx->external_ctx = ctx->external_ctx;
@@ -508,7 +510,7 @@ gen_resp image_generate(laure_stack_t *stack, void* img, gen_resp (*rec)(void*, 
                     uctx->idx = i;
                     uctx->im = im;
 
-                    gen_resp gr =  image_generate(stack, el->image, unify_array, uctx);
+                    gen_resp gr = image_generate(stack, el->image, unify_array, uctx);
                     free(uctx);
                     return gr;
                 }
@@ -1151,7 +1153,7 @@ bool string_translator(laure_expression_t *exp, void *rimg, laure_stack_t *stack
         c_img->is_set = true;
         c_img->c = c;
         
-        Instance *c_ins = instance_new(NULL, NULL, c_img);
+        Instance *c_ins = instance_new(strdup("el"), NULL, c_img);
         array[idx] = c_ins;
     }
     arr_img->state = I;
@@ -1459,7 +1461,7 @@ struct ArrayIData array_i_data_deepcopy(laure_stack_t *stack, struct ArrayIData 
     i_data.length = old_i_data.length;
     i_data.array = malloc(sizeof(Instance*) * i_data.length);
     for (int i = 0; i < i_data.length; i++) {
-        i_data.array[i] = instance_deepcopy(stack, old_i_data.array[i]->name, old_i_data.array[i]);
+        i_data.array[i] = instance_deepcopy(stack, strdup(old_i_data.array[i]->name), old_i_data.array[i]);
     }
     return i_data;
 }

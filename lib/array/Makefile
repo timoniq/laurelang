@@ -1,4 +1,4 @@
-LDFLAGS = -L/usr/local/lib -lm -I'../../src'
+LDFLAGS = -L/usr/local/lib -lreadline -lm -I'../../src'
 CC = gcc
 
 all:

@@ -164,9 +164,9 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
             return respond(q_yield, (void*)found);
         }
     } else if (instantiated(idx_ins)) {
-
+        return TOO_AMBIG;
     } else if (instantiated(el_ins)) {
-
+        return TOO_AMBIG;
     } else {
         return TOO_AMBIG;
     }
@@ -188,6 +188,7 @@ qresp array_predicate_length(preddata *pd, control_ctx *cctx) {
     } else if (instantiated(len_ins)) {
         arr_img->u_data.length->t = SINGLE;
         arr_img->u_data.length->lborder.data = len_img->i_data;
+        return respond(q_true, 0);
     } else {
         return TOO_AMBIG;
     }

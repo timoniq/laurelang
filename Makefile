@@ -25,7 +25,7 @@ $(TARGET): $(OBJECTS)
 	$(CC) -g -o $(TARGET) $(OBJECTS) $(LDFLAGS)
 
 packages: $(LIB)
-	$(CC) -shared -o laurelang.so $(LIB) $(LDFLAGS)
+	$(CC) -shared -g -o laurelang.so $(LIB) $(LDFLAGS)
 	python3 utility/build_pkg.py
 
 clean:
