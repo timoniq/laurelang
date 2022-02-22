@@ -1522,6 +1522,19 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                 return respond(q_error, result.error);
             break;
         }
+        case let_set: {
+            qcontext *nqctx = qcontext_new(ent_exp->ba->set);
+            nqctx->next = qcontext_new_shifted(qctx, expression_set);
+            laure_stack_t *private_stack = laure_stack_clone(stack, true);
+            private_stack->next = stack;
+            control_ctx *ncctx = control_new(private_stack, nqctx, vpk, cctx->data);
+            qresp resp = laure_eval(ncctx, ncctx->qctx->expset);
+            free(nqctx->next);
+            free(nqctx);
+            free(ncctx);
+            laure_stack_free(private_stack);
+            return resp;
+        }
         default: break;
     }
 

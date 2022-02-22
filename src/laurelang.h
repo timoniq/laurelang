@@ -235,6 +235,7 @@ typedef struct {
 } laure_parse_many_result;
 
 laure_parse_result laure_parse(char *query);
+bool laure_parser_needs_continuation(char *query);
 bool laure_is_silent(void *cctx);
 
 size_t laure_string_strlen(const char *s);

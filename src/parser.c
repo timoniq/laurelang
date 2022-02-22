@@ -154,6 +154,8 @@ string read_til(const string s, int c) {
 
         if (ch == '\\') {
             escaped = 1;
+        } else if (escaped) {
+            escaped = 0;
         } else if (
             parathd == 0
             && braced == 0
@@ -195,6 +197,51 @@ string read_til(const string s, int c) {
     }
 
     return NULL;
+}
+
+bool laure_parser_needs_continuation(string query) {
+
+    size_t sz = laure_string_strlen(query);
+
+    int braced = 0;
+    int bracketed = 0;
+    int parathd = 0;
+    int escaped = 0;
+    int text = 0;
+
+    for (uint i = 0; i < sz; i++) {
+        int ch = laure_string_char_at_pos(query, strlen(query), i);
+
+        if (ch == '\\') {
+            escaped = 1;
+        } else if (escaped) {
+            escaped = 0;
+        } else if (ch == '"') {
+            text = !text;
+        } else if (text) {
+            {};
+        } else if (ch == '(') {
+            parathd++;
+        } else if (ch == ')' && parathd != 0) {
+            parathd--;
+        } else if (ch == '{') {
+            braced++;
+        } else if (ch == '}' && braced != 0) {
+            braced--;
+        } else if (ch == '[') {
+            bracketed++;
+        } else if (ch == ']' && bracketed != 0) {
+            bracketed--;
+        }
+    }
+
+    return (
+        escaped ||
+        text ||
+        braced != 0 ||
+        bracketed != 0 ||
+        parathd != 0
+    );
 }
 
 void str_lower(string str) {
@@ -320,7 +367,14 @@ string string_clean(string s) {
 }
 
 laure_parse_many_result laure_parse_many(const string query_, char divisor, laure_expression_set *linked_opt) {
-    string s = strdup(query_);
+    string s = string_clean( strdup(query_) );
+
+    if (! strlen(s)) {
+        laure_parse_many_result res;
+        res.is_ok = true;
+        res.exps = NULL;
+        return res;
+    }
 
     size_t sz = laure_string_strlen(s);
     laure_expression_set *linked = NULL;
@@ -445,6 +499,23 @@ laure_parse_result laure_parse(string query) {
         query++;
         lastc(query) = 0;
         return laure_parse(query);
+    }
+
+    if (query[0] == '{') {
+        if (lastc(query) != '}') error_result("invalid set");
+        query = strdup(query);
+        query++;
+        lastc(query) = 0;
+        laure_parse_many_result lpmr = laure_parse_many(query, ';', NULL);
+        if (!lpmr.is_ok) {
+            error_format("cannot parse {body}: %s", lpmr.err);
+        } else {
+            laure_parse_result lpr;
+            lpr.is_ok = true;
+            laure_expression_set *optzd_expset = laure_expression_compose(lpmr.exps);
+            lpr.exp = laure_expression_create(let_set, NULL, false, NULL, 0, laure_bodyargs_create(optzd_expset, 0, false));
+            return lpr;
+        }
     }
 
     if (strcmp(query, "!") == 0) {
@@ -911,8 +982,10 @@ laure_parse_result laure_parse(string query) {
                     return laure_parse(strdup(nquery));
                 } else if (lastc(dup) == ']' && dup[strlen(dup)-2] != '[') {
                     string vname = read_til(dup, '[');
-                    if (! vname || ! is_fine_name_for_var(vname)) {
-                        error_format("invalid declaration `%s` for array by_idx, must be var", vname);
+                    if (! vname || ! strlen(vname) || ! is_fine_name_for_var(vname)) {
+                        if (! vname || strlen(vname) > 0) {
+                            error_format("invalid declaration `%s` for array by_idx, must be var", vname);
+                        }
                     } else {
                         string idx_s = malloc(strlen(dup) - strlen(vname) - 1);
                         strncpy(idx_s, dup + strlen(vname) + 1, strlen(dup) - strlen(vname) - 2);
@@ -1242,6 +1315,7 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
 }
 
 laure_expression_set *laure_expression_compose(laure_expression_set *set) {
+    if (! set) return NULL;
     laure_expression_set *new_set = NULL;
     laure_expression_t *ptr = NULL;
     EXPSET_ITER(set, ptr, {

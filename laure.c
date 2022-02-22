@@ -136,21 +136,21 @@ int laure_process_query(laure_session_t *session, string line) {
             if (str_eq(cmd.name, args.argv[0])) {
                 found = true;
                 if (cmd.argc != args.argc - 1 && cmd.argc != -1) {
-                    printf("Command %s requires %d arguments, got %d\n", cmd.name, cmd.argc, args.argc - 1);
+                    printf("  Command %s requires %d arguments, got %d\n", cmd.name, cmd.argc, args.argc - 1);
                     break;
                 }
     // ----------
     switch (cmd.id) {
         case 0: {
             if (args.argc == 1) {
-                printf("%sUsage: .consult {files}%s\n", RED_COLOR, NO_COLOR);
+                printf("  %sUsage: .consult {files}%s\n", RED_COLOR, NO_COLOR);
                 break;
             }
             for (int j = 1; j < args.argc; j++) {
                 string path = convert_filepath(args.argv[j]);
                 FILE *fs = fopen(path, "r");
                 if (! fs) {
-                    printf("%sUnable to open `%s`%s\n", RED_COLOR, path, NO_COLOR);
+                    printf("  %sUnable to open `%s`%s\n", RED_COLOR, path, NO_COLOR);
                     free(path);
                     free(args.argv);
                     return 1;
@@ -191,7 +191,7 @@ int laure_process_query(laure_session_t *session, string line) {
             uint temp = LAURE_GC_COLLECTED;
             LAURE_GC_COLLECTED = 0;
             GC_ROOT = laure_gc_treep_destroy(GC_ROOT);
-            printf("Destroyed %zi garbage, summary %zi\n", LAURE_GC_COLLECTED, LAURE_GC_COLLECTED + temp);
+            printf("  Destroyed %zi garbage, summary %zi\n", LAURE_GC_COLLECTED, LAURE_GC_COLLECTED + temp);
             LAURE_GC_COLLECTED += temp;
             break;
         }
@@ -199,7 +199,7 @@ int laure_process_query(laure_session_t *session, string line) {
             Instance *ins = laure_stack_get(session->stack, args.argv[1]);
 
             if (!ins) {
-                printf("sorry, can't find instance named `%s`\n", args.argv[1]);
+                printf("  sorry, can't find instance named `%s`\n", args.argv[1]);
                 free(args.argv);
                 return 1;
             }
@@ -209,7 +209,7 @@ int laure_process_query(laure_session_t *session, string line) {
             printf("   ");
 
             if (!doc) {
-                printf("sorry, no documentation for this instance");
+                printf("  sorry, no documentation for this instance");
             } else {
                 bool color_set = false;
                 for (int i = 0; i < strlen(doc); i++) {
@@ -262,7 +262,7 @@ int laure_process_query(laure_session_t *session, string line) {
             string q = startline + 5;
             laure_parse_result result = laure_parse(q);
             if (!result.is_ok) {
-                printf("query is invalid: %s\n", result.err);
+                printf("  query is invalid: %s\n", result.err);
                 break;
             }
             printf("\n");
@@ -272,7 +272,7 @@ int laure_process_query(laure_session_t *session, string line) {
         }
         case 9: {
             if (args.argc == 1) {
-                printf("%sUsage: .lock {names}%s\n", RED_COLOR, NO_COLOR);
+                printf("  %sUsage: .lock {names}%s\n", RED_COLOR, NO_COLOR);
             } else {
                 for (int j = 1; j < args.argc; j++) {
                     string name = args.argv[j];
@@ -290,7 +290,7 @@ int laure_process_query(laure_session_t *session, string line) {
         }
         case 10: {
             if (args.argc == 1) {
-                printf("%sUsage: .unlock {names}%s\n", RED_COLOR, NO_COLOR);
+                printf("  %sUsage: .unlock {names}%s\n", RED_COLOR, NO_COLOR);
             } else {
                 for (int j = 1; j < args.argc; j++) {
                     string name = args.argv[j];
@@ -311,7 +311,7 @@ int laure_process_query(laure_session_t *session, string line) {
             }
         }
         if (! found) {
-            printf("Unknown command `%s`, use `.help`\n", args.argv[0]);
+            printf("  Unknown command `%s`, use `.help`\n", args.argv[0]);
         }
         free(args.argv);
         return 1;
@@ -423,7 +423,7 @@ int main(int argc, char *argv[]) {
             }}}
 
             if (!found)
-                printf("%sFlag %s is undefined%s\n", RED_COLOR, str, NO_COLOR);
+                printf("  %sFlag %s is undefined%s\n", RED_COLOR, str, NO_COLOR);
             }
             // ----------
         }
@@ -451,7 +451,7 @@ int main(int argc, char *argv[]) {
         string path = convert_filepath(filenames->filename);
         FILE *fs = fopen(path, "r");
         if (! fs) {
-            printf("%sUnable to open `%s`%s\n", RED_COLOR, path, NO_COLOR);
+            printf("  %sUnable to open `%s`%s\n", RED_COLOR, path, NO_COLOR);
             if (FLAG_SIGNAL) return SIGABRT;
             filenames = filenames->next;
             continue;
@@ -482,6 +482,24 @@ int main(int argc, char *argv[]) {
             up;
             continue;
         }
+        bool lp = false;
+        while (laure_parser_needs_continuation(line)) {
+            if (lastc(line) == '\\') lastc(line) = 0;
+            if (lp) up;
+            up; erase;
+            printf("(%s%s%s)\n", GREEN_COLOR, line, NO_COLOR); erase;
+
+            string continuation = readline("> ");
+            if (! continuation) break;
+            
+            char nline[512];
+            snprintf(nline, 512, "%s%s", line, continuation);
+            free(line);
+            
+            line = strdup( nline );
+            lp = true;
+        }
+        if (lp) {up; up; erase; printf("| %s\n", line); erase;}
         int res = laure_process_query(session, line);
         if (!res) break;
         free(line);
