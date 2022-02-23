@@ -399,19 +399,30 @@ bool img_equals(void* img1, void* img2);
 
 gen_resp generate_array(bigint *length_, void *ctx_) {
     GenCtx *ctx = (GenCtx*)ctx_;
-    int length = (int)bigint_double(length_);
-    if (length == 0) {
-        return ctx->rec(array_i_new(NULL, 0), ctx->external_ctx);
-    }
 
     struct ArrayImage *arr_im = (struct ArrayImage*)ctx->im;
     if (arr_im->length_lid) {
+        struct IntImage *img;
         Cell cell = laure_stack_get_cell_by_lid(ctx->stack, arr_im->length_lid, true);
-        struct IntImage *img = (struct IntImage*) get_image(cell.instance);
+        if (! ctx->im2) {
+            ctx->im2 = image_deepcopy(ctx->stack, cell.instance->image);
+        }
+        img = cell.instance->image;
+
+        if (! int_check(ctx->im2, length_)) {
+            gen_resp gr; 
+            gr.r = true; 
+            gr.qr = respond(q_false, 0);
+            return gr;
+        }
+
         img->state = I;
-        img->datatype = BINT;
         img->i_data = length_;
-        //! fixme smart allocation
+    }
+
+    int length = (int)bigint_double(length_);
+    if (length == 0) {
+        return ctx->rec(array_i_new(NULL, 0), ctx->external_ctx);
     }
 
     GenArrayCtx *gen_ary_ctx = malloc(sizeof(GenArrayCtx));
@@ -525,6 +536,7 @@ gen_resp image_generate(laure_stack_t *stack, void* img, gen_resp (*rec)(void*, 
                 gctx->stack = stack;
                 gctx->im = im;
                 gctx->rec = rec;
+                gctx->im2 = 0;
                 return int_domain_generate(im->u_data.length, generate_array, gctx);
             }
             break;
@@ -1253,12 +1265,8 @@ bool img_equals(void* img1, void* img2) {
             struct ArrayImage *img1_t = (struct ArrayImage*)img1;
             struct ArrayImage *img2_t = (struct ArrayImage*)img2;
 
-            if (! img1_t->arr_el || ! img2_t->arr_el) {
-                return img1_t->arr_el == img2_t->arr_el;
-            }
-
-            if (strcmp(img1_t->arr_el->name, img2_t->arr_el->name) != 0) return false;
-
+            //! todo add typecheck
+            
             if (img1_t->state == I && img2_t->state == I) {
                 if (((struct ArrayImage*)img1)->i_data.length != ((struct ArrayImage*)img2)->i_data.length) return false;
 

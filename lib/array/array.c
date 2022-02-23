@@ -164,7 +164,11 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
             return respond(q_yield, (void*)found);
         }
     } else if (instantiated(idx_ins)) {
-        return TOO_AMBIG;
+        // length > idx
+        if (! img_equals(el_img, arr_img->arr_el->image)) return RESPOND_FALSE;
+        IntValue left; left.t = SECLUDED; left.data = bigint_copy(idx_img->i_data);
+        int_domain_gt(arr_img->u_data.length, left);
+        return RESPOND_TRUE;
     } else if (instantiated(el_ins)) {
         return TOO_AMBIG;
     } else {
@@ -190,7 +194,9 @@ qresp array_predicate_length(preddata *pd, control_ctx *cctx) {
         arr_img->u_data.length->lborder.data = len_img->i_data;
         return respond(q_true, 0);
     } else {
-        return TOO_AMBIG;
+        long lid = laure_stack_get_cell(cctx->stack, len_ins->name).link_id;
+        arr_img->length_lid = lid;
+        respond(q_true, 0);
     }
 }
 

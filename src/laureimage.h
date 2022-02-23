@@ -43,6 +43,7 @@ typedef struct {
     void* external_ctx;
     laure_stack_t *stack;
     void *im;
+    void *im2;
     GenArrayCtx *gac;
 } GenCtx;
 

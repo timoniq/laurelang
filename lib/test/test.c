@@ -180,16 +180,8 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
 
         if (! payload->passed && payload->got_invalid) {
             printf("%s: %s%sfailed (%s)%s\n", predicate->name, spaces, RED_COLOR, GENERATOR_FAULT_VALUE, NO_COLOR);
-            char buff[128];
-            strcpy(buff, "[");
-            strcat(buff, GENERATOR_FAULT_VALUE);
-            strcat(buff, "] incorrect value generated, expected [ ");
-            for (int j = 0; j < payload->data_cnt; j++) {
-                strcat(buff, payload->data[j]);
-                strcat(buff, " ");
-            }
-            strcat(buff, "], got ");
-            strcat(buff, payload->got_invalid);
+            char buff[256];
+            snprintf(buff, 256, "[%s] incorrect value generated: got `%s%s%s` expected `%s%s%s`", GENERATOR_FAULT_VALUE, RED_COLOR, payload->got_invalid, NO_COLOR, GREEN_COLOR, payload->data[payload->idx], NO_COLOR);
             comments[i] = strdup( buff );
         } else if (payload->idx != payload->data_cnt) {
             printf("%s: %s%sfailed (%s)%s\n", predicate->name, spaces, RED_COLOR, GENERATOR_FAULT_COUNT, NO_COLOR);
