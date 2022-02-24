@@ -517,18 +517,22 @@ laure_parse_result laure_parse(string query) {
             return lpr;
         }
     }
-
-    if (strcmp(query, "!") == 0) {
-        laure_parse_result lpr;
-        lpr.is_ok = true;
-        lpr.exp = laure_expression_create(let_cut, NULL, false, strdup("!"), 0, NULL);
-        return lpr;
-    }
     
     char det = query[0];
     query++;
 
     switch (det) {
+        case '!': {
+            if (! strlen(query)) {
+                laure_parse_result lpr;
+                lpr.is_ok = true;
+                lpr.exp = laure_expression_create(let_cut, NULL, false, strdup("!"), 0, NULL);
+                return lpr;
+            } else {
+                error_result("not supported");
+            }
+            break;
+        }
         case ':': {
             laure_parse_result result = laure_parse(query);
             if (result.is_ok) {
@@ -1050,7 +1054,7 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
 
         case let_array: {
             printindent(indent);
-            printf("-- array declaration --\n");
+            printf("-- array --\n");
             laure_expression_t *ptr = NULL;
             EXPSET_ITER(exp->ba->set, ptr, {
                 laure_expression_show(ptr, indent + 2);
@@ -1062,7 +1066,7 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
 
         case let_quant: {
             printindent(indent);
-            printf("-- quantified %zi -> %s --", exp->flag, exp->s);
+            printf("-- quantified %s %s --\n", exp->flag ? "All" : "Exists", exp->s);
             laure_expression_t *ptr = NULL;
             EXPSET_ITER(exp->ba->set, ptr, {
                 laure_expression_show(ptr, indent + 2);
@@ -1141,10 +1145,15 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
             printf("custom %s\n", exp->s);
             break;
         }
+
+        case let_cut: {
+            printf("cut\n");
+            break;
+        }
     
         default: {
             printindent(indent);
-            printf("idk (%d)\n", exp->t);
+            printf("unknown (%d)\n", exp->t);
             break;
         }
     }
@@ -1176,7 +1185,7 @@ laure_expression_set *laure_get_all_vars_in(laure_expression_t *exp, laure_expre
 }
 
 laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
-    assert(exp);
+    if (! exp) return NULL;
     laure_expression_set *set = NULL;
 
     switch (exp->t) {

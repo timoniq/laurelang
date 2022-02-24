@@ -4,6 +4,7 @@
 #include <builtin.h>
 #include <math.h>
 #include <builtin.h>
+#include <time.h>
 
 #define test_suite_version "0.1"
 #define up printf("\033[A")
@@ -116,6 +117,8 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
 
     headerprint("Running tests", max_name_len, 0);
 
+    clock_t t = clock();
+
     for (int i = 0; i < len; i++) {
         Instance *predicate = tests[i];
         struct PredicateImage *pred_im = (struct PredicateImage*)predicate->image;
@@ -214,6 +217,9 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         }
     }
 
+    t = clock() - t;
+    double elapsed = ((double)t) / CLOCKS_PER_SEC;
+
     laure_stack_free(sess->stack);
     free(sess);
 
@@ -229,7 +235,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     double passed_percent = ((double)tests_passed / (double)len) * 100;
 
     char buff[128];
-    snprintf(buff, 128, "Result %d/%d (%s%d%%%s)", tests_passed, len, passed_percent >= 70 ? GREEN_COLOR : RED_COLOR, (int)round(passed_percent), NO_COLOR);
+    snprintf(buff, 128, "Result %d/%d (%s%d%%%s). Time elapsed %fs", tests_passed, len, passed_percent >= 70 ? GREEN_COLOR : RED_COLOR, (int)round(passed_percent), NO_COLOR, elapsed);
 
     headerprint(buff, max_name_len, 
         #ifdef DISABLE_COLORING

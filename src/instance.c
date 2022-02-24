@@ -1266,7 +1266,7 @@ bool img_equals(void* img1, void* img2) {
             struct ArrayImage *img2_t = (struct ArrayImage*)img2;
 
             //! todo add typecheck
-            
+
             if (img1_t->state == I && img2_t->state == I) {
                 if (((struct ArrayImage*)img1)->i_data.length != ((struct ArrayImage*)img2)->i_data.length) return false;
 

@@ -64,7 +64,8 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
         bool result = img_equals(arr_img->arr_el->image, el_ins->image);
         return respond(result ? q_true : q_false, 0);
     } else {
-        return TOO_AMBIG;
+        arr_img->arr_el->image = el_ins->image;
+        return respond(q_true, 0);
     }
     return respond(q_true, 0);
 }
