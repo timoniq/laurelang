@@ -241,7 +241,7 @@ string laure_stack_get_uname(laure_stack_t* stack) {
     *stack->next_link_id = *stack->next_link_id + 1;
     string uname;
     uname = malloc((sizeof(char) * 10));
-    sprintf(uname, "$u%ld", uid);
+    sprintf(uname, "$%ld", uid);
     return uname;
 }
 
@@ -446,7 +446,7 @@ string laure_stack_get_uname(laure_stack_t *stack) {
     long uid = *stack->next_link_id;
     *stack->next_link_id = *stack->next_link_id + 1;
     string uname = malloc(10);
-    sprintf(uname, "$u%ld", uid);
+    sprintf(uname, "$%ld", uid);
     return uname;
 }
 

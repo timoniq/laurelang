@@ -2,6 +2,7 @@
 #include <readline/readline.h>
 
 #define __finalize do {/*laure_gc_treep_destroy(local_gc);*/} while (0)
+#define do_stop(__qr, __qctx) (__qr.state == q_error || __qr.state == q_stop || (__qctx && __qctx->cut))
 
 struct SumCtx {
     bigint *sum;
@@ -70,7 +71,7 @@ gen_resp integer_plus_sum_known_rec(struct IntImage *var1_im, struct SumCtx *con
 
     free(cctx);
 
-    if (r.state == q_error || r.state == q_stop) {
+    if do_stop(r, context->ctx->qctx->next) {
         gen_resp gr = {0, r};
         return gr;
     }
@@ -111,7 +112,7 @@ gen_resp integer_plus_one_known_rec(struct IntImage *sum_im, struct Sum2Ctx *con
 
     free(cctx);
 
-    if (r.error != NULL || r.state == q_stop) {
+    if do_stop(r, context->ctx->qctx->next) {
         gen_resp gr = {0, r};
         return gr;
     }
@@ -165,7 +166,7 @@ gen_resp integer_mul_sum_known_rec(struct IntImage *var1_im, struct SumCtx *cont
 
     free(cctx);
 
-    if (r.state == q_error || r.state == q_stop) {
+    if do_stop(r, context->ctx->qctx->next) {
         gen_resp gr = {0, r};
         return gr;
     }
@@ -211,7 +212,7 @@ gen_resp integer_mul_one_known_rec(struct IntImage *prod_im, struct Sum2Ctx *con
 
     free(cctx);
 
-    if (r.error != NULL || r.state == q_stop) {
+    if do_stop(r, context->ctx->qctx->next) {
         gen_resp gr = {0, r};
         return gr;
     }

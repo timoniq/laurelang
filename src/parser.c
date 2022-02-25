@@ -1264,8 +1264,15 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
             }
 
             if (left->t == let_pred_call && right->t == let_pred_call) {
-                printf("`pred_call = pred_call` not implemented\n");
-                assert(false);
+                string vname = laure_stack_get_uname(LAURE_SESSION->stack);
+                laure_expression_t *var = laure_expression_create(let_var, NULL, false, vname, 0, NULL);
+                left->ba->set = laure_expression_set_link(left->ba->set, var);
+                left->ba->has_resp = true;
+                right->ba->set = laure_expression_set_link(right->ba->set, var);
+                right->ba->has_resp = true;
+                set = laure_expression_set_link_branch(set, laure_expression_compose_one(left));
+                set = laure_expression_set_link_branch(set, laure_expression_compose_one(right));
+                break;
             } else if (left->t == let_pred_call || right->t == let_pred_call) {
                 laure_expression_t *pc;
                 laure_expression_t *resp;
