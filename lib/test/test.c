@@ -95,6 +95,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
 
     laure_session_t *sess = malloc(sizeof(laure_session_t));
     sess->stack = laure_stack_clone(cctx->stack->global, true);
+    sess->stack->global = sess->stack;
     sess->_included_filepaths[0] = 0;
     sess->_doc_buffer = NULL;
     sess->signal = 0;
@@ -151,12 +152,12 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         strcat(query, "(");
         for (int j = 0; j < pred_im->header.args->len; j++) {
             char argn[64];
-            snprintf(argn, 64, "%s_%d", predicate->name, j);
+            snprintf(argn, 64, "%s_ARG%d", predicate->name, j);
             strcat(query, argn);
             if (j != pred_im->header.args->len - 1) strcat(query, ",");
         }
         strcat(query, ")");
-
+        
         laure_parse_result res = laure_parse(query);
         if (!res.is_ok) {
             return respond(q_error, res.err);
@@ -235,16 +236,11 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
 
     double passed_percent = ((double)tests_passed / (double)len) * 100;
 
-    char buff[128];
-    snprintf(buff, 128, "Result %d/%d (%s%d%%%s). Time elapsed %fs", tests_passed, len, passed_percent >= 70 ? GREEN_COLOR : RED_COLOR, (int)round(passed_percent), NO_COLOR, elapsed);
+    printf("----------------------\n");
+    printf("Succeed %d/%d (%s%d%%%s)\n", tests_passed, len, passed_percent >= 70 ? GREEN_COLOR : RED_COLOR, (int)round(passed_percent), NO_COLOR);
+    printf("Time elapsed %fs\n", elapsed);
+    printf("----------------------\n");
 
-    headerprint(buff, max_name_len, 
-        #ifdef DISABLE_COLORING
-        0
-        #else
-        2
-        #endif
-    );
     LAURE_SESSION = old_sess;
     return respond(tests_passed == len ? q_true : q_false, NULL);
 }

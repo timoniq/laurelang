@@ -67,7 +67,6 @@ void laure_register_builtins(laure_session_t *session) {
         struct PredicateImageVariation pv;
         pv.t = PREDICATE_C;
         pv.c = *cimage;
-        pv.priority = 0;
 
         struct PredicateImage *img = malloc(sizeof(struct PredicateImage));
 
@@ -190,7 +189,6 @@ Instance *laure_cle_add_predicate(
     struct PredicateImageVariation pv;
     pv.t = PREDICATE_C;
     pv.c = *cimage;
-    pv.priority = 0;
 
     struct PredicateImage *img = malloc(sizeof(struct PredicateImage));
 

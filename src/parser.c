@@ -652,7 +652,7 @@ laure_parse_result laure_parse(string query) {
             return lpr;
         }
         case '$': {
-            break;
+            error_result("not implemented");
         }
         case '[': {
             if (lastc(query) != ']') {

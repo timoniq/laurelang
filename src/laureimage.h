@@ -206,8 +206,6 @@ struct PredicateCImage {
 
 struct PredicateImageVariation {
     enum PredicateT t;
-    //! todo priority
-    int priority;
     union {
         laure_expression_t         *exp;
         struct PredicateCImage      c;
@@ -301,8 +299,7 @@ bool image_free(void *img, bool free_ptr);
 // * add bodied variation to predicate image
 void predicate_addvar(
     void *img, 
-    laure_expression_t *exp,
-    int priority
+    laure_expression_t *exp
 );
 
 // predicate variation set (pvs)

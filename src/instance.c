@@ -227,8 +227,7 @@ void pvs_push(struct PredicateImageVariationSet *pvs, struct PredicateImageVaria
 
 void predicate_addvar(
     void *img, 
-    laure_expression_t *exp,
-    int priority
+    laure_expression_t *exp
 ) {
     struct PredicateImage *im = (struct PredicateImage*)img;
 
