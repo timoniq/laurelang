@@ -318,7 +318,7 @@ int laure_process_query(laure_session_t *session, string line) {
             else value = atoi(value_s);
             if (value < 0) break;
             LAURE_TIMEOUT = (uint)value;
-            printf("  timeout was set to %zi\n", LAURE_TIMEOUT);
+            printf("  timeout was set to %zis\n", LAURE_TIMEOUT);
             break;
         }
         default: break;
