@@ -180,15 +180,13 @@ qresp process_choice(
     laure_expression_set *expset
 ) {
     qcontext *next_qctx = qcontext_new_shifted(cctx->qctx, expset);
-
     nstack->repeat = 1;
-    nstack->global = nstack;
     
     qcontext *nqctx = qcontext_new(nexpset);
     nqctx->next     = next_qctx;
     nqctx->expset = nexpset;
 
-    control_ctx *ncctx = control_new(nstack, nqctx, cctx->vpk, 0x1);
+    control_ctx *ncctx = control_new(nstack, nqctx, cctx->vpk, 0);
     qresp choice_qr = laure_eval(ncctx, nexpset);
 
     free(ncctx);
@@ -974,7 +972,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                 laure_stack_free(nstack);
 
                 if (is_global(stack)) {
-                    laure_stack_add_to(nstack, stack);
+                    // laure_stack_add_to(nstack, stack);
                 }
 
                 if (choice_qr.state == q_true) {
