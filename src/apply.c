@@ -221,7 +221,7 @@ apply_result_t laure_consult_predicate(laure_session_t *session, laure_stack_t *
     } else {
         if (! pred_ins)
             return respond_apply(apply_error, "header for predicate is undefined");
-        predicate_addvar(pred_ins->image, predicate_exp, 0);
+        predicate_addvar(pred_ins->image, predicate_exp);
         return respond_apply(apply_ok, NULL);
     }
 }

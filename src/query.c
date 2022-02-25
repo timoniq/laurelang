@@ -14,6 +14,11 @@
         free(nqctx); \
     } while (0)
 
+#define __free_initial_and_quit(__state, __err) do {\
+            laure_stack_free(initial_stack); \
+            return respond(__state, __err); \
+        } while (0)
+
 typedef struct {
     control_ctx *cctx;
     laure_expression_set *expset;
@@ -186,7 +191,7 @@ qresp process_choice(
     nqctx->next     = next_qctx;
     nqctx->expset = nexpset;
 
-    control_ctx *ncctx = control_new(nstack, nqctx, cctx->vpk, 0);
+    control_ctx *ncctx = control_new(nstack, nqctx, cctx->vpk, 0x1);
     qresp choice_qr = laure_eval(ncctx, nexpset);
 
     free(ncctx);
@@ -620,7 +625,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
     expression_set = expression_set->next;
 
     #ifdef DEBUG
-    printf("[%d] %s:%s %s %s\n", stack->current.id, GRAY_COLOR, YELLOW_COLOR, ent_exp->s, NO_COLOR);
+    printf("[%d] %s:%s %s %s (%d)\n", stack->current.id, GRAY_COLOR, YELLOW_COLOR, ent_exp->s, NO_COLOR, ent_exp->t);
     #endif
 
     switch(ent_exp->t) {
@@ -960,20 +965,20 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
 
             laure_stack_t *initial_stack = laure_stack_clone(stack, true);
 
-#define __free_initial_and_quit(__state, __err) do {\
-            laure_stack_free(initial_stack); \
-            return respond(__state, __err); \
-        } while (0)
+            if (is_global(stack)) initial_stack->global = stack;
 
-            EXPSET_ITER(ent_exp->ba->set, ptr, {
+            laure_expression_set *_set = ent_exp->ba->set;
+            while (_set) {
+                ptr = _set->expression;
+
                 laure_expression_set *nexpset = ptr->ba->set;
                 laure_stack_t *nstack = laure_stack_clone(initial_stack, true);
                 qresp choice_qr = process_choice(count, i, nstack, nexpset, cctx, expression_set);
-                laure_stack_free(nstack);
 
                 if (is_global(stack)) {
-                    // laure_stack_add_to(nstack, stack);
+                    laure_stack_add_to(nstack, stack);
                 }
+                laure_stack_free(nstack);
 
                 if (choice_qr.state == q_true) {
                     found = true;
@@ -987,11 +992,13 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                 } else if (choice_qr.state == q_continue) {
                     if (i == count - 1) __free_initial_and_quit(q_continue, 0);
                 }
+
                 i++;
-            });
+                _set = _set->next;
+            }
 
             laure_stack_free(initial_stack);
-            return respond(found ? q_true : q_false, "");
+            return respond(found ? q_true : q_false, 0);
         }
 
         case let_pred_call: {
