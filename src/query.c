@@ -455,6 +455,15 @@ qresp laure_send(laure_stack_t *stack, var_process_kit *vpk) {
 string array_repr(Instance *ins);
 
 qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
+
+    if (LAURE_TIMEOUT != 0) {
+        double elapsed_sec = ((double)(clock() - LAURE_CLOCK)) / CLOCKS_PER_SEC;
+        if (elapsed_sec >= LAURE_TIMEOUT) {
+            // printf("%s\\%s TIMEOUT. elapsed: %fs\n", RED_COLOR, NO_COLOR, elapsed_sec);
+            RESPOND_ERROR("TIMEOUT. elapsed: %fs", elapsed_sec);
+        }
+    }
+
     laure_stack_t *stack = cctx->stack;
     var_process_kit *vpk = cctx->vpk;
     qcontext *qctx = cctx->qctx;

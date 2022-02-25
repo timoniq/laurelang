@@ -46,7 +46,8 @@ const struct cmd_info commands[] = {
     {7, ".getinfo", 0, "Shows information about reasoning system."},
     {8, ".ast", -1, "Shows AST of query passed."},
     {9, ".lock", -1, "Locks instances."},
-    {10, ".unlock", -1, "Unlocks instances."}
+    {10, ".unlock", -1, "Unlocks instances."},
+    {11, ".timeout", 1, "Sets timeout (in seconds)"}
 };
 
 struct filename_linked {
@@ -122,6 +123,8 @@ string convert_filepath(string filepath) {
 }
 
 int laure_process_query(laure_session_t *session, string line) {
+
+    LAURE_CLOCK = clock();
 
     while(strlen(line) > 0 && line[0] == ' ')
         line++;
@@ -250,6 +253,9 @@ int laure_process_query(laure_session_t *session, string line) {
             printf("    recursion depth limit: %d\n", LAURE_RECURSION_DEPTH_LIMIT);
             printf("    compiled at: %s %s\n", __DATE__, __TIME__);
             printf("  garbage collected: %d\n", LAURE_GC_COLLECTED);
+            if (LAURE_TIMEOUT != 0)
+                printf("  timeout: %zis\n", LAURE_TIMEOUT);
+            else printf("  timeout: no\n");
             printf("  flags: [ ");
             if (FLAG_CLEAN) printf("CLEAN ");
             if (FLAG_NOREPL) printf("NOREPL ");
@@ -304,6 +310,16 @@ int laure_process_query(laure_session_t *session, string line) {
                     
                 }
             }
+        }
+        case 11: {
+            string value_s = args.argv[1];
+            int value;
+            if (strcmp(value_s, "no") == 0) value = 0;
+            else value = atoi(value_s);
+            if (value < 0) break;
+            LAURE_TIMEOUT = (uint)value;
+            printf("  timeout was set to %zi\n", LAURE_TIMEOUT);
+            break;
         }
         default: break;
     }

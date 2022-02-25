@@ -7,6 +7,8 @@ char *LAURE_CURRENT_ADDRESS    = NULL;
 char *LAURE_INTERPRETER_PATH   = NULL;
 uint LAURE_GC_COLLECTED        = 0;
 uint LAURE_RECURSION_DEPTH     = 0;
+uint LAURE_TIMEOUT             = 0;
+clock_t LAURE_CLOCK            = 0;
 laure_gc_treep_t  *GC_ROOT     = NULL;
 
 #define TRACE_PRINT_INDENT 2
@@ -111,4 +113,8 @@ void laure_trace_print() {
 
 void laure_trace_comment(string comment) {
     LAURE_TRACE->comment = comment;
+}
+
+void laure_set_timeout(uint timeout) {
+    LAURE_TIMEOUT = timeout;
 }

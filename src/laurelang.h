@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <assert.h>
+#include <time.h>
 
 
 typedef unsigned int uint;
@@ -200,9 +201,14 @@ extern char              *LAURE_INTERPRETER_PATH;
 extern uint               LAURE_GC_COLLECTED;
 extern uint               LAURE_RECURSION_DEPTH;
 
+extern uint               LAURE_TIMEOUT;
+extern clock_t            LAURE_CLOCK;
+
 #ifndef LAURE_RECURSION_DEPTH_LIMIT
 #define LAURE_RECURSION_DEPTH_LIMIT 350
 #endif
+
+#define COND_TIMEOUT (LAURE_TIMEOUT != 0 && ((((double)(clock() - LAURE_CLOCK)) / CLOCKS_PER_SEC) >= LAURE_TIMEOUT))
 
 laure_expression_set *laure_expression_set_link(laure_expression_set *root, laure_expression_t *new_link);
 uint laure_expression_get_count(laure_expression_set *root);
@@ -259,6 +265,7 @@ void laure_trace_erase();
 void laure_print_indent(int indent);
 void laure_trace_print();
 void laure_trace_comment(char *comment);
+void laure_set_timeout(uint timeout);
 
 laure_gc_treep_t *laure_gc_treep_create_node(laure_gc_ptr_t ptr_t, void *ptr);
 laure_gc_treep_t *laure_gc_treep_add(laure_gc_treep_t *gct, laure_gc_ptr_t ptr_t, void *ptr);

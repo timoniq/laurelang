@@ -176,6 +176,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         ncctx->vpk->mode = SENDER;
 
         LAURE_RECURSION_DEPTH = 0;
+        LAURE_CLOCK = clock();
         qresp response = laure_eval(ncctx, expset);
 
         up;

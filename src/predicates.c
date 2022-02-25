@@ -1,8 +1,9 @@
 #include "predicates.h"
 #include <readline/readline.h>
+#include <time.h>
 
 #define __finalize do {/*laure_gc_treep_destroy(local_gc);*/} while (0)
-#define do_stop(__qr, __qctx) (__qr.state == q_error || __qr.state == q_stop || (__qctx && __qctx->cut))
+#define do_stop(__qr, __qctx) (__qr.error != NULL || __qr.state == q_error || __qr.state == q_stop || (__qctx && __qctx->cut) || COND_TIMEOUT)
 
 struct SumCtx {
     bigint *sum;
@@ -51,6 +52,7 @@ gen_resp integer_plus_sum_known_rec(struct IntImage *var1_im, struct SumCtx *con
         free(var2->words);
         free(var2);
         gen_resp gr = {1, respond(q_false, NULL)};
+        if COND_TIMEOUT gr.r = 0;
         return gr;
     };
 
@@ -93,6 +95,7 @@ gen_resp integer_plus_one_known_rec(struct IntImage *sum_im, struct Sum2Ctx *con
         free(var->words);
         free(var);
         gen_resp gr = {1, respond(q_false, NULL)};
+        if COND_TIMEOUT gr.r = 0;
         return gr;
     }
 
@@ -135,8 +138,8 @@ gen_resp integer_mul_sum_known_rec(struct IntImage *var1_im, struct SumCtx *cont
     if (!success) {
         free(var2->words);
         free(var2);
-        // bigint_free(context->ctx->heap, var2);
         gen_resp gr = {1, respond(q_false, NULL)};
+        if COND_TIMEOUT gr.r = 0;
         return gr;
     }
 
