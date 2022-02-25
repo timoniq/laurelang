@@ -1,0 +1,21 @@
+name: PR Autocheck
+
+on:
+  pull_request:
+    types:
+      - opened
+    branches: [ main ]
+
+jobs:
+  run_if:
+    if: github.event.pull_request.user.login != "timoniq"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment PR
+        uses: peter-evans/create-or-update-comment@v1
+        with:
+          issue-number: ${{ github.event.pull_request }}
+          body: |
+            Please, change the base branch to dev. 
+            Pull requests to the main branch are rejected. 
+            Thank you!
