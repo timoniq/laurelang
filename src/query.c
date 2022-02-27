@@ -1297,7 +1297,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                         return continued_resp;
                     }
 
-                    if (continued_resp.state == q_true) {
+                    if (continued_resp.state == q_true || continued_resp.state == q_yield) {
                         need_more = false;
                         found = true;
                     }

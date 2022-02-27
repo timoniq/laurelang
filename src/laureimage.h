@@ -68,8 +68,8 @@ void multiplicity_free(multiplicity*);
 #define ENHANCED_IMAGE_HEAD(self) \
     IMAGE_HEAD \
     char *identifier; \
-    bool (*eq)(self*, laure_stack_t*, void*); \
-    bool (*is_instantiated)(Instance*); \
+    bool (*eq)(self*, self*); \
+    bool (*is_instantiated)(self*); \
     self* (*copy)(self*);
 
 // Predicate types
@@ -334,7 +334,7 @@ bool array_translator(laure_expression_t*, void*, laure_stack_t*);
 
 struct Translator {
     // needed to cast macro string to image
-    bool (*invoke)(laure_expression_t*, void*, laure_stack_t*); // (macro_string, image, stack, do_assign)
+    bool (*invoke)(laure_expression_t*, void*, laure_stack_t*); // (exp, image, stack)
 };
 
 struct Translator *new_translator(bool (*invoke)(string, void*, laure_stack_t*));

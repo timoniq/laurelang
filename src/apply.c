@@ -259,7 +259,7 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
     }
 
     laure_expression_t *exp = result.exp;
-    laure_expression_set *expset = laure_expression_set_link(NULL, exp);
+    laure_expression_set *expset = laure_expression_compose_one(exp);
     qcontext *qctx = qcontext_new(expset);
     qctx->forbidden_ambiguation = true;
     control_ctx *cctx = control_new(session->stack, qctx, NULL, NULL);
@@ -361,6 +361,9 @@ string consult_single(laure_session_t *session, string fname, FILE *file) {
 
     while ((read = getline(&readinto, &len, file)) != -1) {
         strcpy(line, readinto);
+        uint idx = 0;
+        while (line[idx] == ' ') idx++;
+        if (idx > 0 && str_starts(line + idx, "//")) continue;
 
         if (!strlen(line)) continue;
         if (lastc(line) == '\n')

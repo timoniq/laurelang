@@ -555,6 +555,13 @@ gen_resp image_generate(laure_stack_t *stack, void* img, gen_resp (*rec)(void*, 
             gr.r = true;
             return gr;
         }
+        case IMG_CUSTOM_T:  {
+            EnhancedImageHead head = read_enhanced_head(img);
+            if (head.is_instantiated && head.is_instantiated(img)) {
+                return rec(img, external_ctx);
+            }
+            break;
+        }
         default: {
             gen_resp gr;
             gr.qr = respond(q_error, strdup("cannot instantiate"));
@@ -1352,6 +1359,12 @@ bool img_equals(void* img1, void* img2) {
                 c1->is_set = true;
             }
             return true;
+        }
+        case IMG_CUSTOM_T: {
+            EnhancedImageHead head = read_enhanced_head(img1);
+            EnhancedImageHead head2 = read_enhanced_head(img2);
+            if (strcmp(head.identifier, head2.identifier) != 0) return false;
+            return head.eq && head.eq(img1, img2);
         }
     }
 }

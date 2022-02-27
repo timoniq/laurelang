@@ -1,0 +1,23 @@
+: ?include("@/server").
+: ?handler(Event).
+: ?start(int).
+
+?handler(e) {
+    path of e = "/";
+    send(e, "HTTP/1.1 200 OK");
+    send(e, "\r\n\r\n");
+    send(e, "hello! this is index page");
+    !;
+}
+
+?handler(e) {
+    e send "HTTP/1.1 404";
+    e send "\r\n\r\n";
+    e send "sorry this page is undefined";
+}
+
+?start(port) {
+    // each event creates a choicepoint
+    serve(port) = event;
+    handler(event);
+}

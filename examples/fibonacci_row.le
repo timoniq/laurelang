@@ -1,0 +1,4 @@
+: ?fibr(int, int) -> int.
+?fibr(x, y) -> z {
+    z = x + y | fibr(y, x + y);
+}

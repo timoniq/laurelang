@@ -450,6 +450,7 @@ int main(int argc, char *argv[]) {
 
     laure_session_t *session = laure_session_new();
     laure_register_builtins(session);
+    LAURE_SESSION = session;
 
     if (! FLAG_CLEAN) {
         string lp = FLAG_LIBRARY ? FLAG_LIBRARY : lib_path;

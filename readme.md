@@ -2,6 +2,8 @@
 
 A pure logical, compact language.
 
+Work in progress.
+
 # What this language is for?
 
 Laurelang stands for Logic, Abstraction and Unification with Readability and Efficience.
@@ -24,9 +26,11 @@ Also you may need to run tests with `make test`. Useful settings and tips for in
 
 # Documentation
 
-[Read documentation](/docs/index.md)
+[Tutorial and dev notes](/docs/index.md)
+
+[Read documentation](https://docs.laurelang.org)
 
 # License
 
-Laurelang is [MIT licensed](/LICENSE)
+Laurelang is [MIT licensed](/LICENSE)  
 Copyright © 2022 [timoniq](https://github.com/timoniq)
