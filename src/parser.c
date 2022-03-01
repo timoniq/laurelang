@@ -460,12 +460,11 @@ laure_parse_many_result laure_parse_many(const string query_, char divisor, laur
             int i = 0;
             for (int j = last_i; j < sz; j++) {
                 int n = laure_string_char_at_pos(s, strlen(s), j);
-                laure_string_put_char(slice + i, n);
-                i++;
+                i += laure_string_put_char(slice + i, n);
             }
             
             string str = string_clean(slice);
-                        
+
             laure_parse_result res = laure_parse(str);
             if (!res.is_ok) {
                 laure_expression_set_destroy(linked);
