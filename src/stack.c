@@ -209,6 +209,7 @@ laure_stack_t *laure_stack_clone(laure_stack_t *from, bool deep) {
 
 void laure_stack_add_to(laure_stack_t *from, laure_stack_t *to) {
     for (int i = 0; i < from->current.count; i++) {
+        if (! from->current.cells) continue;
         Cell cell = from->current.cells[i];
         if (cell.instance == NULL) continue;
         bool found = false;

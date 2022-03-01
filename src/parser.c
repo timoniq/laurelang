@@ -456,17 +456,17 @@ laure_parse_many_result laure_parse_many(const string query_, char divisor, laur
         && !text
     ) {
         if (last_i - 1 != sz - 1 || sz == 1) {
-            string slice = malloc(sizeof(char) * (sz - last_i + 1) * 4);
+            char slice[512] = {0};
+            int i = 0;
             for (int j = last_i; j < sz; j++) {
-                char nch[4];
                 int n = laure_string_char_at_pos(s, strlen(s), j);
-                laure_string_put_char(nch, n);
-                strcat(slice, nch);
+                laure_string_put_char(slice + i, n);
+                i++;
             }
             
-            slice = string_clean(slice);
-            
-            laure_parse_result res = laure_parse(slice);
+            string str = string_clean(slice);
+                        
+            laure_parse_result res = laure_parse(str);
             if (!res.is_ok) {
                 laure_expression_set_destroy(linked);
                 laure_parse_many_result lpmr;
