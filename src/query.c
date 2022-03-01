@@ -271,7 +271,6 @@ void merge_eval(laure_stack_t *stack_cur, laure_stack_t *stack_next) {
         STACK_ITER(scope, cell, {
             Cell c = laure_stack_get_cell_by_lid(stack_next, cell.link_id, false);
             if (c.instance) {
-                image_free(c.instance->image, true);
                 c.instance->image = image_deepcopy(stack_next, cell.instance->image);
             }
         }, false);
@@ -381,9 +380,6 @@ qresp laure_showcast(laure_stack_t *stack, var_process_kit *vpk) {
                 ncell.instance = instance_deepcopy(stack->global, strdup(ins->name), ins);
                 laure_stack_insert(stack->global, ncell);
             } else {
-                if (cell.instance->image != ins->image) {
-                    image_free(cell.instance->image, true);
-                }
                 cell.instance->image = image_deepcopy(stack, ins->image);
             }
         }
@@ -592,7 +588,6 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                         Cell next_cell = stack->next->current.cells[j];
                         if (next_cell.instance == NULL) continue;
                         if (next_cell.link_id == cell.link_id) {
-                            laure_gc_treep_add(GC_ROOT, GCPTR_IMAGE, next_cell.instance->image);
                             next_cell.instance->image = image_deepcopy(stack, cell.instance->image);
                         }
                     }
@@ -1139,7 +1134,6 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
 
                                 if  (!result) {
                                     __query_free_scopes_nqctx;
-                                    instance_free(arg);
                                     return RESPOND_FALSE;
                                 }
 
@@ -1174,7 +1168,6 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                             if (!hint_instance)
                                 RESPOND_ERROR("specification of %s's response is needed", predicate_ins->name);
                             pd->resp = instance_deepcopy(stack, strdup("$R"), hint_instance);
-                            laure_gc_treep_add(GC_ROOT, GCPTR_INSTANCE, pd->resp);
                         } else if (str_eq(pf->c.resp_hint, "$")) {
                             pd->resp = resp_exp;
                         } else {
@@ -1239,7 +1232,6 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
 
                                     if (!result) {
                                         __query_free_scopes_nqctx;
-                                        instance_free(resp);
                                         return RESPOND_FALSE;
                                     }
 
@@ -1373,7 +1365,6 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
 
                                 if (! result) {
                                     __query_free_scopes_nqctx;
-                                    instance_free(arg);
                                     return RESPOND_FALSE;
                                 }
 
@@ -1450,7 +1441,6 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
 
                                     if (! result) {
                                         __query_free_scopes_nqctx;
-                                        instance_free(resp);
                                         return RESPOND_FALSE;
                                     }
 

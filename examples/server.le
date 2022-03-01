@@ -3,6 +3,7 @@
 : ?start(int).
 
 ?handler(e) {
+    message("Index page opened");
     path of e = "/";
     send(e, "HTTP/1.1 200 OK");
     send(e, "\r\n\r\n");

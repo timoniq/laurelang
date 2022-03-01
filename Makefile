@@ -15,7 +15,7 @@ endif
 
 .PHONY: all clean
 
-LIB = src/string.o src/parser.o src/session.o src/stack.o src/instance.o src/bigint.o src/domain.o src/query.o src/builtin.o src/predicates.o src/apply.o
+LIB = src/string.o src/parser.o src/session.o src/stack.o src/instance.o src/bigint.o src/domain.o src/query.o src/builtin.o src/predicates.o src/apply.o src/gc.o
 
 OBJECTS = laure.o $(LIB)
 
@@ -64,3 +64,4 @@ src/query.o: src/laurelang.h src/laureimage.h src/query.c
 src/builtin.o: src/laurelang.h src/laureimage.h src/predicates.h src/builtin.h src/builtin.c
 src/predicates.o: src/laurelang.h src/predicates.h src/predicates.c
 src/apply.o: src/laurelang.h src/predpub.h src/apply.c
+src/gc.o: src/laurelang.h src/laureimage.h src/gc.c

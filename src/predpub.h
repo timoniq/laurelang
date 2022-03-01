@@ -43,8 +43,6 @@ qresp respond(qresp_state s, char *e);
         if (!instance) { \
             void *__img = image_deepcopy(stack, laure_stack_get(stack, "int")->image); \
             instance = instance_new(strdup("__B"), NULL, __img); \
-            laure_gc_treep_add(gc, GCPTR_IMAGE, __img); \
-            laure_gc_treep_add(gc, GCPTR_INSTANCE, instance); \
         } \
         if (!is_int(instance)) RESPOND_ERROR("%s must be integer", instance->name); \
         } while (0)

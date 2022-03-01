@@ -2,7 +2,7 @@
 #include <readline/readline.h>
 #include <time.h>
 
-#define __finalize do {/*laure_gc_treep_destroy(local_gc);*/} while (0)
+#define __finalize do {} while (0)
 #define do_stop(__qr, __qctx) (__qr.error != NULL || __qr.state == q_error || __qr.state == q_stop || (__qctx && __qctx->cut) || COND_TIMEOUT)
 
 struct SumCtx {
@@ -233,8 +233,6 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
     Instance *var2 = pd_get_arg(pd, 1);
     Instance *sum = pd->resp;
 
-    laure_gc_treep_t *local_gc = NULL;
-
     ASSERT_IS_INT(local_gc, cctx->stack, var1);
     ASSERT_IS_INT(local_gc, cctx->stack, var2);
     ASSERT_IS_INT(local_gc, cctx->stack, sum);
@@ -294,7 +292,6 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
         sum_ctx_init(sum_ctx, sum_im->i_data, cctx, var1, var2, nimage);
 
         gen_resp gr = image_generate(cctx->stack, var1_im, integer_plus_sum_known_rec, sum_ctx);
-        image_free(nimage, true);
         free(sum_ctx);
         __finalize;
         return sum_ctx->found_any ? respond(q_yield, NULL) : respond(q_false, NULL);
@@ -305,7 +302,6 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
         sum_ctx2_init(sum_ctx, var1_im->i_data, cctx, sum, var2, nimage);
 
         gen_resp gr = image_generate(cctx->stack, sum_im, integer_plus_one_known_rec, sum_ctx);
-        image_free(nimage, true);
         free(sum_ctx);
         __finalize;
         return sum_ctx->found_any ? respond(q_yield, NULL) : respond(q_false, NULL);
@@ -316,7 +312,6 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
         sum_ctx2_init(sum_ctx, var2_im->i_data, cctx, sum, var1, nimage);
 
         gen_resp gr = image_generate(cctx->stack, sum_im, integer_plus_one_known_rec, sum_ctx);
-        image_free(nimage, true);
         free(sum_ctx);
         __finalize;
         return sum_ctx->found_any ? respond(q_yield, NULL) : respond(q_false, NULL);

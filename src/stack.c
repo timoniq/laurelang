@@ -6,81 +6,6 @@
 #define SCOPE_COUNT_LIMIT 1000
 #endif
 
-laure_gc_treep_t *laure_gc_treep_create_node(laure_gc_ptr_t ptr_t, void *ptr) {
-    laure_gc_treep_t *gctn = malloc(sizeof(laure_gc_treep_t));
-    laure_gc_treep_t node = {ptr_t, ptr, true, NULL, NULL};
-    *gctn = node;
-    return gctn;
-}
-
-laure_gc_treep_t *laure_gc_treep_add(laure_gc_treep_t *gct, laure_gc_ptr_t ptr_t, void *ptr) {
-    if (!ptr) return gct;
-
-    laure_gc_treep_t *node = laure_gc_treep_create_node(ptr_t, ptr);
-
-    if (gct == NULL) {
-        return node;
-    }
-
-    laure_gc_treep_t *g = gct;
-
-    for (;;) {
-        if (ptr > g->ptr) {
-            if (g->right == NULL) {
-                g->right = node;
-                break;
-            } else {
-                g = g->right;
-            }
-        } else if (ptr < g->ptr) {
-            if (g->left == NULL) {
-                g->left = node;
-                break;
-            } else {
-                g = g->left;
-            }
-        } else {
-            free(node);
-            return gct;
-        }
-    }
-    return gct;
-}
-
-laure_gc_treep_t *laure_gc_treep_destroy(laure_gc_treep_t *gct) {
-    if (gct == NULL) return NULL;
-
-    if (gct->left) {
-        gct->left = laure_gc_treep_destroy(gct->left);
-    }
-
-    if (gct->right) {
-        gct->right = laure_gc_treep_destroy(gct->right);
-    }
-
-    if (gct->active) {
-        switch (gct->ptr_t) {
-            case GCPTR_INSTANCE: {
-                // free instance
-                instance_free(gct->ptr);
-                break;
-            }
-            case GCPTR_IMAGE: {
-                // free image
-                image_free(gct->ptr, true);
-                break;
-            }
-            case GCPTR: {
-                free(gct->ptr);
-                break;
-            }
-        }
-        LAURE_GC_COLLECTED++;
-    }
-
-    free(gct);
-    return NULL;
-}
 
 #ifndef FEATURE_LINKED_SCOPE
 
@@ -291,7 +216,6 @@ void laure_stack_add_to(laure_stack_t *from, laure_stack_t *to) {
             Cell next_cell = to->current.cells[j];
             if (next_cell.instance == NULL) continue;
             if (str_eq(cell.instance->name, next_cell.instance->name)) {
-                laure_gc_treep_add(GC_ROOT, GCPTR_IMAGE, next_cell.instance->image);
                 next_cell.instance->image = image_deepcopy(from, cell.instance->image);
                 found = true;
                 break;
@@ -310,20 +234,9 @@ void laure_stack_free(laure_stack_t *stack) {
     if (stack == NULL) return;
     else if (stack->next == NULL) return;
 
-    if (stack->current.cells)
-
-    for (int i = 0; i < stack->current.count; i++) {
-        Cell cell = stack->current.cells[i];
-        if (cell.instance == NULL) continue; 
-        GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR_IMAGE, cell.instance->image);
-        GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR_INSTANCE, cell.instance);
-        GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR, cell.instance->name);
-    }
-
-    laure_stack_free(stack->next);
-    // GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR, stack->current.cells);
+    free(stack->current.cells);
     // free(stack);
-    GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR, stack);
+    stack->current.cells = NULL;
 }
 
 size_t laure_stack_get_size_deep(laure_stack_t *stack) {
@@ -623,15 +536,8 @@ void laure_stack_free(laure_stack_t *stack) {
     if (stack == NULL || stack->global == stack) {
         return;
     }
-    Cell cell;
-
-    STACK_ITER(stack, cell, {
-        GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR_IMAGE, cell.instance->image);
-        GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR_INSTANCE, cell.instance);
-    }, false);
-
+    free(stack);
     laure_stack_free(stack->next);
-    laure_gc_treep_add(GC_ROOT, GCPTR, stack);
 }
 
 size_t laure_stack_get_size_deep(laure_stack_t *stack) {

@@ -9,7 +9,6 @@ uint LAURE_GC_COLLECTED        = 0;
 uint LAURE_RECURSION_DEPTH     = 0;
 uint LAURE_TIMEOUT             = 0;
 clock_t LAURE_CLOCK            = 0;
-laure_gc_treep_t  *GC_ROOT     = NULL;
 
 #define TRACE_PRINT_INDENT 2
 

@@ -53,8 +53,6 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
                     free(ncctx);
                     laure_stack_free(nstack);
                 }
-
-                GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR_INSTANCE, el_ins_copy);
             }
             return respond(q_yield, (void*)found);
         }
@@ -111,13 +109,10 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
 
                     free(ncctx);
                     laure_stack_free(nstack);
-                    GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR, idx_bi->words);
-                    GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR, idx_bi);
                 } else {
                     bigint_free(idx_bi);
                 }
             }
-            image_free(idx_with_dom, true);
             return respond(q_yield, (void*)found);
         } else {
             bool found = false;
@@ -135,7 +130,6 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
 
                 bool check = img_equals(el_img_copy, ins->image);
                 if (! check) {
-                    GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR_IMAGE, el_img_copy);
                     continue;
                 }
 
@@ -153,14 +147,7 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
 
                 free(ncctx);
                 laure_stack_free(nstack);
-
-                GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR_IMAGE, el_img_copy);
-                GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR, idx_bi->words);
-                GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR, idx_bi);
             }
-
-            image_free(idx_img_copy, true);
-            image_free(el_img_u, true);
             return respond(q_yield, (void*)found);
         }
     } else if (instantiated(idx_ins)) {
@@ -187,7 +174,6 @@ qresp array_predicate_length(preddata *pd, control_ctx *cctx) {
         uint real_len = arr_img->i_data.length;
         void *real_len_img = integer_i_new(real_len);
         bool result = img_equals(len_img, real_len_img);
-        image_free(real_len_img, true);
         return respond(result ? q_true : q_false, 0);
     } else if (instantiated(len_ins)) {
         arr_img->u_data.length->t = SINGLE;

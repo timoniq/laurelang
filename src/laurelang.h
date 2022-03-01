@@ -46,6 +46,8 @@ typedef struct _Instance {
     char*           (* repr ) (struct _Instance*);
     char             * doc;
     void             * image;
+    // GARBAGE COLLECTION
+    bool mark;
 } Instance;
 
 typedef struct Cell {
@@ -80,27 +82,6 @@ typedef struct laure_expression_set_ {
     struct laure_expression_set_ *next;
 } laure_expression_set;
 
-// Garbage collection tree
-//         (ptr1)
-//      /          \
-//  (ptr2)        (ptr3)
-//    |         /        \
-//  (ptr4)    (ptr5)   (ptr6)
-
-typedef enum GCPtr {
-    GCPTR_INSTANCE,
-    GCPTR_IMAGE   ,
-    GCPTR         ,
-} laure_gc_ptr_t;
-
-typedef struct GCTreep {
-    laure_gc_ptr_t        ptr_t  ;
-    void           *ptr    ;
-    bool            active ;
-    struct GCTreep *left   ;
-    struct GCTreep *right  ;
-} laure_gc_treep_t;
-
 #ifndef FEATURE_LINKED_SCOPE
 
 #define SCOPE_SIZE 2000
@@ -121,6 +102,7 @@ typedef struct Stack {
 } laure_stack_t;
 
 #define STACK_ITER(stack, cell_, body, allow_null) do { \
+            if (! stack->current.cells) break; \
             for (int i = 0; i < stack->current.count; i++) { \
                 Cell __cell = stack->current.cells[i]; \
                 if (__cell.instance == NULL) continue; \
@@ -167,6 +149,14 @@ typedef struct Stack {
 
 #endif
 
+void laure_gc_track_instance(Instance *instance);
+void laure_gc_track_image(void *image);
+void laure_gc_mark_image(void *image);
+void laure_gc_mark_instance(Instance *instance);
+void laure_gc_mark(laure_stack_t *reachable);
+void laure_image_destroy(void *img);
+uint laure_gc_destroy();
+uint laure_gc_run(laure_stack_t *reachable);
 
 #define laure_included_fp_max 512
 
@@ -194,7 +184,6 @@ typedef struct {
 } laure_trace;
 
 extern laure_trace       *LAURE_TRACE;
-extern laure_gc_treep_t  *GC_ROOT;
 extern laure_session_t   *LAURE_SESSION;
 extern char              *LAURE_CURRENT_ADDRESS;
 extern char              *LAURE_INTERPRETER_PATH;
@@ -267,10 +256,6 @@ void laure_trace_print();
 void laure_trace_comment(char *comment);
 void laure_set_timeout(uint timeout);
 
-laure_gc_treep_t *laure_gc_treep_create_node(laure_gc_ptr_t ptr_t, void *ptr);
-laure_gc_treep_t *laure_gc_treep_add(laure_gc_treep_t *gct, laure_gc_ptr_t ptr_t, void *ptr);
-laure_gc_treep_t *laure_gc_treep_destroy(laure_gc_treep_t *gct);
-
 laure_stack_t *laure_stack_parent();
 laure_stack_t *laure_stack_init(laure_stack_t *next);
 Instance *laure_stack_get(laure_stack_t *stack, char *key);
@@ -340,21 +325,17 @@ struct laure_flag {
 
 
 #ifndef DISABLE_COLORING
-
 #define RED_COLOR "\033[31;1m"
 #define GREEN_COLOR "\033[32;1m"
 #define YELLOW_COLOR "\033[33;1m"
 #define GRAY_COLOR "\033[90;1m"
 #define NO_COLOR "\033[0m"
-
 #else
-
 #define RED_COLOR ""
 #define GREEN_COLOR ""
 #define YELLOW_COLOR ""
 #define GRAY_COLOR ""
 #define NO_COLOR ""
-
 #endif
 
 #ifndef lib_path

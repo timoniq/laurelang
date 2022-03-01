@@ -62,6 +62,7 @@ void multiplicity_insert(multiplicity*, void *img);
 void multiplicity_free(multiplicity*);
 
 #define IMAGE_HEAD \
+    bool mark; \
     enum ImageT t; \
     struct Translator* translator;
 
@@ -293,7 +294,6 @@ void *abstract_new(string atom);
 struct PredicateImage *predicate_header_new(struct InstanceSet *args, Instance *resp, bool is_constraint);
 
 void *image_deepcopy(laure_stack_t *stack, void *img);
-bool image_free(void *img, bool free_ptr);
 
 // Modify image
 // * add bodied variation to predicate image
@@ -372,8 +372,6 @@ string instance_repr(Instance*);
 string instance_get_doc(Instance *ins);
 void instance_lock(Instance *ins);
 void instance_unlock(Instance *ins);
-
-void *instance_free(Instance* instance);
 
 Instance *choice_instance_new(string name, string doc);
 

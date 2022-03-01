@@ -188,7 +188,8 @@ void *image_deepcopy(laure_stack_t *stack, void *img) {
             if (!ehead.copy) {
                 return img;
             }
-            return ehead.copy(img);
+            new_img_ptr = ehead.copy(img);
+            break;
         }
         case CHAR: {
             struct CharImage *old = (struct CharImage*)img;
@@ -202,10 +203,12 @@ void *image_deepcopy(laure_stack_t *stack, void *img) {
         }
         default: {
             printf("not implemented deepcopy %d\n", head.t);
+            new_img_ptr = img;
             break;
         };
     };
 
+    laure_gc_track_image(new_img_ptr);
     return new_img_ptr;
 }
 
@@ -448,8 +451,6 @@ struct unify_array_ctx {
 gen_resp unify_array(void *img, struct unify_array_ctx *ctx) {
     struct ArrayImage *arr = image_deepcopy(ctx->stack, ctx->im);
     arr->i_data.array[ctx->idx]->image = img; 
-
-    GC_ROOT = laure_gc_treep_add(GC_ROOT, GCPTR_IMAGE, img);
 
     for (int i = ctx->idx + 1; i < ctx->im->i_data.length; i++) {
         struct unify_array_ctx *uctx = malloc(sizeof(struct unify_array_ctx));
@@ -770,18 +771,10 @@ Instance *instance_new(string name, string doc, void *image) {
     ins->repr = default_repr;
     ins->locked = false;
     ins->image = image;
+    laure_gc_track_instance(ins);
+    laure_gc_track_image(image);
     return ins;
 };
-
-void *instance_free(Instance* instance) {
-    if (instance == NULL) return NULL;
-    if (instance->image == NULL) return NULL;
-    // image_free(instance->image, true);
-    //free(instance->name);
-    free(instance);
-    instance = NULL;
-    return instance;
-}
 
 Instance *choice_instance_new(string name, string doc) {
     Instance *ins = instance_new(name, doc, choice_img_new());
@@ -813,6 +806,7 @@ Instance *instance_deepcopy(laure_stack_t *stack, string name, Instance *from_in
     instance->locked = false;
     instance->name = name;
     instance->repr = from_instance->repr;
+    laure_gc_track_instance(instance);
     return instance;
 };
 
@@ -905,41 +899,6 @@ multiplicity *translate_to_multiplicity(
 ) {
     multiplicity *mult = multiplicity_create();
     printf("todo multiplicity create\n");
-    /*
-    for (int i = 0;;) {
-        bool last = false;
-
-        // reading next expression
-        string el_mstring = read_until_c(',', mstring, &i);
-
-        // if expression is empty - finish
-        // else if no delimiter for the last expression - read it
-        if (el_mstring == NULL || strlen(el_mstring) == 0) {
-            el_mstring = read_to_end(mstring, i);
-            last = true;
-            if (strlen(el_mstring) == 0 || el_mstring == NULL) {
-                break;
-            }
-        }
-
-        // clean expression and make a step from delimiter
-        string el_s = clean_s(el_mstring);
-        i++;
-
-        void *el_img = image_deepcopy(stack, rimg);
-        bool success = transl(el_s, el_img, stack, true);
-        if (!success) {
-            multiplicity_free(mult);
-            image_free(el_img, true);
-            return NULL;
-        }
-        multiplicity_insert(mult, el_img);
-
-        if (last) {
-            break;
-        }
-    }
-    */
     return mult;
 }
 
@@ -1111,7 +1070,6 @@ bool array_translator(laure_expression_t *exp, void* rimg, laure_stack_t *stack)
     if (array->t != ARRAY || exp->t != let_array) return false;
     uint length = laure_expression_get_count(exp->ba->set);
     Instance **ptrs = malloc(sizeof(void*) * length);
-    laure_gc_treep_t *local_gc = NULL;
 
     for (int i = 0; i < length; i++) {
         laure_expression_t *el_exp = laure_expression_set_get_by_idx(exp->ba->set, i);
@@ -1119,17 +1077,14 @@ bool array_translator(laure_expression_t *exp, void* rimg, laure_stack_t *stack)
         if (el_exp->t == let_var) {
             Instance *el = laure_stack_get(stack, el_exp->s);
             if (! el) {
-                laure_gc_treep_destroy(local_gc);
                 return false;
             }
             img = el->image;
         } else {
             img = image_deepcopy(stack, array->arr_el->image);
-            local_gc = laure_gc_treep_add(local_gc, GCPTR_IMAGE, img);
 
             bool result = read_head(array->arr_el->image).translator->invoke(el_exp, img, stack);
             if (! result) {
-                laure_gc_treep_destroy(local_gc);
                 return false;
             }
         }
@@ -1410,70 +1365,6 @@ control_ctx *create_control_ctx(laure_stack_t *stack, qcontext* qctx, var_proces
     ptr->qctx = qctx;
     ptr->vpk = vpk;
     return ptr;
-}
-
-/*
-void laure_gc_image_mark(laure_gc_treep_t *GC, void *img_) {
-    if (!img_) return;
-
-    struct ImageHead head = read_head(img_);
-
-    switch (head.t) {
-        case INTEGER: {
-            struct IntImage *img = (struct IntImage*)img_;
-            if (img->state == I) {
-            } else if (img->state == U) {
-            } else {
-            }
-        }
-    }
-}
-*/
-
-// returns false if image is not deepcopied
-bool image_free(void *img_raw, bool free_ptr) {
-    if (img_raw == NULL) return false;
-    struct ImageHead head = read_head(img_raw);
-
-    switch (head.t) {
-        case INTEGER: {
-            struct IntImage *img = (struct IntImage*)img_raw;
-            if (img->state == I) {
-                if (img->datatype == BINT) bigint_free(img->i_data);
-            } else if (img->state == M) {
-                multiplicity_free(img->mult);
-            } else {
-                int_domain_free(img->u_data);
-                img->u_data = NULL;
-            }
-            if (free_ptr)
-                free(img_raw);
-            break;
-        }
-        case ARRAY: {
-            /*
-            struct ArrayImage *img = (struct ArrayImage*)img_raw;
-            free(img->arr_el);
-            if (img->state == I) {
-                printf("freeing array\n");
-                for (int i = 0; i < img->i_data.length; i++) {
-                    instance_free(img->i_data.array[i]);
-                }
-                free(img->i_data.array);
-            } else if (img->state == M) {
-                multiplicity_free(img->mult);
-            } else {
-                int_domain_free(img->u_data.length);
-                img->u_data.length = NULL;
-            }
-            if (free_ptr)
-                free(img_raw);
-            */
-            break;
-        }
-        default: return false;
-    }
-    return true;
 }
 
 void choice_img_add(choice_img *cimg, Instance *n) {

@@ -191,11 +191,8 @@ int laure_process_query(laure_session_t *session, string line) {
             break;
         }
         case 5: {
-            uint temp = LAURE_GC_COLLECTED;
-            LAURE_GC_COLLECTED = 0;
-            GC_ROOT = laure_gc_treep_destroy(GC_ROOT);
-            printf("  Destroyed %zi garbage, summary %zi\n", LAURE_GC_COLLECTED, LAURE_GC_COLLECTED + temp);
-            LAURE_GC_COLLECTED += temp;
+            uint collected = laure_gc_run(session->stack);
+            printf("  Destroyed %zi garbage, summary %zi\n", collected, LAURE_GC_COLLECTED);
             break;
         }
         case 6: {
@@ -361,8 +358,6 @@ int laure_process_query(laure_session_t *session, string line) {
                 printf("  %serror%s %s\n", RED_COLOR, NO_COLOR, response.error);
             }
         }
-
-        // GC_ROOT = laure_gc_treep_destroy(GC_ROOT);
         free(cctx);
     }
     return code;
