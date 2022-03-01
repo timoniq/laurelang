@@ -70,6 +70,8 @@ qresp server_serve(preddata *pd, control_ctx *cctx) {
         return respond(q_error, strdup( serve_err[res] ));
 
     printf("  Server running %shttp://127.0.0.1:%s%s\n", GREEN_COLOR, port, NO_COLOR);
+    shutdown(clientfd, SHUT_RDWR);
+    close(clientfd);
 
     while (true) {
         addrlen = sizeof(clientaddr);

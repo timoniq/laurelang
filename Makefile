@@ -29,7 +29,7 @@ packages: $(LIB)
 	python3 utility/build_pkg.py
 
 clean:
-	rm -f $(TARGET) *.o src/*.o *.so lib/*.so lib/*/*.so
+	rm -f $(TARGET) *.o src/*.o *.so lib/*.so lib/*/*.so lib/*/src/*.o
 	find . -name "*.dSYM" -prune -exec rm -rf {} \;
 
 auto:

@@ -3,8 +3,8 @@
 : ?start(int).
 
 ?handler(e) {
-    message("Index page opened");
     path of e = "/";
+    message("Index page opened");
     send(e, "HTTP/1.1 200 OK");
     send(e, "\r\n\r\n");
     send(e, "hello! this is index page");
@@ -14,7 +14,7 @@
 ?handler(e) {
     e send "HTTP/1.1 404";
     e send "\r\n\r\n";
-    e send "sorry this page is undefined";
+    e send path of e;
 }
 
 ?start(port) {
