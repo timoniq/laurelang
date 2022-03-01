@@ -2,7 +2,7 @@ TARGET = laure
 PREFIX = /usr/local
 LIBFLAG = -Dlib_path=\"lib\"
 CFLAGS = -Isrc -Isubmodules/bigint -I/usr/local/include -g $(LIBFLAG) -fPIC
-LDFLAGS = -L/usr/local/lib -lreadline -lm -g -ldl
+LDFLAGS = -L/usr/local/lib -lreadline -lm -g -ldl -fPIC
 CC = gcc
 
 ifeq ($(DEBUG), 1)
@@ -61,7 +61,7 @@ src/instance.o: src/laurelang.h src/laureimage.h src/instance.c
 src/bigint.o: src/bigint.h src/bigint.c
 src/domain.o: src/domain.h src/domain.c
 src/query.o: src/laurelang.h src/laureimage.h src/query.c
-src/builtin.o: src/laurelang.h src/laureimage.h src/predicates.h src/builtin.h src/builtin.c
+src/builtin.o: src/laurelang.h src/laureimage.h src/builtin.h src/builtin.c
 src/predicates.o: src/laurelang.h src/predicates.h src/predicates.c
 src/apply.o: src/laurelang.h src/predpub.h src/apply.c
 src/gc.o: src/laurelang.h src/laureimage.h src/gc.c

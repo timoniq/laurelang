@@ -419,4 +419,15 @@ bool is_int(Instance*);
 
 bool int_check(void *img_, void *bi_);
 
+Instance *laure_cle_add_predicate(
+    laure_session_t *session,
+    string name,
+    qresp (*pred)(preddata*, control_ctx*),
+    int argc,
+    string args_hint,
+    string response_hint,
+    bool is_constraint,
+    string doc
+);
+
 #endif

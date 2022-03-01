@@ -18,7 +18,7 @@ apply_result_t respond_apply(apply_status_t status, string e) {
 };
 
 bool laure_load_shared(laure_session_t *session, char *path) {
-    void *lib = dlopen(path, RTLD_LAZY);
+    void *lib = dlopen(path, RTLD_LAZY | RTLD_GLOBAL);
     // Shared CLE (C logic environment) extension
     if (!lib) {
         printf("failed to load shared CLE extension %s\n\\ %s\n", path, dlerror());

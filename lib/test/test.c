@@ -1,9 +1,7 @@
 #include <laurelang.h>
 #include <predpub.h>
 #include <laureimage.h>
-#include <builtin.h>
 #include <math.h>
-#include <builtin.h>
 #include <time.h>
 
 #define test_suite_version "0.1"
@@ -15,6 +13,10 @@
 // error codes
 #define GENERATOR_FAULT_VALUE "GF1"
 #define GENERATOR_FAULT_COUNT "GF2"
+
+uint LAURE_RECURSION_DEPTH;
+laure_session_t* LAURE_SESSION;
+clock_t LAURE_CLOCK;
 
 struct receiver_payload {
     char **data;

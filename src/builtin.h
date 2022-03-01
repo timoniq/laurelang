@@ -39,15 +39,4 @@ const struct BuiltinPred BUILTIN_PREDICATES[] = {
 
 void laure_register_builtins(laure_session_t*);
 
-Instance *laure_cle_add_predicate(
-    laure_session_t *session,
-    string name,
-    qresp (*pred)(preddata*, control_ctx*),
-    int argc,
-    string args_hint,
-    string response_hint,
-    bool is_constraint,
-    string doc
-);
-
 #endif

@@ -308,7 +308,6 @@ typedef struct VPK {
 
 } var_process_kit;
 
-
 typedef struct string_linked_ {
     char *s;
     struct string_linked_ *next;

@@ -1,11 +1,11 @@
 LDFLAGS = -L/usr/local/lib -lreadline -lm -I'../../src'
-CFLAGS = -I'../../src' -g
+CFLAGS = -I'../../src' -g -fPIC
 CC = gcc
 
 OBJECTS = src/server.o src/serve.o src/send.o src/event.o
 
 all: $(OBJECTS)
-	$(CC) -g -shared -o server.so $(OBJECTS) laurelang.so -fPIC $(LDFLAGS)
+	$(CC) -g -shared -fPIC -o server.so $(OBJECTS) laurelang.so $(LDFLAGS)
 
 src/server.o: src/server.h src/server.c
 src/serve.o: src/server.h src/serve.c
