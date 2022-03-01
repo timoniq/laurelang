@@ -65,7 +65,6 @@ qresp server_serve(preddata *pd, control_ctx *cctx) {
     for (i = 0; i < MAX_CONNECTIONS; i++)
         clients[i] = -1;
 
-    signal(SIGCHLD,SIG_IGN);
     uint res = serve(port);
     if (res != 0)
         return respond(q_error, strdup( serve_err[res] ));
