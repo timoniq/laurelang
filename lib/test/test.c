@@ -14,9 +14,16 @@
 #define GENERATOR_FAULT_VALUE "GF1"
 #define GENERATOR_FAULT_COUNT "GF2"
 
+
+#if defined(__APPLE__)
 extern uint LAURE_RECURSION_DEPTH;
 extern laure_session_t* LAURE_SESSION;
 extern clock_t LAURE_CLOCK;
+#else
+uint LAURE_RECURSION_DEPTH = 0;
+laure_session_t* LAURE_SESSION = NULL;
+clock_t LAURE_CLOCK = 0;
+#endif
 
 struct receiver_payload {
     char **data;
