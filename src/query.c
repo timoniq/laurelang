@@ -1467,6 +1467,8 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                     }
 
                     qresp resp = laure_eval(ncctx, nqctx->expset);
+                    laure_stack_free(new_stack);
+                    laure_stack_free(prev_stack);
                     LAURE_RECURSION_DEPTH--;
                     qctx->mark = nextqctx->mark;
                     free(ncctx);
