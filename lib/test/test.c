@@ -14,9 +14,9 @@
 #define GENERATOR_FAULT_VALUE "GF1"
 #define GENERATOR_FAULT_COUNT "GF2"
 
-uint LAURE_RECURSION_DEPTH;
-laure_session_t* LAURE_SESSION;
-clock_t LAURE_CLOCK;
+extern uint LAURE_RECURSION_DEPTH;
+extern laure_session_t* LAURE_SESSION;
+extern clock_t LAURE_CLOCK;
 
 struct receiver_payload {
     char **data;
@@ -248,6 +248,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
 }
 
 int package_include(laure_session_t *session) {
+    LAURE_SESSION = session;
     laure_cle_add_predicate(
         session, "tests_run", 
         test_predicate_run, 

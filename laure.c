@@ -139,7 +139,7 @@ int laure_process_query(laure_session_t *session, string line) {
             if (str_eq(cmd.name, args.argv[0])) {
                 found = true;
                 if (cmd.argc != args.argc - 1 && cmd.argc != -1) {
-                    printf("  Command %s requires %d arguments, got %d\n", cmd.name, cmd.argc, args.argc - 1);
+                    printf("  Requires %d args (got %d)\n", cmd.argc, args.argc - 1);
                     break;
                 }
     // ----------
