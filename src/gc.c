@@ -22,6 +22,8 @@ void laure_gc_track_instance(Instance *instance) {
 }
 
 void laure_gc_track_image(void *image) {
+    //! too slow
+    for (int idx = 0; idx < IMAGES_TRACKED_N; idx++) if (GC_IMAGES_TRACK[idx] == image) return;
     GC_IMAGES_TRACK[IMAGES_TRACKED_N++] = image;
     laure_gc_check_space();
 }

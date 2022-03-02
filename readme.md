@@ -26,8 +26,7 @@ Also you may need to run tests with `make test`. Useful settings and tips for in
 
 # Documentation
 
-[Tutorial and dev notes](/docs/index.md)
-
+[Tutorial and dev notes](/docs/index.md)  
 [Read documentation](https://docs.laurelang.org)
 
 # License
