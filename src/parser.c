@@ -499,23 +499,6 @@ laure_parse_result laure_parse(string query) {
         lastc(query) = 0;
         return laure_parse(query);
     }
-
-    if (query[0] == '{') {
-        if (lastc(query) != '}') error_result("invalid set");
-        query = strdup(query);
-        query++;
-        lastc(query) = 0;
-        laure_parse_many_result lpmr = laure_parse_many(query, ';', NULL);
-        if (!lpmr.is_ok) {
-            error_format("cannot parse {body}: %s", lpmr.err);
-        } else {
-            laure_parse_result lpr;
-            lpr.is_ok = true;
-            laure_expression_set *optzd_expset = laure_expression_compose(lpmr.exps);
-            lpr.exp = laure_expression_create(let_set, NULL, false, NULL, 0, laure_bodyargs_create(optzd_expset, 0, false));
-            return lpr;
-        }
-    }
     
     char det = query[0];
     query++;
@@ -872,6 +855,23 @@ laure_parse_result laure_parse(string query) {
                 }
                 lpr.exp = laure_expression_create(let_unify, "", false, vn, 0, NULL);
                 return lpr;
+            }
+
+            if (query[0] == '{') {
+                if (lastc(query) != '}') error_result("invalid set");
+                query = strdup(query);
+                query++;
+                lastc(query) = 0;
+                laure_parse_many_result lpmr = laure_parse_many(query, ';', NULL);
+                if (!lpmr.is_ok) {
+                    error_format("cannot parse {body}: %s", lpmr.err);
+                } else {
+                    laure_parse_result lpr;
+                    lpr.is_ok = true;
+                    laure_expression_set *optzd_expset = laure_expression_compose(lpmr.exps);
+                    lpr.exp = laure_expression_create(let_set, NULL, false, NULL, 0, laure_bodyargs_create(optzd_expset, 0, false));
+                    return lpr;
+                }
             }
 
             string temp = read_til(query, ' ');
@@ -1318,6 +1318,34 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
             }
             exp->ba->set = args;
             set = laure_expression_set_link(set, exp);
+            break;
+        }
+        case let_choice_1: {
+            laure_expression_set *nset = NULL;
+            laure_expression_t *ptr = NULL;
+            EXPSET_ITER(exp->ba->set, ptr, {
+
+                laure_expression_compact_bodyargs *ba;
+
+                if (ptr->t == let_set) {
+                    laure_expression_set *eset = laure_expression_compose(ptr->ba->set);
+                    ba = laure_bodyargs_create(eset, laure_expression_get_count(eset), false);
+                } else {
+                    laure_expression_set *eset = laure_expression_compose_one(ptr);
+                    ba = laure_bodyargs_create(eset, 1, false);
+                }
+
+                laure_expression_t *e = laure_expression_create(let_set, NULL, false, NULL, 0, ba);
+                nset = laure_expression_set_link(nset, e);
+            });
+            set = laure_expression_set_link(
+                set, 
+                laure_expression_create(
+                    let_choice_2, NULL, 
+                    false, NULL, 0, 
+                    laure_bodyargs_create(nset, laure_expression_get_count(nset), false)
+                )
+            );
             break;
         }
         default: break;
