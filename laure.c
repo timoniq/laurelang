@@ -281,7 +281,6 @@ int laure_process_query(laure_session_t *session, string line) {
                         instance_lock(to_lock);
                         printf("  %s %slocked%s\n", name, GREEN_COLOR, NO_COLOR);
                     }
-                    
                 }
             }
             break;
@@ -299,9 +298,9 @@ int laure_process_query(laure_session_t *session, string line) {
                         instance_unlock(to_unlock);
                         printf("  %s %sunlocked%s\n", name, GREEN_COLOR, NO_COLOR);
                     }
-                    
                 }
             }
+            break;
         }
         case 11: {
             string value_s = args.argv[1];

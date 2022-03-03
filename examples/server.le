@@ -3,19 +3,17 @@
 : ?start(int).
 
 ?handler(e) {
-    path of e = "/";
-    message("Index page opened");
     send(e, "HTTP/1.1 200 OK");
     send(e, "\r\n\r\n");
-    send(e, "hello! this is index page");
-    !;
 }
 
-?handler(e) {
-    e send "HTTP/1.1 404";
-    e send "\r\n\r\n";
-    e send path of e;
-}
+?handler(e) when
+    path of e = "/",
+    send(e, "hello! this is index page"),
+    !.
+
+?handler(e) when
+    e send path of e.
 
 ?start(port) {
     // each event creates a choicepoint
