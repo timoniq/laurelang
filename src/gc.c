@@ -11,7 +11,7 @@ uint IMAGES_TRACKED_N = 0;
 
 void laure_gc_check_space() {
     if (IMAGES_TRACKED_N >= TRACK_MAX) {
-        printf("[OVERFLOW] gc\n");
+        printf("[OVERFLOW] memory overflow\n");
         exit(6);
     }
 }
@@ -167,5 +167,7 @@ uint laure_gc_destroy() {
 
 uint laure_gc_run(laure_stack_t *reachable) {
     laure_gc_mark(reachable);
-    return laure_gc_destroy();
+    uint d = laure_gc_destroy();
+    LAURE_GC_COLLECTED += d;
+    return d;
 }

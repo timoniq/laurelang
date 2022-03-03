@@ -721,6 +721,20 @@ string char_repr(Instance *ins) {
     }
 }
 
+int convert(int c) {
+    switch (c) {
+        case '\a': return 'a';
+        case '\b': return 'b';
+        case '\e': return 'e';
+        case '\f': return 'f';
+        case '\n': return 'n';
+        case '\r': return 'r';
+        case '\t': return 't';
+        case '\v': return 'v';
+        default: return -1;
+    }
+}
+
 string string_repr(Instance *ins) {
     struct ArrayImage *arr = (struct ArrayImage*)ins->image;
     if (arr->state == I) {
@@ -728,7 +742,12 @@ string string_repr(Instance *ins) {
         strcpy(buff, "\"");
         for (int idx = 0; idx < arr->i_data.length; idx++) {
             int c = ((struct CharImage*)arr->i_data.array[idx]->image)->c;
+            int cd = convert(c);
             char mbuff[5];
+            if (cd != -1) {
+                strcat(buff, "\\");
+                c = cd;
+            }
             laure_string_put_char(mbuff, c);
             strcat(buff, mbuff);
         }
@@ -1118,8 +1137,19 @@ bool string_translator(laure_expression_t *exp, void *rimg, laure_stack_t *stack
         strncpy(str, exp->s + 1, strlen(exp->s) - 2);
         uint len = laure_string_strlen(str);
         Instance **array = malloc(sizeof(void*) * len);
+
+        bool escaped = false;
+        uint i = 0;
         for (int idx = 0; idx < len; idx++) {
             int c = laure_string_char_at_pos(str, strlen(str), idx);
+
+            if (escaped) {
+                c = convert_escaped_char(c);
+                escaped = false;
+            } else if ( c == '\\') {
+                escaped = true;
+                continue;
+            }
 
             struct CharImage *c_img = malloc(sizeof(struct CharImage));
             c_img->translator = read_head(laure_stack_get(stack, "char")->image).translator;
@@ -1128,11 +1158,12 @@ bool string_translator(laure_expression_t *exp, void *rimg, laure_stack_t *stack
             c_img->c = c;
             
             Instance *c_ins = instance_new(strdup("el"), NULL, c_img);
-            array[idx] = c_ins;
+            array[i] = c_ins;
+            i++;
         }
         arr_img->state = I;
         arr_img->i_data.array = array;
-        arr_img->i_data.length = len;
+        arr_img->i_data.length = i;
     } else {
         if ((laure_string_strlen(exp->s) - 2) != arr_img->i_data.length) return false;
         for (int idx = 0; idx < arr_img->i_data.length; idx++) {

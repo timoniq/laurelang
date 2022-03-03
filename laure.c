@@ -240,11 +240,6 @@ int laure_process_query(laure_session_t *session, string line) {
             "stodgy (debug)"
             #endif
             );
-            #ifdef DISABLE_COLORING
-            printf("    coloring: disabled\n");
-            #else
-            printf("    coloring: %senabled%s\n", GREEN_COLOR, NO_COLOR);
-            #endif
             printf("    lib_path: `%s`\n", lib_path);
             printf("    trace limit: %d\n", LAURE_TRACE_LIMIT);
             printf("    recursion depth limit: %d\n", LAURE_RECURSION_DEPTH_LIMIT);
@@ -346,6 +341,7 @@ int laure_process_query(laure_session_t *session, string line) {
 
         control_ctx *cctx = laure_control_ctx_get(session, expset);
         qresp response = laure_eval(cctx, expset);
+        laure_gc_run(session->stack);
 
         if (!laure_is_silent(cctx)) {
             if (response.state == q_true) {

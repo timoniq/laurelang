@@ -97,7 +97,6 @@ qresp server_serve(preddata *pd, control_ctx *cctx) {
 
                 qresp result = laure_eval(ncctx, ncctx->qctx->expset);
                 laure_gc_mark(cctx->stack);
-                laure_gc_mark(nstack);
                 laure_gc_destroy();
 
                 if (result.error) {
