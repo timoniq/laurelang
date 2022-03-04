@@ -3,7 +3,7 @@
 #include <time.h>
 
 #define __finalize do {} while (0)
-#define do_stop(__qr, __qctx) (__qr.error != NULL || __qr.state == q_error || __qr.state == q_stop || (__qctx && __qctx->cut) || COND_TIMEOUT)
+#define do_stop(__qr, __qctx) (__qr.error != NULL || __qr.state == q_error || __qr.state == q_stop || (__qctx && __qctx->cut) || COND_TIMEOUT || __qctx->all_instantiated)
 
 struct SumCtx {
     bigint *sum;
@@ -52,7 +52,7 @@ gen_resp integer_plus_sum_known_rec(struct IntImage *var1_im, struct SumCtx *con
         free(var2->words);
         free(var2);
         gen_resp gr = {1, respond(q_false, NULL)};
-        if COND_TIMEOUT gr.r = 0;
+        if (do_stop(gr.qr, context->ctx->qctx->next)) gr.r = 0;
         return gr;
     };
 
@@ -95,7 +95,7 @@ gen_resp integer_plus_one_known_rec(struct IntImage *sum_im, struct Sum2Ctx *con
         free(var->words);
         free(var);
         gen_resp gr = {1, respond(q_false, NULL)};
-        if COND_TIMEOUT gr.r = 0;
+        if (do_stop(gr.qr, context->ctx->qctx->next)) gr.r = 0;
         return gr;
     }
 
@@ -139,7 +139,7 @@ gen_resp integer_mul_sum_known_rec(struct IntImage *var1_im, struct SumCtx *cont
         free(var2->words);
         free(var2);
         gen_resp gr = {1, respond(q_false, NULL)};
-        if COND_TIMEOUT gr.r = 0;
+        if (do_stop(gr.qr, context->ctx->qctx->next)) gr.r = 0;
         return gr;
     }
 
@@ -147,6 +147,7 @@ gen_resp integer_mul_sum_known_rec(struct IntImage *var1_im, struct SumCtx *cont
         free(var2->words);
         free(var2);
         gen_resp gr = {1, respond(q_false, NULL)};
+        if (do_stop(gr.qr, context->ctx->qctx->next)) gr.r = 0;
         return gr;
     };
 
@@ -294,7 +295,7 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
         gen_resp gr = image_generate(cctx->stack, var1_im, integer_plus_sum_known_rec, sum_ctx);
         free(sum_ctx);
         __finalize;
-        return sum_ctx->found_any ? respond(q_yield, NULL) : respond(q_false, NULL);
+        return sum_ctx->found_any ? respond(q_yield, 1) : respond(q_false, NULL);
 
     } else if (var1_i && !var2_i && !sum_i) {
         struct Sum2Ctx *sum_ctx = malloc(sizeof(struct Sum2Ctx));
@@ -304,7 +305,7 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
         gen_resp gr = image_generate(cctx->stack, sum_im, integer_plus_one_known_rec, sum_ctx);
         free(sum_ctx);
         __finalize;
-        return sum_ctx->found_any ? respond(q_yield, NULL) : respond(q_false, NULL);
+        return sum_ctx->found_any ? respond(q_yield, 1) : respond(q_false, NULL);
 
     } else if (!var1_i && var2_i && !sum_i) {
         struct Sum2Ctx *sum_ctx = malloc(sizeof(struct Sum2Ctx));
@@ -314,7 +315,7 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
         gen_resp gr = image_generate(cctx->stack, sum_im, integer_plus_one_known_rec, sum_ctx);
         free(sum_ctx);
         __finalize;
-        return sum_ctx->found_any ? respond(q_yield, NULL) : respond(q_false, NULL);
+        return sum_ctx->found_any ? respond(q_yield, 1) : respond(q_false, NULL);
 
     } else {
         __finalize;
@@ -383,21 +384,21 @@ qresp laure_predicate_integer_multiply(preddata *pd, control_ctx* cctx) {
         sum_ctx_init(sum_ctx, prod_im->i_data, cctx, var1, var2, image_deepcopy(cctx->stack, var2->image));
         gen_resp gr = image_generate(cctx->stack, var1_im, integer_mul_sum_known_rec, sum_ctx);
         if (!gr.r) return gr.qr;
-        return sum_ctx->found_any ? respond(q_yield, NULL) : respond(q_false, NULL);
+        return sum_ctx->found_any ? respond(q_yield, 1) : respond(q_false, NULL);
     } else if (var1_i && !var2_i && !prod_i) {
         struct Sum2Ctx *sum_ctx = malloc(sizeof(struct Sum2Ctx));
         sum_ctx2_init(sum_ctx, var1_im->i_data, cctx, prod, var2, image_deepcopy(cctx->stack, var2_im));
 
         gen_resp gr = image_generate(cctx->stack, prod_im, integer_mul_one_known_rec, sum_ctx);
         if (!gr.r) return gr.qr;
-        return sum_ctx->found_any ? respond(q_yield, NULL) : respond(q_false, NULL);
+        return sum_ctx->found_any ? respond(q_yield, 1) : respond(q_false, NULL);
     } else if (var1_i && !var2_i && prod_i) {
         struct Sum2Ctx *sum_ctx = malloc(sizeof(struct Sum2Ctx));
         sum_ctx2_init(sum_ctx, var2_im->i_data, cctx, prod, var1, image_deepcopy(cctx->stack, var1_im));
 
         gen_resp gr = image_generate(cctx->stack, prod_im, integer_mul_one_known_rec, sum_ctx);
         if (!gr.r) return gr.qr;
-        return sum_ctx->found_any ? respond(q_yield, NULL) : respond(q_false, NULL);
+        return sum_ctx->found_any ? respond(q_yield, 1) : respond(q_false, NULL);
     } else {
         return respond(q_error, strdup("cannot instantiate"));
     }

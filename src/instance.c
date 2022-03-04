@@ -406,20 +406,22 @@ gen_resp generate_array(bigint *length_, void *ctx_) {
     if (arr_im->length_lid) {
         struct IntImage *img;
         Cell cell = laure_stack_get_cell_by_lid(ctx->stack, arr_im->length_lid, true);
-        if (! ctx->im2) {
-            ctx->im2 = image_deepcopy(ctx->stack, cell.instance->image);
-        }
-        img = cell.instance->image;
+        if (cell.instance) {
+            if (! ctx->im2) {
+                ctx->im2 = image_deepcopy(ctx->stack, cell.instance->image);
+            }
+            img = cell.instance->image;
 
-        if (! int_check(ctx->im2, length_)) {
-            gen_resp gr; 
-            gr.r = true; 
-            gr.qr = respond(q_false, 0);
-            return gr;
-        }
+            if (! int_check(ctx->im2, length_)) {
+                gen_resp gr; 
+                gr.r = true; 
+                gr.qr = respond(q_false, 0);
+                return gr;
+            }
 
-        img->state = I;
-        img->i_data = length_;
+            img->state = I;
+            img->i_data = length_;
+        }
     }
 
     int length = (int)bigint_double(length_);
@@ -1087,31 +1089,41 @@ bool char_translator(laure_expression_t *exp, void* rimg, laure_stack_t *stack) 
 bool array_translator(laure_expression_t *exp, void* rimg, laure_stack_t *stack) {
     struct ArrayImage *array = (struct ArrayImage*)rimg;
     if (array->t != ARRAY || exp->t != let_array) return false;
-    uint length = laure_expression_get_count(exp->ba->set);
-    Instance **ptrs = malloc(sizeof(void*) * length);
 
-    for (int i = 0; i < length; i++) {
-        laure_expression_t *el_exp = laure_expression_set_get_by_idx(exp->ba->set, i);
-        void *img;
-        if (el_exp->t == let_var) {
-            Instance *el = laure_stack_get(stack, el_exp->s);
-            if (! el) {
-                return false;
-            }
-            img = el->image;
-        } else {
-            img = image_deepcopy(stack, array->arr_el->image);
+    if (array->state == U) {
+        uint length = laure_expression_get_count(exp->ba->set);
+        Instance **ptrs = malloc(sizeof(void*) * length);
 
-            bool result = read_head(array->arr_el->image).translator->invoke(el_exp, img, stack);
-            if (! result) {
-                return false;
+        for (int i = 0; i < length; i++) {
+            laure_expression_t *el_exp = laure_expression_set_get_by_idx(exp->ba->set, i);
+            void *img;
+            if (el_exp->t == let_var) {
+                Instance *el = laure_stack_get(stack, el_exp->s);
+                if (! el) {
+                    return false;
+                }
+                img = el->image;
+            } else {
+                img = image_deepcopy(stack, array->arr_el->image);
+
+                bool result = read_head(array->arr_el->image).translator->invoke(el_exp, img, stack);
+                if (! result) {
+                    return false;
+                }
             }
+            ptrs[i] = instance_new(strdup("element"), NULL, img);
         }
-        ptrs[i] = instance_new(strdup("element"), NULL, img);
+        array->i_data.length = length;
+        array->i_data.array = ptrs;
+        array->state = I;
+    } else {
+        if (array->i_data.length != exp->ba->body_len) return false;
+        for (int idx = 0; idx < array->i_data.length; idx++) {
+            Instance *el = array->i_data.array[idx];
+            bool res = read_head(el->image).translator->invoke(laure_expression_set_get_by_idx(exp->ba->set, idx), el->image, stack);
+            if (! res) return false;
+        }
     }
-    array->i_data.length = length;
-    array->i_data.array = ptrs;
-    array->state = I;
     return true;
 }
 

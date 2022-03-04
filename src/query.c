@@ -19,6 +19,8 @@
             return respond(__state, __err); \
         } while (0)
 
+#define __must_stop(__state, __ai) (__state == q_false && __ai)
+
 typedef struct {
     control_ctx *cctx;
     laure_expression_set *expset;
@@ -40,6 +42,7 @@ qcontext *qcontext_new(laure_expression_set *expset) {
     qctx->forbidden_ambiguation = false;
     qctx->mark = false;
     qctx->cut = false;
+    qctx->all_instantiated = false;
     return qctx;
 }
 
@@ -49,6 +52,7 @@ qcontext *qcontext_new_shifted(qcontext *qctx, laure_expression_set *expression_
     nextqctx->expset = expression_set;
     nextqctx->forbidden_ambiguation = qctx->forbidden_ambiguation;
     nextqctx->next = qctx->next;
+    nextqctx->all_instantiated = true;
     return nextqctx;
 }
 
@@ -133,29 +137,7 @@ gen_resp image_generator_rec(void *img, igctx *ctx) {
 
     Cell ncell = laure_stack_get_cell_by_lid(stack, ctx->lid, false);
     ncell.instance->image = img;
-
-    /*
-    Cell cell;
-    STACK_ITER(stack->main, cell, {
-        if (cell.link_id == ctx->lid) {
-            if (instantiated_or_mult(cell.instance) && !ctx->force) {
-                if (!img_equals(cell.instance->image, img)) {
-                    gen_resp gr;
-                    gr.r = 1;
-                    gr.qr = respond(q_false, NULL);
-                    return gr;
-                }
-            } else {
-                // fixme for domains
-                Cell ncell;
-                ncell.link_id = cell.link_id;
-                ncell.instance = instance_deepcopy_with_image(stack, cell.instance->name, cell.instance, img);
-                laure_stack_insert(stack, ncell);
-            }
-        }
-    }, false);
-    */
-
+    
     control_ctx *cctx_new = create_control_ctx(stack, ctx->cctx->qctx, ctx->cctx->vpk, (void*)0x1);
 
     qresp r = laure_eval(cctx_new, ctx->expset);
@@ -287,10 +269,11 @@ gen_resp quantif_all_gen(void *image, void *ctx_r) {
     Cell cell = laure_stack_get_cell_by_lid(stack, ctx->lid, true);
 
     cell.instance->image = image;
+    control_ctx *ncctx = create_control_ctx(stack, ctx->cctx->qctx, ctx->cctx->vpk, ctx->cctx->data);
 
     qresp qr = laure_eval(
-        ctx->cctx,
-        ctx->cctx->qctx->expset
+        ncctx,
+        ncctx->qctx->expset
     );
 
     if (qr.state == q_false || qr.error != NULL) {
@@ -469,7 +452,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
 
     if (laure_expression_get_count(expression_set) == 0) {
         if ((!qctx || qctx->next == NULL) || (stack->next == NULL && !stack->repeat)) {
-            if (!vpk || cctx->silent) return respond(q_true, 0);
+            if (!vpk || cctx->silent || cctx->data == 0x2) return respond(q_true, 0);
             if (qctx) qctx->mark = true;
             qresp qr;
             if (vpk->mode == INTERACTIVE) {
@@ -829,6 +812,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
             }
         }
         case let_var: {
+            if (!vpk) return RESPOND_OK;
             string vname = ent_exp->s;
             Instance *var = laure_stack_get(stack, vname);
             if (!var)
@@ -916,10 +900,10 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
             
             control_ctx *q_cctx = create_control_ctx(q_stack, q_qctx, NULL, NULL);
 
-            igctx ctx[1];
-            ctx->cctx = q_cctx;
-            ctx->lid = cell.link_id;
-            ctx->force = false;
+            igctx                 ctx[1];
+            ctx->cctx           = q_cctx;
+            ctx->lid      = cell.link_id;
+            ctx->force           = false;
             ctx->expset = expression_set;
 
             qresp qr;
@@ -1258,6 +1242,12 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                         }
                     }
 
+                    if (resp.state == q_stop || resp.state == q_error || __must_stop(resp.state, qctx->all_instantiated)) {
+                        free(ncctx);
+                        __query_free_scopes_nqctx;
+                        return resp;
+                    }
+
                     // todo `q_postpone`
 
                     if (resp.state == q_false || resp.state == q_yield) {
@@ -1268,20 +1258,12 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                         continue;
                     }
 
-                    if (resp.state == q_stop || resp.state == q_error) {
-                        free(ncctx);
-                        __query_free_scopes_nqctx;
-                        return resp;
-                    }
-
                     qresp continued_resp = laure_eval(ncctx, NULL);
                     qctx->mark = nextqctx->mark;
 
                     qcontext *first = nextqctx;
                     while (first && first->expset == NULL) first = first->next;
                     if (first) qctx->cut = first->cut;
-
-                    // __query_free_scopes_nqctx;
                     free(ncctx);
 
                     if (continued_resp.error != NULL) {
@@ -1311,6 +1293,8 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                     laure_expression_set *body = pf->interior.body;
                     body = laure_expression_compose(body);
                     nqctx->expset = body;
+
+                    bool all_instantiated = true;
 
                     for (int j = 0; j < pf->interior.argc; j++) {
                         string argn = pf->interior.argn[j];
@@ -1351,6 +1335,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                                     new_cell.instance = arg;
                                     new_cell.link_id = arg_cell.link_id;
                                 }
+                                if (! instantiated(new_cell.instance)) all_instantiated = false;
                                 laure_stack_insert(new_stack, new_cell);
                                 break;
                             }
@@ -1372,6 +1357,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                                 cell.link_id = laure_stack_get_uid(prev_stack);
 
                                 laure_stack_insert(new_stack, cell);
+                                if (! instantiated(cell.instance)) all_instantiated = false;
                                 break;
                             }
                         }
@@ -1387,6 +1373,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                             cell.instance = resp;
                             cell.link_id = laure_stack_get_uid(prev_stack);
                             laure_stack_insert(new_stack, cell);
+                            if (! instantiated(cell.instance)) all_instantiated = false;
                         } else {
                             switch (resp_exp->t) {
                                 case let_var: {
@@ -1428,6 +1415,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                                     }
 
                                     laure_stack_insert(new_stack, new_cell);
+                                    if (! instantiated(new_cell.instance)) all_instantiated = false;
                                     break;
                                 }
                                 default: {
@@ -1448,14 +1436,16 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                                     cell.link_id = laure_stack_get_uid(prev_stack);
 
                                     laure_stack_insert(new_stack, cell);
+                                    if (! instantiated(cell.instance)) all_instantiated = false;
                                     break;
                                 }
                             }
                         }
                     }
 
-                    nqctx->expset = body;
-                    new_stack->next = prev_stack;
+                    nqctx->expset             = body;
+                    nqctx->all_instantiated   = all_instantiated;
+                    new_stack->next           = prev_stack;
 
                     control_ctx *ncctx = control_new(new_stack, nqctx, vpk, cctx->data);
                     LAURE_RECURSION_DEPTH++;
@@ -1465,16 +1455,17 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                         LAURE_RECURSION_DEPTH = 0;
                         RESPOND_ERROR("recursion depth limit of %d exceeded", LAURE_RECURSION_DEPTH_LIMIT);
                     }
-
+                    
                     qresp resp = laure_eval(ncctx, nqctx->expset);
                     laure_stack_free(new_stack);
                     laure_stack_free(prev_stack);
+
                     LAURE_RECURSION_DEPTH--;
                     qctx->mark = nextqctx->mark;
                     free(ncctx);
 
-
                     if (resp.error != NULL) {
+                        resp.error = resp.error ? resp.error : strdup("");
                         return resp;
                     }
 

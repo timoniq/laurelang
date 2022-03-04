@@ -340,7 +340,7 @@ int laure_process_query(laure_session_t *session, string line) {
 
         control_ctx *cctx = laure_control_ctx_get(session, expset);
         qresp response = laure_eval(cctx, expset);
-        laure_gc_run(session->stack);
+        // laure_gc_run(session->stack);
 
         if (!laure_is_silent(cctx)) {
             if (response.state == q_true) {

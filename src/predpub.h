@@ -69,8 +69,7 @@ typedef struct QContext {
     struct QContext *next;
     bool constraint_mode;
     bool forbidden_ambiguation;
-    bool mark;
-    bool cut;
+    bool mark, cut, all_instantiated;
 } qcontext;
 
 struct BuiltinPredHint {
