@@ -146,3 +146,14 @@
     no_repeat([1, 2, 2]) -> fail();
     no_repeat([1, 1, 2]) -> fail();
 }
+
+// [1, 2, 1]
+// [2, 1, 2]
+: ?test_array_no_repeat_gen(int[]).
+?test_array_no_repeat_gen(arr) {
+    el = between(0, 3);
+    each of arr = el;
+    length of arr = 3;
+    arr?;
+    no_repeat of arr;
+}
