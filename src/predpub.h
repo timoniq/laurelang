@@ -67,9 +67,7 @@ bool int_check(void *img, void *bi);
 typedef struct QContext {
     laure_expression_set *expset;
     struct QContext *next;
-    bool constraint_mode;
-    bool forbidden_ambiguation;
-    bool mark, cut, all_instantiated;
+    bool constraint_mode, mark, cut;
 } qcontext;
 
 struct BuiltinPredHint {
@@ -87,7 +85,7 @@ typedef struct apply_result {
     char *error;
 } apply_result_t;
 
-control_ctx *control_new(laure_stack_t* stack, qcontext* qctx, var_process_kit* vpk, void* data);
+control_ctx *control_new(laure_stack_t* stack, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig);
 qcontext *qcontext_new(laure_expression_set *expset);
 
 apply_result_t laure_consult_predicate(laure_session_t *session, laure_stack_t *stack, laure_expression_t *predicate_exp, char *address);

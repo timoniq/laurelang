@@ -43,7 +43,7 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
                     el_ins->image = img_copy;
 
                     laure_stack_t *nstack = laure_stack_clone(cctx->stack, true);
-                    control_ctx *ncctx = control_new(nstack, cctx->qctx, cctx->vpk, cctx->data);
+                    control_ctx *ncctx = control_new(nstack, cctx->qctx, cctx->vpk, cctx->data, cctx->no_ambig);
 
                     qresp result = laure_eval(ncctx, ncctx->qctx->expset);
 
@@ -66,6 +66,11 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
     }
     return respond(q_true, 0);
 }
+
+struct ArrayIdxEGenCtx {
+    control_ctx *cctx;
+    uint idx; 
+};
 
 qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
     Instance *arr_ins = pd_get_arg(pd, 0);
@@ -100,7 +105,7 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
                     found = true;
 
                     laure_stack_t *nstack = laure_stack_clone(cctx->stack, true);
-                    control_ctx *ncctx = control_new(nstack, cctx->qctx, cctx->vpk, cctx->data);
+                    control_ctx *ncctx = control_new(nstack, cctx->qctx, cctx->vpk, cctx->data, cctx->no_ambig);
 
                     qresp result = laure_eval(ncctx, ncctx->qctx->expset);
 
@@ -138,7 +143,7 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
                 idx_img->i_data = idx_bi;
 
                 laure_stack_t *nstack = laure_stack_clone(cctx->stack, true);
-                control_ctx *ncctx = control_new(nstack, cctx->qctx, cctx->vpk, cctx->data);
+                control_ctx *ncctx = control_new(nstack, cctx->qctx, cctx->vpk, cctx->data, cctx->no_ambig);
 
                 qresp result = laure_eval(ncctx, ncctx->qctx->expset);
 
@@ -152,9 +157,20 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
         }
     } else if (instantiated(idx_ins)) {
         // length > idx
-        if (! img_equals(el_img, arr_img->arr_el->image)) return RESPOND_FALSE;
+        // if (! img_equals(el_img, arr_img->arr_el->image)) return RESPOND_FALSE;
         IntValue left; left.t = SECLUDED; left.data = bigint_copy(idx_img->i_data);
         int_domain_gt(arr_img->u_data.length, left);
+        ref_element ref;
+        ref.idx = (uint)bigint_double(idx_img->i_data);
+        ref.link_id = pd->resp_link;
+        if (arr_img->ref_count) {
+            arr_img->ref = realloc(arr_img->ref, sizeof(ref_element) * (arr_img->ref_count + 1));
+            arr_img->ref[arr_img->ref_count++] = ref;
+        } else {
+            arr_img->ref = malloc(sizeof(ref_element));
+            arr_img->ref[0] = ref;
+            arr_img->ref_count++;
+        }
         return RESPOND_TRUE;
     } else if (instantiated(el_ins)) {
         return TOO_AMBIG;

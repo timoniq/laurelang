@@ -19,7 +19,7 @@
             return respond(__state, __err); \
         } while (0)
 
-#define __must_stop(__state, __ai) (__state == q_false && __ai)
+#define __must_stop(__state, __err, __no_ambig) ((__state == q_false || (__state == q_yield && __err == 0)) && __no_ambig)
 
 typedef struct {
     control_ctx *cctx;
@@ -39,10 +39,8 @@ qcontext *qcontext_new(laure_expression_set *expset) {
     qctx->constraint_mode = false;
     qctx->expset = expset;
     qctx->next = NULL;
-    qctx->forbidden_ambiguation = false;
     qctx->mark = false;
     qctx->cut = false;
-    qctx->all_instantiated = false;
     return qctx;
 }
 
@@ -50,19 +48,18 @@ qcontext *qcontext_new_shifted(qcontext *qctx, laure_expression_set *expression_
     qcontext *nextqctx = qcontext_new(qctx->next);
     nextqctx->constraint_mode = qctx->constraint_mode;
     nextqctx->expset = expression_set;
-    nextqctx->forbidden_ambiguation = qctx->forbidden_ambiguation;
     nextqctx->next = qctx->next;
-    nextqctx->all_instantiated = true;
     return nextqctx;
 }
 
-control_ctx *control_new(laure_stack_t* stack, qcontext* qctx, var_process_kit* vpk, void* data) {
+control_ctx *control_new(laure_stack_t* stack, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig) {
     control_ctx *cctx = malloc(sizeof(control_ctx));
     cctx->stack = stack;
     cctx->qctx = qctx;
     cctx->vpk = vpk;
     cctx->data = data;
     cctx->silent = false;
+    cctx->no_ambig = no_ambig;
     return cctx;
 }
 
@@ -73,6 +70,15 @@ void *pd_get_arg(preddata *pd, int index) {
         }
     }
     return NULL;
+}
+
+long pd_get_arg_link(preddata *pd, int index) {
+    for (int i = 0; i < pd->argc; i++) {
+        if (pd->argv[i].index == index) {
+            return pd->argv[i].link_id;
+        }
+    }
+    return 0;
 }
 
 
@@ -129,7 +135,7 @@ control_ctx *laure_control_ctx_get(laure_session_t *session, laure_expression_se
     vpk->tracked_vars = vars;
     vpk->tracked_vars_len = vars_len;
 
-    return control_new(session->stack, qctx, vpk, NULL);
+    return control_new(session->stack, qctx, vpk, NULL, false);
 }
 
 gen_resp image_generator_rec(void *img, igctx *ctx) {
@@ -137,16 +143,16 @@ gen_resp image_generator_rec(void *img, igctx *ctx) {
 
     Cell ncell = laure_stack_get_cell_by_lid(stack, ctx->lid, false);
     ncell.instance->image = img;
-    
-    control_ctx *cctx_new = create_control_ctx(stack, ctx->cctx->qctx, ctx->cctx->vpk, (void*)0x1);
+
+    control_ctx *cctx_new = create_control_ctx(stack, ctx->cctx->qctx, ctx->cctx->vpk, (void*)0x1, ctx->cctx->no_ambig);
 
     qresp r = laure_eval(cctx_new, ctx->expset);
 
     free(cctx_new);
-    // laure_stack_free(stack);
 
-    if (r.state != q_true || r.state != q_true_s) {
-        if (ctx->force && r.state == q_stop) {
+    if (r.state != q_true) {
+
+        if ((ctx->force && r.state == q_stop) || ctx->cctx->no_ambig) {
             gen_resp gr = {0, r};
             return gr;
         }
@@ -154,7 +160,7 @@ gen_resp image_generator_rec(void *img, igctx *ctx) {
         return gr;
     }
 
-    gen_resp gr = {1};
+    gen_resp gr = {1, respond(q_true, NULL)};
     return gr;
 }
 
@@ -173,7 +179,7 @@ qresp process_choice(
     nqctx->next     = next_qctx;
     nqctx->expset = nexpset;
 
-    control_ctx *ncctx = control_new(nstack, nqctx, cctx->vpk, 0x1);
+    control_ctx *ncctx = control_new(nstack, nqctx, cctx->vpk, 0x1, cctx->no_ambig);
     qresp choice_qr = laure_eval(ncctx, nexpset);
 
     free(ncctx);
@@ -193,7 +199,8 @@ gen_resp image_rec1(void *image, void *ctx_r) {
         stack, 
         ctx->cctx->qctx, 
         ctx->cctx->vpk, 
-        ctx->cctx->data
+        ctx->cctx->data,
+        ctx->cctx->no_ambig
     );
 
     qresp qr = laure_eval(cctx_new, ctx->expset);
@@ -269,7 +276,7 @@ gen_resp quantif_all_gen(void *image, void *ctx_r) {
     Cell cell = laure_stack_get_cell_by_lid(stack, ctx->lid, true);
 
     cell.instance->image = image;
-    control_ctx *ncctx = create_control_ctx(stack, ctx->cctx->qctx, ctx->cctx->vpk, ctx->cctx->data);
+    control_ctx *ncctx = create_control_ctx(stack, ctx->cctx->qctx, ctx->cctx->vpk, ctx->cctx->data, ctx->cctx->no_ambig);
 
     qresp qr = laure_eval(
         ncctx,
@@ -291,7 +298,7 @@ gen_resp quantif_exists_gen(void *image, void *ctx_r) {
     Cell cell = laure_stack_get_cell_by_lid(stack, ctx->lid, true);
 
     cell.instance->image = image;
-    control_ctx *ncctx = create_control_ctx(stack, ctx->cctx->qctx, ctx->cctx->vpk, ctx->cctx->data);
+    control_ctx *ncctx = create_control_ctx(stack, ctx->cctx->qctx, ctx->cctx->vpk, ctx->cctx->data, ctx->cctx->no_ambig);
 
     qresp qr = laure_eval(
         ncctx,
@@ -588,7 +595,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
 
             qcontext *qctx_new = qctx ? qctx->next : qctx;
 
-            control_ctx *cctx_new = control_new(nstack, qctx_new, vpk, cctx->data);
+            control_ctx *cctx_new = control_new(nstack, qctx_new, vpk, cctx->data, cctx->no_ambig);
             qresp qr = laure_eval(cctx_new, qctx_new ? qctx_new->expset : NULL);
             free(cctx_new);
 
@@ -836,7 +843,10 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
             ctx->expset = expression_set;
 
             gen_resp gr = image_generate(stack, unifcell.instance->image, image_generator_rec, ctx);
-            if (!gr.r) return gr.qr;
+
+            if (!gr.r || (gr.qr.state != q_true && cctx->no_ambig)) {
+                return gr.qr;
+            }
 
             return respond(q_yield, 0);
         }
@@ -860,7 +870,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                 nstack->global = nstack;
             nstack->repeat = 2;
 
-            control_ctx *ncctx = create_control_ctx(nstack, n_fact_qctx, vpk, cctx->data);
+            control_ctx *ncctx = create_control_ctx(nstack, n_fact_qctx, vpk, cctx->data, false);
 
             qresp qr = laure_eval(ncctx, fact_expset);
 
@@ -898,7 +908,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
             laure_stack_t *q_stack = laure_stack_clone(stack, false);
             q_stack->repeat = 1;
             
-            control_ctx *q_cctx = create_control_ctx(q_stack, q_qctx, NULL, NULL);
+            control_ctx *q_cctx = create_control_ctx(q_stack, q_qctx, NULL, NULL, cctx->no_ambig);
 
             igctx                 ctx[1];
             ctx->cctx           = q_cctx;
@@ -1022,7 +1032,6 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                 qcontext *nextqctx = qcontext_new(qctx->next);
                 nextqctx->constraint_mode = qctx->constraint_mode;
                 nextqctx->expset = expression_set;
-                nextqctx->forbidden_ambiguation = qctx->forbidden_ambiguation;
                 nextqctx->next = qctx->next;
 
                 qcontext *nqctx = qcontext_new(NULL);
@@ -1049,7 +1058,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                         laure_expression_t *arg_exp = laure_expression_set_get_by_idx(ent_exp->ba->set, idx);
 
                         if (str_eq(pf->c.hints[idx]->hint, "$")) {
-                            struct predicate_arg pa = {idx, arg_exp, false};
+                            struct predicate_arg pa = {idx, arg_exp, false, 0};
                             preddata_push(pd, pa);
                             continue;
                         }
@@ -1102,7 +1111,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
 
                                 laure_stack_insert(new_stack, new_cell);
 
-                                struct predicate_arg pa = {idx, arg, true};
+                                struct predicate_arg pa = {idx, arg, true, arg_cell.link_id};
                                 preddata_push(pd, pa);
                                 break;
                             }
@@ -1126,7 +1135,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
 
                                 laure_stack_insert(new_stack, cell);
 
-                                struct predicate_arg pa = {idx, arg, true};
+                                struct predicate_arg pa = {idx, arg, true, 0};
                                 preddata_push(pd, pa);
                                 break;
                             }
@@ -1149,7 +1158,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                         if (!resp_exp) {
                             Instance *hint_instance = pf->c.resp_hint;
                             if (!hint_instance)
-                                RESPOND_ERROR("specification of %s's response is needed", predicate_ins->name);
+                                RESPOND_ERROR("specification of %s's response is needed (response argument is anonymous now)", predicate_ins->name);
                             pd->resp = instance_deepcopy(stack, strdup("$R"), hint_instance);
                         } else if (str_eq(pf->c.resp_hint, "$")) {
                             pd->resp = resp_exp;
@@ -1199,6 +1208,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
 
                                     laure_stack_insert(new_stack, new_cell);
                                     pd->resp = resp;
+                                    pd->resp_link = resp_cell.link_id;
                                     break;
                                 }
 
@@ -1232,7 +1242,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                         pd->resp = NULL;
                     }
 
-                    control_ctx *ncctx = create_control_ctx(new_stack, nqctx, vpk, cctx->data);
+                    control_ctx *ncctx = create_control_ctx(new_stack, nqctx, vpk, cctx->data, cctx->no_ambig);
                     qresp resp = pf->c.pred(pd, ncctx);
 
                     if (turn_off_consmode) {
@@ -1242,7 +1252,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                         }
                     }
 
-                    if (resp.state == q_stop || resp.state == q_error || __must_stop(resp.state, qctx->all_instantiated)) {
+                    if (resp.state == q_stop || resp.state == q_error || __must_stop(resp.state, resp.error, cctx->no_ambig)) {
                         free(ncctx);
                         __query_free_scopes_nqctx;
                         return resp;
@@ -1260,6 +1270,10 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
 
                     qresp continued_resp = laure_eval(ncctx, NULL);
                     qctx->mark = nextqctx->mark;
+
+                    if (continued_resp.state != q_true && continued_resp.state != q_yield && cctx->no_ambig) {
+                        return respond(q_false, 0);                        
+                    }
 
                     qcontext *first = nextqctx;
                     while (first && first->expset == NULL) first = first->next;
@@ -1444,10 +1458,12 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                     }
 
                     nqctx->expset             = body;
-                    nqctx->all_instantiated   = all_instantiated;
                     new_stack->next           = prev_stack;
 
-                    control_ctx *ncctx = control_new(new_stack, nqctx, vpk, cctx->data);
+                    control_ctx *ncctx = control_new(new_stack, nqctx, vpk, cctx->data, cctx->no_ambig);
+                    if (all_instantiated) {
+                        ncctx->no_ambig = true;
+                    }
                     LAURE_RECURSION_DEPTH++;
 
                     if (LAURE_RECURSION_DEPTH > LAURE_RECURSION_DEPTH_LIMIT) {
@@ -1507,7 +1523,10 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                     }
                 }
             }
-            return (!found) ? (need_more ? respond(q_continue, NULL) : RESPOND_FALSE) : RESPOND_TRUE;
+            if (! found) {
+                return (need_more ? respond(q_continue, NULL) : RESPOND_FALSE);
+            } else
+                return RESPOND_TRUE;
         }
         case let_pred:
         case let_constraint: {
@@ -1523,7 +1542,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
             nqctx->next = qcontext_new_shifted(qctx, expression_set);
             laure_stack_t *private_stack = laure_stack_clone(stack, true);
             private_stack->next = stack;
-            control_ctx *ncctx = control_new(private_stack, nqctx, vpk, cctx->data);
+            control_ctx *ncctx = control_new(private_stack, nqctx, vpk, cctx->data, cctx->no_ambig);
             qresp resp = laure_eval(ncctx, ncctx->qctx->expset);
             free(nqctx->next);
             free(nqctx);

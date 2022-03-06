@@ -53,6 +53,8 @@ void *array_i_new(Instance **array, int length) {
     img->translator = new_translator(array_translator);
     img->arr_el = NULL;
     img->length_lid = 0;
+    img->ref_count = 0;
+    img->ref = NULL;
 
     return (void*)img;
 }
@@ -72,6 +74,8 @@ void *array_u_new(Instance *element) {
     img->state = U;
     img->u_data = u_data;
     img->length_lid = 0;
+    img->ref_count = 0;
+    img->ref = NULL;
 
     return (void*)img;
 }
@@ -151,6 +155,8 @@ void *image_deepcopy(laure_stack_t *stack, void *img) {
             }
 
             new_img->translator = old_img->translator;
+            new_img->ref_count = old_img->ref_count;
+            new_img->ref = old_img->ref;
             new_img_ptr = new_img;
             break;
         }
@@ -368,8 +374,18 @@ GenArrayCtx *copy_gen_ary_ctx(GenArrayCtx *old) {
     ctx->aid->state = old->aid->state;
     ctx->aid->translator = old->aid->translator;
     ctx->aid->i_data.array = malloc(sizeof(void*) * old->length);
+
     for (int i = 0; i < old->aid->i_data.length; i++) {
         ctx->aid->i_data.array[i] = instance_deepcopy(old->stack, "el", old->aid->i_data.array[i]);
+    }
+    for (int i = old->aid->i_data.length; i < old->length; i++) {
+        for (int j = 0; j < old->im->ref_count; j++) {
+            ref_element ref = old->im->ref[j];
+            if (i == ref.idx) {
+                ctx->aid->i_data.array[i] = old->aid->i_data.array[i];
+                break;
+            }
+        }
     }
     ctx->aid->arr_el = old->aid->arr_el;
     ctx->aid->i_data.length = old->aid->i_data.length;
@@ -382,9 +398,12 @@ gen_resp generate_array_tail(void *img, void *ctx_) {
     GenArrayCtx *old_ctx = (GenArrayCtx*)ctx_;
     GenArrayCtx *ctx = copy_gen_ary_ctx(old_ctx);
 
-    Instance *el_ins = instance_new("el", "", img);
+    if (! ctx->aid->i_data.array[ctx->aid->i_data.length])
+        ctx->aid->i_data.array[ctx->aid->i_data.length] = instance_new("el", "", img);
+    else {
+        ctx->aid->i_data.array[ctx->aid->i_data.length]->image = img; 
+    }
 
-    ctx->aid->i_data.array[ctx->aid->i_data.length] = el_ins;
     ctx->aid->i_data.length++;
 
     if (ctx->length == ctx->aid->i_data.length) {
@@ -403,6 +422,7 @@ gen_resp generate_array(bigint *length_, void *ctx_) {
     GenCtx *ctx = (GenCtx*)ctx_;
 
     struct ArrayImage *arr_im = (struct ArrayImage*)ctx->im;
+
     if (arr_im->length_lid) {
         struct IntImage *img;
         Cell cell = laure_stack_get_cell_by_lid(ctx->stack, arr_im->length_lid, true);
@@ -429,15 +449,27 @@ gen_resp generate_array(bigint *length_, void *ctx_) {
         return ctx->rec(array_i_new(NULL, 0), ctx->external_ctx);
     }
 
+    struct ArrayImage *ary_im = (struct ArrayImage*)ctx->im;
+
     GenArrayCtx *gen_ary_ctx = malloc(sizeof(GenArrayCtx));
-    gen_ary_ctx->aid = array_i_new(malloc(sizeof(void*) * length), 0);
+    void **aid_data = malloc(sizeof(void*) * length);
+    memset(aid_data, 0, length * sizeof(void*));
+
+    for (int i = 0; i < ary_im->ref_count; i++) {
+        ref_element ref = ary_im->ref[i];
+        Cell cell = laure_stack_get_cell_by_lid(ctx->stack, ref.link_id, false);
+        aid_data[ref.idx] = cell.instance;
+    }
+
+    gen_ary_ctx->aid = array_i_new(aid_data, 0);
     gen_ary_ctx->aid->arr_el = arr_im->arr_el;
     gen_ary_ctx->aid->i_data.length = 0;
     gen_ary_ctx->length = length;
-    gen_ary_ctx->im = ctx->im;
+    gen_ary_ctx->im = ary_im;
     gen_ary_ctx->external_ctx = ctx->external_ctx;
     gen_ary_ctx->rec = ctx->rec;
     gen_ary_ctx->stack = ctx->stack;
+
     return image_generate(ctx->stack, get_image(gen_ary_ctx->im->arr_el), generate_array_tail, gen_ary_ctx);
 }
 
@@ -1401,12 +1433,13 @@ qresp image_control(void *inst_img, control_ctx* ctx) {
     return RESPOND_YIELD;
 }
 
-control_ctx *create_control_ctx(laure_stack_t *stack, qcontext* qctx, var_process_kit* vpk, void* data) {
+control_ctx *create_control_ctx(laure_stack_t *stack, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig) {
     control_ctx *ptr = malloc(sizeof(control_ctx));
     ptr->stack = stack;
     ptr->data = data;
     ptr->qctx = qctx;
     ptr->vpk = vpk;
+    ptr->no_ambig = no_ambig;
     return ptr;
 }
 

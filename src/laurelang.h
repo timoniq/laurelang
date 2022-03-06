@@ -322,7 +322,10 @@ struct laure_flag {
     bool   readword;
 };
 
+// error mocks
+#define LAURE_ERR_MOCK 0x1
 
+// logging
 #ifndef DISABLE_COLORING
 #define RED_COLOR "\033[31;1m"
 #define GREEN_COLOR "\033[32;1m"

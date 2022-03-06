@@ -144,5 +144,5 @@
 ?test_array_no_repeat() {
     no_repeat([1, 2, 3]);
     no_repeat([1, 2, 2]) -> fail();
-    no_repeat([1, 1, 2]) - fail();
+    no_repeat([1, 1, 2]) -> fail();
 }

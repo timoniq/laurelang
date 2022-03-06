@@ -30,12 +30,18 @@ enum ImageT {
 };
 
 typedef struct {
+    uint idx;
+    long link_id;
+} ref_element;
+
+typedef struct {
     gen_resp (*rec)(void*, void*);
     void* external_ctx;
+
     laure_stack_t *stack;
-    int length;
-    struct ArrayImage *aid;
-    struct ArrayImage *im;
+    struct ArrayImage *aid, *im;
+
+    uint length;
 } GenArrayCtx;
 
 typedef struct {
@@ -141,6 +147,8 @@ struct ArrayImage {
     enum ImageState state;
     Instance *arr_el;
     long length_lid;
+    uint ref_count;
+    ref_element *ref;
     union {
         struct ArrayIData i_data;
         struct ArrayUData u_data;
@@ -179,10 +187,12 @@ typedef struct {
     int                   argc;
     struct predicate_arg *argv;
     void*                 resp;
+    long                  resp_link;
     laure_stack_t        *stack;
 } preddata;
 
 void *pd_get_arg(preddata *pd, int index);
+long pd_get_arg_link(preddata *pd, int index);
 
 // work with control when generating
 typedef struct ControlCtx {
@@ -190,7 +200,7 @@ typedef struct ControlCtx {
     qcontext*       qctx;
     var_process_kit* vpk;
     void*           data;
-    bool          silent;
+    bool          silent, no_ambig;
 } control_ctx;
 
 struct PredicateCImageHint {
@@ -343,6 +353,7 @@ struct predicate_arg {
     int index;
     void* arg;
     bool is_instance;
+    long link_id;
 };
 
 struct InstanceSet {
@@ -384,7 +395,7 @@ preddata *preddata_new(laure_stack_t *stack);
 void preddata_push(preddata*, struct predicate_arg);
 struct predicate_arg *predicate_arg_set_new();
 
-control_ctx *create_control_ctx(laure_stack_t* stack, qcontext* qctx, var_process_kit* vpk, void* data);
+control_ctx *create_control_ctx(laure_stack_t* stack, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig);
 qresp        image_control     (void *inst_img, control_ctx* ctx);
 
 // used to determine if instance is instantiated or not

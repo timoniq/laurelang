@@ -3,7 +3,7 @@
 #include <time.h>
 
 #define __finalize do {} while (0)
-#define do_stop(__qr, __qctx) (__qr.error != NULL || __qr.state == q_error || __qr.state == q_stop || (__qctx && __qctx->cut) || COND_TIMEOUT || __qctx->all_instantiated)
+#define do_stop(__qr, __no_ambig, __qctx) (__qr.error != NULL || __qr.state == q_error || __qr.state == q_stop || (__qctx && __qctx->cut) || COND_TIMEOUT || (__qr.state != q_true && __no_ambig))
 
 struct SumCtx {
     bigint *sum;
@@ -52,7 +52,7 @@ gen_resp integer_plus_sum_known_rec(struct IntImage *var1_im, struct SumCtx *con
         free(var2->words);
         free(var2);
         gen_resp gr = {1, respond(q_false, NULL)};
-        if (do_stop(gr.qr, context->ctx->qctx->next)) gr.r = 0;
+        if (do_stop(gr.qr, context->ctx->no_ambig, context->ctx->qctx)) gr.r = 0;
         return gr;
     };
 
@@ -67,13 +67,13 @@ gen_resp integer_plus_sum_known_rec(struct IntImage *var1_im, struct SumCtx *con
     ((struct IntImage*)context->var2->image)->state = I;
 
     laure_stack_t *nstack = laure_stack_clone(stack, true);
-    control_ctx *cctx = control_new(nstack, context->ctx->qctx, context->ctx->vpk, context->ctx->data);
+    control_ctx *cctx = control_new(nstack, context->ctx->qctx, context->ctx->vpk, context->ctx->data, context->ctx->no_ambig);
 
     qresp r = laure_eval(cctx, context->ctx->qctx->expset);
 
     free(cctx);
 
-    if do_stop(r, context->ctx->qctx->next) {
+    if do_stop(r, context->ctx->no_ambig, context->ctx->qctx) {
         gen_resp gr = {0, r};
         return gr;
     }
@@ -95,7 +95,7 @@ gen_resp integer_plus_one_known_rec(struct IntImage *sum_im, struct Sum2Ctx *con
         free(var->words);
         free(var);
         gen_resp gr = {1, respond(q_false, NULL)};
-        if (do_stop(gr.qr, context->ctx->qctx->next)) gr.r = 0;
+        if (do_stop(gr.qr, context->ctx->no_ambig, context->ctx->qctx)) gr.r = 0;
         return gr;
     }
 
@@ -109,13 +109,13 @@ gen_resp integer_plus_one_known_rec(struct IntImage *sum_im, struct Sum2Ctx *con
 
     laure_stack_t *nstack = laure_stack_clone(stack, true);
 
-    control_ctx *cctx = control_new(nstack, context->ctx->qctx, context->ctx->vpk, context->ctx->data);
+    control_ctx *cctx = control_new(nstack, context->ctx->qctx, context->ctx->vpk, context->ctx->data, context->ctx->no_ambig);
 
     qresp r = laure_eval(cctx, context->ctx->qctx->expset);
 
     free(cctx);
 
-    if do_stop(r, context->ctx->qctx->next) {
+    if do_stop(r, context->ctx->no_ambig, context->ctx->qctx) {
         gen_resp gr = {0, r};
         return gr;
     }
@@ -139,7 +139,7 @@ gen_resp integer_mul_sum_known_rec(struct IntImage *var1_im, struct SumCtx *cont
         free(var2->words);
         free(var2);
         gen_resp gr = {1, respond(q_false, NULL)};
-        if (do_stop(gr.qr, context->ctx->qctx->next)) gr.r = 0;
+        if (do_stop(gr.qr, context->ctx->no_ambig, context->ctx->qctx)) gr.r = 0;
         return gr;
     }
 
@@ -147,7 +147,7 @@ gen_resp integer_mul_sum_known_rec(struct IntImage *var1_im, struct SumCtx *cont
         free(var2->words);
         free(var2);
         gen_resp gr = {1, respond(q_false, NULL)};
-        if (do_stop(gr.qr, context->ctx->qctx->next)) gr.r = 0;
+        if (do_stop(gr.qr, context->ctx->no_ambig, context->ctx->qctx)) gr.r = 0;
         return gr;
     };
 
@@ -164,13 +164,13 @@ gen_resp integer_mul_sum_known_rec(struct IntImage *var1_im, struct SumCtx *cont
     // 
 
     laure_stack_t *nstack = laure_stack_clone(stack, true);
-    control_ctx *cctx = control_new(nstack, context->ctx->qctx, context->ctx->vpk, context->ctx->data);
+    control_ctx *cctx = control_new(nstack, context->ctx->qctx, context->ctx->vpk, context->ctx->data, context->ctx->no_ambig);
 
     qresp r = laure_eval(cctx, context->ctx->qctx->expset);
 
     free(cctx);
 
-    if do_stop(r, context->ctx->qctx->next) {
+    if do_stop(r, context->ctx->no_ambig, context->ctx->qctx) {
         gen_resp gr = {0, r};
         return gr;
     }
@@ -210,13 +210,13 @@ gen_resp integer_mul_one_known_rec(struct IntImage *prod_im, struct Sum2Ctx *con
     ((struct IntImage*)context->var->image)->state = I;
 
     laure_stack_t *nstack = laure_stack_clone(stack, true);
-    control_ctx *cctx = control_new(nstack, context->ctx->qctx, context->ctx->vpk, context->ctx->data);
+    control_ctx *cctx = control_new(nstack, context->ctx->qctx, context->ctx->vpk, context->ctx->data, context->ctx->no_ambig);
 
     qresp r = laure_eval(cctx, context->ctx->qctx->expset);
 
     free(cctx);
 
-    if do_stop(r, context->ctx->qctx->next) {
+    if do_stop(r, context->ctx->no_ambig, context->ctx->qctx) {
         gen_resp gr = {0, r};
         return gr;
     }
@@ -295,7 +295,7 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
         gen_resp gr = image_generate(cctx->stack, var1_im, integer_plus_sum_known_rec, sum_ctx);
         free(sum_ctx);
         __finalize;
-        return sum_ctx->found_any ? respond(q_yield, 1) : respond(q_false, NULL);
+        return (gr.r && sum_ctx->found_any)? respond(q_yield, 1) : respond(q_false, NULL);
 
     } else if (var1_i && !var2_i && !sum_i) {
         struct Sum2Ctx *sum_ctx = malloc(sizeof(struct Sum2Ctx));
@@ -305,7 +305,7 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
         gen_resp gr = image_generate(cctx->stack, sum_im, integer_plus_one_known_rec, sum_ctx);
         free(sum_ctx);
         __finalize;
-        return sum_ctx->found_any ? respond(q_yield, 1) : respond(q_false, NULL);
+        return (gr.r && sum_ctx->found_any) ? respond(q_yield, 1) : respond(q_false, NULL);
 
     } else if (!var1_i && var2_i && !sum_i) {
         struct Sum2Ctx *sum_ctx = malloc(sizeof(struct Sum2Ctx));
@@ -315,7 +315,7 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
         gen_resp gr = image_generate(cctx->stack, sum_im, integer_plus_one_known_rec, sum_ctx);
         free(sum_ctx);
         __finalize;
-        return sum_ctx->found_any ? respond(q_yield, 1) : respond(q_false, NULL);
+        return (gr.r && sum_ctx->found_any) ? respond(q_yield, 1) : respond(q_false, NULL);
 
     } else {
         __finalize;
@@ -432,7 +432,7 @@ qresp laure_constraint_gte(preddata *pd, control_ctx* cctx) {
         int_domain_lt(gt_im->u_data, v);
         return respond(q_true, 0);
     } else {
-        printf("todo\n");
+        printf("todo 2\n");
         return respond(q_true, 0);
     }
 }
@@ -465,7 +465,7 @@ qresp laure_constraint_gt(preddata *pd, control_ctx* cctx) {
         int_domain_lt(gt_im->u_data, v);
         return respond(q_true, 0);
     } else {
-        printf("todo\n");
+        printf("todo 1\n");
         return respond(q_true, 0);
     }
 }

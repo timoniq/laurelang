@@ -261,8 +261,7 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
     laure_expression_t *exp = result.exp;
     laure_expression_set *expset = laure_expression_compose_one(exp);
     qcontext *qctx = qcontext_new(expset);
-    qctx->forbidden_ambiguation = true;
-    control_ctx *cctx = control_new(session->stack, qctx, NULL, NULL);
+    control_ctx *cctx = control_new(session->stack, qctx, NULL, NULL, true);
     cctx->silent = true;
 
     qresp response = laure_eval(cctx, expset);

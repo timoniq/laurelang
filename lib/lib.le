@@ -74,3 +74,6 @@
 // Message predicate working with stdio
 : ?message(string).
 ?message(m) when __message(m).
+
+: #between(int, int) -> int.
+#between(a, b) -> c when c > a, c < b.

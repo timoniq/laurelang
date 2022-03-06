@@ -93,7 +93,7 @@ qresp server_serve(preddata *pd, control_ctx *cctx) {
                 event->image = im;
 
                 laure_stack_t *nstack = laure_stack_clone(cctx->stack, true);
-                control_ctx *ncctx = control_new(nstack, cctx->qctx, cctx->vpk, cctx->data);
+                control_ctx *ncctx = control_new(nstack, cctx->qctx, cctx->vpk, cctx->data, false);
 
                 qresp result = laure_eval(ncctx, ncctx->qctx->expset);
                 laure_gc_mark(cctx->stack);

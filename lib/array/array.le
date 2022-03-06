@@ -4,15 +4,18 @@
 ?each_int(arr) -> element when each(arr) = element.
 
 : ?no_repeat(int[]).
+
 ?no_repeat([]).
 ?no_repeat(arr) when length of arr = 1.
 
 ?no_repeat(arr) {
     i > 0;
     i < length of arr;
-    i?;
-    int i2 = i - 1;
-    int x = arr[i];
-    int y = arr[i2];
-    x cons y;
+    &all i {
+        int i2 = i - 1;
+        int x = arr[i];
+        arr?;
+        int y = arr[i2];
+        x cons y;
+    };
 }
