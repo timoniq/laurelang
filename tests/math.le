@@ -70,7 +70,9 @@
     x * 16 = 48662549122741404869780160;
 }
 
-: ?test_negate() {
+: ?test_negate().
+
+?test_negate() {
     int x = 10;
     y = -x;
     &all y { y = -10 };

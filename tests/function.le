@@ -18,8 +18,8 @@
 
 ?test_fibonacci() {
     5 = fib(5);
-    x = fib(8);
-    &all x {x = 21};
+    x = fib(7);
+    &all x {x = 13};
 }
 
 ?test_factorial() {

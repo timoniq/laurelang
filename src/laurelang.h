@@ -156,6 +156,7 @@ void laure_gc_mark_instance(Instance *instance);
 void laure_gc_mark(laure_stack_t *reachable);
 void laure_image_destroy(void *img);
 uint laure_gc_destroy();
+void laure_gc_set_null();
 uint laure_gc_run(laure_stack_t *reachable);
 
 #define laure_included_fp_max 512

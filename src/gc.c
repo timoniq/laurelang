@@ -17,6 +17,7 @@ void laure_gc_check_space() {
 }
 
 void laure_gc_track_instance(Instance *instance) {
+    for (int idx = 0; idx < INSTANCES_TRACKED_N; idx++) if (GC_INSTANCES_TRACK[idx] == instance) return;
     GC_INSTANCES_TRACK[INSTANCES_TRACKED_N++] = instance;
     laure_gc_check_space();
 }
@@ -31,12 +32,12 @@ void laure_gc_track_image(void *image) {
 void laure_gc_mark_image(void *img) {
     if (! img) return;
     bool *m = (bool*)img;
-    *m = ! *m;
+    *m = true; // ! *m;
     if (m) {
         switch (read_head(img).t) {
             case ARRAY: {
                 struct ArrayImage *im = (struct ArrayImage*)img;
-                // laure_gc_mark_instance(im->arr_el);
+                laure_gc_mark_instance(im->arr_el);
                 if (im->state == I) {
                     for (int i = 0; i < im->i_data.length; i++)
                         laure_gc_mark_instance(im->i_data.array[i]);
@@ -49,11 +50,11 @@ void laure_gc_mark_image(void *img) {
 }
 
 void laure_gc_mark_instance(Instance *instance) {
-    instance->mark = ! instance->mark;
+    instance->mark = true;
     laure_gc_mark_image(instance->image);
 }
 
-void laure_gc_mark(laure_stack_t *reachable) {
+void laure_gc_set_null() {
     for (int idx = 0; idx < INSTANCES_TRACKED_N; idx++) {
         Instance *ins = GC_INSTANCES_TRACK[idx];
         if (! ins) continue;
@@ -64,8 +65,12 @@ void laure_gc_mark(laure_stack_t *reachable) {
         bool *m = (bool*)GC_IMAGES_TRACK[idx];
         *m = false;
     }
+}
+
+void laure_gc_mark(laure_stack_t *reachable) {
     Cell cell;
     STACK_ITER(reachable, cell, {
+        printf("RBLE %s\n", cell.instance->name);
         laure_gc_mark_instance(cell.instance);
     }, false);
 
@@ -107,7 +112,8 @@ void pool_add_f(Instance *ins) {
 }
 
 void laure_image_destroy(void *img) {
-    switch (read_head(img).t) {
+    enum ImageT t = read_head(img).t;
+    switch (t) {
         case INTEGER: {
             struct IntImage *im = (struct IntImage*)img;
             if (im->state == I) {
@@ -123,7 +129,10 @@ void laure_image_destroy(void *img) {
                 for (int idx = 0; idx < im->i_data.length; idx++)
                     pool_add_q(im->i_data.array[idx]);
             }
+            break;
         }
+        case PREDICATE_FACT: return;
+        case CONSTRAINT_FACT: return;
     }
     free(img);
 }
@@ -147,6 +156,7 @@ uint laure_gc_destroy() {
         if (! im) continue;
         bool mark = *(bool*)im;
         if (! mark) {
+            printf("FREE %p | %d\n", im, read_head(im).t);
             laure_image_destroy(im);
             GC_IMAGES_TRACK[idx] = 0;
             count++;
@@ -156,7 +166,7 @@ uint laure_gc_destroy() {
     for (int idx = 0; idx < POOL_NONREF_N; idx++) {
         PoolVal pv = POOL_NONREF[idx];
         if (! pv.flag) {
-            laure_image_destroy(pv.ptr->image);
+            // laure_image_destroy(pv.ptr->image);
             free(pv.ptr);
             count++;
         }
@@ -166,6 +176,7 @@ uint laure_gc_destroy() {
 }
 
 uint laure_gc_run(laure_stack_t *reachable) {
+    laure_gc_set_null();
     laure_gc_mark(reachable);
     uint d = laure_gc_destroy();
     LAURE_GC_COLLECTED += d;
