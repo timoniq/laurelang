@@ -721,7 +721,7 @@ laure_parse_result laure_parse(string query) {
             string _temp = read_til(query, '-');
             if (_temp && (query + strlen(_temp) + 1)[0] == '>') {
                 // implication
-                laure_parse_result left_result = laure_parse(_temp);
+                laure_parse_result left_result = laure_parse(strdup(_temp));
                 if (!left_result.is_ok) {
                     error_format("left side of implication is invalid: %s", left_result.err);
                 }
