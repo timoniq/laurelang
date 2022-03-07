@@ -10,6 +10,9 @@ uint LAURE_RECURSION_DEPTH     = 0;
 uint LAURE_TIMEOUT             = 0;
 clock_t LAURE_CLOCK            = 0;
 
+uint DFLAG_N = 0;
+char DFLAGS[DFLAG_MAX][2][32] = {{0, 0}};
+
 #define TRACE_PRINT_INDENT 2
 
 laure_session_t *laure_session_new() {
@@ -116,4 +119,21 @@ void laure_trace_comment(string comment) {
 
 void laure_set_timeout(uint timeout) {
     LAURE_TIMEOUT = timeout;
+}
+
+string get_dflag(string flagname) {
+    for (uint idx = 0; idx < DFLAG_N; idx++) {
+        string f = DFLAGS[idx][0];
+        if (str_eq(f, flagname)) return DFLAGS[idx][1];
+    }
+    return NULL;
+}
+
+void add_dflag(string flagname, string value) {
+    strcpy(DFLAGS[DFLAG_N][0], flagname);
+    strcpy(DFLAGS[DFLAG_N++][1], value);
+    if (DFLAG_N >= DFLAG_MAX) {
+        printf("too much dflags\n");
+        exit(6);
+    }
 }

@@ -18,7 +18,14 @@ apply_result_t respond_apply(apply_status_t status, string e) {
 };
 
 bool laure_load_shared(laure_session_t *session, char *path) {
-    void *lib = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
+    void *lib = dlopen(path, RTLD_NOW);
+
+    uint *dfn = dlsym(lib, "DFLAG_N");
+    *dfn = DFLAG_N;
+
+   void *dfs = dlsym(lib, "DFLAGS");
+   memcpy(dfs, DFLAGS, DFLAG_MAX * 32 * 2);
+   
     // Shared CLE (C logic environment) extension
     if (!lib) {
         printf("failed to load shared CLE extension %s\n\\ %s\n", path, dlerror());

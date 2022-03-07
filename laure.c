@@ -25,7 +25,8 @@ const struct laure_flag flags[] = {
     {4, "--version", "Show version and quit", false},
     {5, "-clean", "Do not load std", false},
     {6, "-signal", "Usage with -q <..>, returns error code if predicate fails", false},
-    {7, "--library", "Manually set lib_path", true}
+    {7, "--library", "Manually set lib_path", true},
+    {8, "-D", "Add dyn flag", true}
 };
 
 struct cmd_info {
@@ -185,6 +186,7 @@ int laure_process_query(laure_session_t *session, string line) {
                 struct laure_flag flag = flags[i];
                 printf("  %s - %s [%s]\n", flag.name, flag.doc, flag.readword ? "takes arg" : "no args");
             }
+            printf("  -D {flagname}={value}\n");
             break;
         }
         case 4: {
@@ -425,6 +427,20 @@ int main(int argc, char *argv[]) {
                 }
                 case 7: {
                     FLAG_LIBRARY = word;
+                    break;
+                }
+                case 8: {
+                    string flagname = word;
+                    string value = word;
+                    while (value[0] != '=') value++;
+                    printf("%s\n", value);
+                    value++;
+                    if (value[0] == '\"' && lastc(value) == '\"') {
+                        value++; lastc(value) = 0;
+                    }
+                    flagname[strlen(word) - strlen(value) - 1] = 0;
+                    printf("[%s] = [%s]\n", flagname, value);
+                    add_dflag(flagname, value);
                     break;
                 }
             }}}

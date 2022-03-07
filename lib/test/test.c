@@ -56,6 +56,15 @@ bool test_suite_receiver(string repr, struct receiver_payload *payload) {
     }
 }
 
+bool should_skip(string_linked *skips, string s) {
+    if (! skips) return false;
+    do {
+        if (str_eq(skips->s, s)) return true;
+        skips = skips->next;
+    } while (skips);
+    return false;
+}
+
 void headerprint(string s, uint maxnlen, uint colorcodes) {
     uint filler = 9 + maxnlen;
     uint len_s = laure_string_strlen(s) + 9 - (colorcodes * 6);
@@ -129,6 +138,12 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
 
     clock_t t = clock();
 
+    string skip_str = get_dflag("skip");
+    string_linked *skips = skip_str ? string_split(skip_str, ';') : NULL;
+
+    uint checked_len = len;
+    uint skipped = 0;
+
     for (int i = 0; i < len; i++) {
         Instance *predicate = tests[i];
         struct PredicateImage *pred_im = (struct PredicateImage*)predicate->image;
@@ -136,6 +151,12 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         for (int j = laure_string_strlen(predicate->name); j < max_name_len; j++) {
             strcat(spaces, " ");
             if (j >= 27) break;
+        }
+
+        if (should_skip(skips, predicate->name)) {
+            printf("%s: %s%sskipped%s\n", predicate->name, spaces, YELLOW_COLOR, NO_COLOR);
+            checked_len--; skipped++;
+            continue;
         }
         printf("%s: %s%srunning%s\n", predicate->name, spaces, YELLOW_COLOR, NO_COLOR);
 
@@ -228,6 +249,8 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         }
     }
 
+    len = checked_len;
+
     t = clock() - t;
     double elapsed = ((double)t) / CLOCKS_PER_SEC;
 
@@ -235,6 +258,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     free(sess);
 
     headerprint("Showing results", max_name_len, 0);
+    if (skipped) printf("Skipped %d tests.\n", skipped);
 
     for (int i = 0; i < len; i++) {
         if (comments[i]) {

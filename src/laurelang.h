@@ -349,6 +349,14 @@ struct laure_flag {
 #define PROMPT "| "
 #endif
 
+#define DFLAG_MAX 32
+
+extern uint DFLAG_N;
+extern char DFLAGS[DFLAG_MAX][2][32];
+
+char *get_dflag(char *flagname);
+void add_dflag(char *flagname, char *value);
+
 #define EXPSET_ITER(set_, ptr_, body) do { \
             laure_expression_set *_set = set_; \
             while (_set) { \
