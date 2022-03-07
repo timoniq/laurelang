@@ -345,6 +345,10 @@ struct laure_flag {
 #define lib_path "lib"
 #endif
 
+#ifndef PROMPT
+#define PROMPT "| "
+#endif
+
 #define EXPSET_ITER(set_, ptr_, body) do { \
             laure_expression_set *_set = set_; \
             while (_set) { \

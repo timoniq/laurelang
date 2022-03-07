@@ -64,6 +64,7 @@ string FLAG_LIBRARY = NULL;
 string                  INTERPRETER_PATH = NULL;
 struct filename_linked *FILENAMES = NULL;
 char                   _PATH[PATH_MAX] = {0};
+char                    DPROMPT[32] = PROMPT;
 
 typedef struct {
     int argc;
@@ -438,6 +439,12 @@ int main(int argc, char *argv[]) {
     printf("(laurelang v%s (c) timoniq)\n", VERSION);
     LAURE_INTERPRETER_PATH = INTERPRETER_PATH;
 
+    string prompt = getenv("LLPROMPT");
+    if (prompt) strcpy(DPROMPT, prompt);
+
+    string timeout_s = getenv("LLTIMEOUT");
+    if (timeout_s) LAURE_TIMEOUT = atoi(timeout_s);
+
     laure_session_t *session = laure_session_new();
     laure_register_builtins(session);
     LAURE_SESSION = session;
@@ -473,7 +480,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (FLAG_QUERY) {
-        printf("| %s\n", FLAG_QUERY);
+        printf("%s%s\n", DPROMPT, FLAG_QUERY);
         int result = laure_process_query(session, FLAG_QUERY);
         if (FLAG_SIGNAL && result != 1) {
             return SIGABRT;
@@ -483,7 +490,7 @@ int main(int argc, char *argv[]) {
     if (FLAG_NOREPL) return 0;
 
     string line;
-    while ((line = readline("| ")) != NULL) {
+    while ((line = readline(DPROMPT)) != NULL) {
         if (!strlen(line)) {
             erase;
             up;
@@ -506,7 +513,7 @@ int main(int argc, char *argv[]) {
             line = strdup( nline );
             lp = true;
         }
-        if (lp) {up; up; erase; printf("| %s\n", line); erase;}
+        if (lp) {up; up; erase; printf("%s%s\n", DPROMPT, line); erase;}
         int res = laure_process_query(session, line);
         if (!res) break;
         free(line);
