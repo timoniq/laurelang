@@ -29,6 +29,7 @@ Also you may need to run tests with `make test`. Useful settings and tips for in
 [Tutorial and dev notes](/docs/index.md)  
 [Read documentation](https://docs.laurelang.org)
 
+# [Contributing](/CONTRIBUTING.md)
 # License
 
 Laurelang is [MIT licensed](/LICENSE)  
