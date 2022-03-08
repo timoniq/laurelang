@@ -128,3 +128,9 @@
 
 ?test_cut_no_forward(5) when !.
 ?test_cut_no_forward(7).
+
+: ?test_empty_set().
+?test_empty_set() when {{{{{{{{}}}}}}}}.
+?test_empty_set() {
+    {{{{{{}}}}}};
+}

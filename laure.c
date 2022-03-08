@@ -130,6 +130,8 @@ int laure_process_query(laure_session_t *session, string line) {
 
     while(strlen(line) > 0 && line[0] == ' ')
         line++;
+
+    while(lastc(line) == ';') lastc(line) = 0;
     
     string startline = strdup(line);
 

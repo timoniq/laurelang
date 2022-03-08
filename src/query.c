@@ -827,6 +827,9 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
         case let_var: {
             if (!vpk) return RESPOND_OK;
             string vname = ent_exp->s;
+            if (ent_exp->flag > 0) {
+                RESPOND_ERROR("cannot evaluate nesting of %s, use infer op.", vname);
+            }
             Instance *var = laure_stack_get(stack, vname);
             if (!var)
                 RESPOND_ERROR("%s is undefined", vname);
