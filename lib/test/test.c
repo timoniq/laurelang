@@ -33,6 +33,12 @@ struct receiver_payload {
     string got_invalid;
 };
 
+typedef enum {
+    full,
+    onlyresults,
+    nologs,
+} test_suite_mode;
+
 bool test_suite_receiver(string repr, struct receiver_payload *payload) {
     if (! payload->data) {
         return true;
@@ -81,8 +87,34 @@ void headerprint(string s, uint maxnlen, uint colorcodes) {
 }
 
 qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
-    printf("\n(Running test suite v%s)\n", test_suite_version);
-    printf("(Collecting tests)\n");
+
+    test_suite_mode mode = full;
+    string modestr = get_dflag("mode");
+    if (modestr) {
+        switch (modestr[0]) {
+            case 'f': case 'F': case 0: {
+                mode = full;
+                break;
+            }
+            case 'r': case 'R': case 1: {
+                mode = onlyresults;
+                break;
+            }
+            case 'n': case 'N': case 2: {
+                mode = nologs;
+                break;
+            }
+            default: {
+                printf("test suite mode `%s` not recognized\n", modestr);
+                break;
+            }
+        }
+    }
+
+    if (mode == full) {
+        printf("\n(Running test suite v%s)\n", test_suite_version);
+        printf("(Collecting tests)\n");
+    }
 
     Instance *tests[256];
     memset(tests, 0, sizeof(void*) * 256);
@@ -103,12 +135,12 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         }
     }, false);
 
-    if (!len) {
+    if (!len && mode == full) {
         printf("Collected 0 tests. Terminating.\n");
         return respond(q_true, NULL);
     }
 
-    printf("Collected %d tests.\n", len);
+    if (mode == full) printf("Collected %d tests.\n", len);
     uint tests_passed = 0;
 
     laure_session_t *sess = malloc(sizeof(laure_session_t));
@@ -134,12 +166,12 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         }
     }
 
-    headerprint("Running tests", max_name_len, 0);
+    if (mode == full) headerprint("Running tests", max_name_len, 0);
 
     clock_t t = clock();
 
     string skip_str = get_dflag("skip");
-    string_linked *skips = skip_str ? string_split(skip_str, ';') : NULL;
+    string_linked *skips = skip_str ? string_split(skip_str, ',') : NULL;
 
     uint checked_len = len;
     uint skipped = 0;
@@ -154,11 +186,11 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         }
 
         if (should_skip(skips, predicate->name)) {
-            printf("%s: %s%sskipped%s\n", predicate->name, spaces, YELLOW_COLOR, NO_COLOR);
+            if (mode == full) printf("%s: %s%sskipped%s\n", predicate->name, spaces, YELLOW_COLOR, NO_COLOR);
             checked_len--; skipped++;
             continue;
         }
-        printf("%s: %s%srunning%s\n", predicate->name, spaces, YELLOW_COLOR, NO_COLOR);
+        if (mode == full) printf("%s: %s%srunning%s\n", predicate->name, spaces, YELLOW_COLOR, NO_COLOR);
 
         int argc = 0;
         char **data = 0;
@@ -210,26 +242,29 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         LAURE_CLOCK = clock();
         qresp response = laure_eval(ncctx, expset);
 
-        up;
-        erase;
+        if (mode == full) {
+            up;
+            erase;
+        }
 
         if (! payload->passed && payload->got_invalid) {
-            printf("%s: %s%sfailed (%s)%s\n", predicate->name, spaces, RED_COLOR, GENERATOR_FAULT_VALUE, NO_COLOR);
+            if (mode == full) printf("%s: %s%sfailed (%s)%s\n", predicate->name, spaces, RED_COLOR, GENERATOR_FAULT_VALUE, NO_COLOR);
             char buff[256];
             snprintf(buff, 256, "[%s] incorrect value generated: got `%s%s%s` expected `%s%s%s`", GENERATOR_FAULT_VALUE, RED_COLOR, payload->got_invalid, NO_COLOR, GREEN_COLOR, payload->data[payload->idx], NO_COLOR);
             comments[i] = strdup( buff );
         } else if (payload->idx != payload->data_cnt) {
-            printf("%s: %s%sfailed (%s)%s\n", predicate->name, spaces, RED_COLOR, GENERATOR_FAULT_COUNT, NO_COLOR);
+            if (mode == full) printf("%s: %s%sfailed (%s)%s\n", predicate->name, spaces, RED_COLOR, GENERATOR_FAULT_COUNT, NO_COLOR);
             char buff[64];
             snprintf(buff, 64, "[%s] %d relations expected, %d generated", GENERATOR_FAULT_COUNT, payload->data_cnt, payload->idx);
             comments[i] = strdup( buff );
         } else if (payload->data_cnt > 0) {
             // all found
-            printf("%s: %s%spassed%s\n", predicate->name, spaces, GREEN_COLOR, NO_COLOR);
+            if (mode == full) printf("%s: %s%spassed%s\n", predicate->name, spaces, GREEN_COLOR, NO_COLOR);
             tests_passed++;
         } else {
             switch (response.state) {
                 case q_true: {
+                    if (mode == full)
                     printf("%s: %s%spassed%s\n", predicate->name, spaces, GREEN_COLOR, NO_COLOR);
                     tests_passed++;
                     break;
@@ -237,11 +272,13 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
                 case q_false:
                 case q_error: {
                     laure_trace_erase();
+                    if (mode == full)
                     printf("%s: %s%sfailed%s\n", predicate->name, spaces, RED_COLOR, NO_COLOR);
                     comments[i] = response.error;
                     break;
                 }
                 default: {
+                    if (mode == full) 
                     printf("%s: %s%sunknown%s\n", predicate->name, spaces, GRAY_COLOR, NO_COLOR);
                     break;
                 }
@@ -257,22 +294,24 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     laure_stack_free(sess->stack);
     free(sess);
 
-    headerprint("Showing results", max_name_len, 0);
-    if (skipped) printf("Skipped %d tests.\n", skipped);
+    if (mode != nologs) {
+        headerprint("Showing results", max_name_len, 0);
+        if (skipped) printf("Skipped %d tests.\n", skipped);
 
-    for (int i = 0; i < len; i++) {
-        if (comments[i]) {
-            printf("%s: %s\n", tests[i]->name, comments[i]);
-            free(comments[i]);
+        for (int i = 0; i < len; i++) {
+            if (comments[i]) {
+                printf("%s: %s\n", tests[i]->name, comments[i]);
+                free(comments[i]);
+            }
         }
+
+        double passed_percent = ((double)tests_passed / (double)len) * 100;
+
+        printf("----------------------\n");
+        printf("Succeed %d/%d (%s%d%%%s)\n", tests_passed, len, passed_percent >= 70 ? GREEN_COLOR : RED_COLOR, (int)round(passed_percent), NO_COLOR);
+        printf("Time elapsed %fs\n", elapsed);
+        printf("----------------------\n");
     }
-
-    double passed_percent = ((double)tests_passed / (double)len) * 100;
-
-    printf("----------------------\n");
-    printf("Succeed %d/%d (%s%d%%%s)\n", tests_passed, len, passed_percent >= 70 ? GREEN_COLOR : RED_COLOR, (int)round(passed_percent), NO_COLOR);
-    printf("Time elapsed %fs\n", elapsed);
-    printf("----------------------\n");
 
     LAURE_SESSION = old_sess;
     return respond(tests_passed == len ? q_true : q_false, NULL);

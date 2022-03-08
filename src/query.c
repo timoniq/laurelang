@@ -8,6 +8,8 @@
 #define RESPOND_OK laure_eval(cctx, expression_set)
 #define is_global(stack) (stack->global == stack)
 
+#define ANONVAR_NAME "_"
+
 #define __query_free_scopes_nqctx do { \
         laure_stack_free(prev_stack); \
         laure_stack_free(new_stack); \
@@ -20,6 +22,7 @@
         } while (0)
 
 #define __must_stop(__state, __err, __no_ambig) ((__state == q_false || (__state == q_yield && __err == 0)) && __no_ambig)
+#define isanonvar(__name) (str_eq(__name, ANONVAR_NAME))
 
 typedef struct {
     control_ctx *cctx;
@@ -86,6 +89,8 @@ int append_vars(string **vars, int vars_len, laure_expression_set *vars_exps) {
     laure_expression_t *exp = NULL;
     EXPSET_ITER(vars_exps, exp, {
         string n = exp->s;
+        if (str_eq(n, ANONVAR_NAME)) {}
+        else {
         bool exists = false;
         for (int i = 0; i < vars_len; i++) {
             if (strcmp((*vars)[i], n) == 0) {
@@ -97,6 +102,7 @@ int append_vars(string **vars, int vars_len, laure_expression_set *vars_exps) {
             (*vars) = realloc(*vars, sizeof(void*) * (vars_len + 1));
             (*vars)[vars_len] = n;
             vars_len++;
+        }
         }
     });
     return vars_len;
@@ -1066,8 +1072,12 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                         switch (arg_exp->t) {
                             case let_var: {
                                 string argn = strdup(pf->c.hints[idx]->name);
+                                string varname = arg_exp->s;
 
-                                Cell arg_cell = laure_stack_get_cell_only_locals(prev_stack, arg_exp->s/*arg_exp->s*/);
+                                if isanonvar(varname)
+                                    varname = laure_stack_get_uname(stack);
+
+                                Cell arg_cell = laure_stack_get_cell_only_locals(prev_stack, varname/*arg_exp->s*/);
                                 Instance *arg = arg_cell.instance;
                                 
                                 if (str_eq(argn, "!")) {
@@ -1089,11 +1099,11 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                                     }
 
                                     Cell arg_cell_in_stack;
-                                    arg_cell_in_stack.instance = instance_deepcopy(stack, arg_exp->s, arg);
+                                    arg_cell_in_stack.instance = instance_deepcopy(stack, varname, arg);
                                     arg_cell_in_stack.link_id = laure_stack_get_uid(prev_stack);
 
                                     if (is_global(stack)) {
-                                        Cell glob = laure_stack_get_cell(stack, arg_exp->s);
+                                        Cell glob = laure_stack_get_cell(stack, varname);
                                         if (glob.instance == NULL)
                                             laure_stack_insert(stack, arg_cell_in_stack);
                                         else
@@ -1318,6 +1328,8 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                         switch (arg_exp->t) {
                             case let_var: {
                                 string orig_vname = arg_exp->s;
+                                if isanonvar(orig_vname) orig_vname = laure_stack_get_uname(stack);
+
                                 Cell arg_cell = laure_stack_get_cell_only_locals(prev_stack, arg_exp->s);
                                 Instance *arg = arg_cell.instance;
 
