@@ -394,6 +394,8 @@ laure_parse_many_result laure_parse_many(const string query_, char divisor, laur
 
         if (ch == '\\') {
             escaped = 1;
+        } else if (escaped) {
+            escaped = 0;
         } else if (
             parathd == 0
             && braced == 0
@@ -820,7 +822,7 @@ laure_parse_result laure_parse(string query) {
                 set = laure_expression_set_link(set, right_result.exp);
 
                 laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
-                laure_expression_t *exp = laure_expression_create(flag ? let_image : let_assert, "", false, query, 0, ba);
+                laure_expression_t *exp = laure_expression_create(type, "", false, query, 0, ba);
 
                 lpr.exp = exp;
                 return lpr;
@@ -958,6 +960,8 @@ laure_parse_result laure_parse(string query) {
                     string name = read_til(query, '(');
                     query = query + strlen(name) + 1;
                     string args = read_til(query, ')');
+
+                    if (str_starts(name, "\\")) name++;
 
                     laure_expression_set *args_exps = NULL;
 

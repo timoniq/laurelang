@@ -811,6 +811,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
             } else if (v1.instance && v2.instance) {
                 // Both variables are known
                 // assert them
+                if (v1.instance == v2.instance) return RESPOND_OK;
                 if (instantiated(v1.instance) || instantiated(v2.instance)) {
                     qresp result = img_equals(v1.instance->image, v2.instance->image) ? RESPOND_OK : RESPOND_FALSE;
                     return result;

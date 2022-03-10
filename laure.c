@@ -213,7 +213,7 @@ int laure_process_query(laure_session_t *session, string line) {
             printf("   ");
 
             if (!doc) {
-                printf("  sorry, no documentation for this instance");
+                printf("%ssorry, no documentation for this instance%s", RED_COLOR, NO_COLOR);
             } else {
                 bool color_set = false;
                 for (int i = 0; i < strlen(doc); i++) {
@@ -257,6 +257,11 @@ int laure_process_query(laure_session_t *session, string line) {
             if (FLAG_NOREPL) printf("NOREPL ");
             if (FLAG_QUERY) printf("QUERY ");
             if (FLAG_SIGNAL) printf("SIGNAL ");
+            printf("]\n");
+            printf("  dflags: [ ");
+            for (uint idx = 0; idx < DFLAG_N; idx++) {
+                printf("%s=%s ", DFLAGS[idx][0], DFLAGS[idx][1]);
+            }
             printf("]\n");
             break;
         }

@@ -1012,22 +1012,26 @@ bool int_translator(laure_expression_t *exp, void* rimg, laure_stack_t *stack) {
                 free(left); free(right);
                 return false;
             };
-        
-        bigint *bi_left = malloc(sizeof(bigint));
-        bigint_init(bi_left);
-        bigint_from_str(bi_left, left);
-        if (left_minus) bigint_negate(bi_left);
-        IntValue left_value = {left_secl ? SECLUDED : INCLUDED, bi_left};
-
-        bigint *bi_right = malloc(sizeof(bigint));
-        bigint_init(bi_right);
-        bigint_from_str(bi_right, right);
-        if (right_minus) bigint_negate(bi_right);
-        IntValue right_value = {right_secl ? SECLUDED : INCLUDED, bi_right};
 
         Domain *new_domain = int_domain_new();
-        int_domain_gt(new_domain, left_value);
-        int_domain_lt(new_domain, right_value);
+
+        if (strlen(left)) {
+            bigint *bi_left = malloc(sizeof(bigint));
+            bigint_init(bi_left);
+            bigint_from_str(bi_left, left);
+            if (left_minus) bigint_negate(bi_left);
+            IntValue left_value = {left_secl ? SECLUDED : INCLUDED, bi_left};
+            int_domain_gt(new_domain, left_value);
+        }
+
+        if (strlen(right)) {
+            bigint *bi_right = malloc(sizeof(bigint));
+            bigint_init(bi_right);
+            bigint_from_str(bi_right, right);
+            if (right_minus) bigint_negate(bi_right);
+            IntValue right_value = {right_secl ? SECLUDED : INCLUDED, bi_right};
+            int_domain_lt(new_domain, right_value);
+        }
 
         img->t = U;
         img->u_data = new_domain;

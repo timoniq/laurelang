@@ -70,7 +70,6 @@ void laure_gc_set_null() {
 void laure_gc_mark(laure_stack_t *reachable) {
     Cell cell;
     STACK_ITER(reachable, cell, {
-        printf("RBLE %s\n", cell.instance->name);
         laure_gc_mark_instance(cell.instance);
     }, false);
 
@@ -156,7 +155,6 @@ uint laure_gc_destroy() {
         if (! im) continue;
         bool mark = *(bool*)im;
         if (! mark) {
-            printf("FREE %p | %d\n", im, read_head(im).t);
             laure_image_destroy(im);
             GC_IMAGES_TRACK[idx] = 0;
             count++;

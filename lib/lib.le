@@ -24,6 +24,12 @@
 #>(x, y) {__>(x, y)}
 #<(x, y) {__>(y, x)}
 
+: #>eq(int, int).
+#>eq(x, y) when x __gte y.
+
+: #<eq(int, int).
+#<eq(x, y) when y >eq x.
+
 ?+(x, y) -> x __+ y.
 ?-(y + z, y) -> z.
 ?*(x, y) -> x __* y.
@@ -76,4 +82,8 @@
 ?message(m) when __message(m).
 
 : #between(int, int) -> int.
-#between(a, b) -> c when c > a, c < b.
+#between(a, b) -> c when c > a, c < b, !.
+#between(a, b) -> c when c < a, c > b.
+
+: #..(int, int) -> int.
+#..(a, b) -> c when between(a, b) = c.
