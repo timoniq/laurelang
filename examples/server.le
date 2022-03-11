@@ -20,3 +20,8 @@
     serve(port) = event;
     handler(event);
 }
+
+: ?main().
+?main() {
+    start(8080);
+}

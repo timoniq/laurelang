@@ -26,7 +26,8 @@ const struct laure_flag flags[] = {
     {5, "-clean", "Do not load std", false},
     {6, "-signal", "Usage with -q <..>, returns error code if predicate fails", false},
     {7, "--library", "Manually set lib_path", true},
-    {8, "-D", "Add dyn flag. Format var=value", true}
+    {8, "-D", "Add dyn flag. Format var=value", true},
+    {9, "-nomain", "Do not run main predicate", false},
 };
 
 struct cmd_info {
@@ -59,6 +60,7 @@ struct filename_linked {
 bool   FLAG_NOREPL = false;
 bool   FLAG_CLEAN = false;
 bool   FLAG_SIGNAL = false;
+bool   FLAG_NOMAIN = false;
 string FLAG_QUERY = NULL;
 string FLAG_LIBRARY = NULL;
 
@@ -446,7 +448,11 @@ int main(int argc, char *argv[]) {
                     flagname[strlen(word) - strlen(value) - 1] = 0;
                     add_dflag(flagname, value);
                     break;
-                };
+                }
+                case 9: {
+                    FLAG_NOMAIN = true;
+                    break;
+                }
             }}}
 
             if (!found)
@@ -505,6 +511,12 @@ int main(int argc, char *argv[]) {
         if (FLAG_SIGNAL && result != 1) {
             return SIGABRT;
         }
+    }
+
+    Instance *main_p = laure_stack_get(session->stack, "main");
+    if (main_p && ! FLAG_NOMAIN) {
+        if (!laure_process_query(session, "main()"))
+            return 0;
     }
 
     if (FLAG_NOREPL) return 0;

@@ -42,7 +42,7 @@ auto:
 	echo "Done"
 
 test:
-	LLTIMEOUT=3 ./laure @/test tests -q "tests_run()" -norepl -signal
+	LLTIMEOUT=10 ./laure @/test tests -q "tests_run()" -norepl -signal
 
 install:
 	install $(TARGET) $(PREFIX)/bin

@@ -52,6 +52,11 @@ qresp server_serve(preddata *pd, control_ctx *cctx) {
         port_ins->image = integer_i_new(atoi(DEFAULT_PORT));
     }
 
+    string port_dflag = get_dflag("server_port");
+    if (port_dflag) {
+        port_ins->image = integer_i_new(atoi(port_dflag));
+    }
+
     char port[28];
     bigint_write(port, 28, ((struct IntImage*)port_ins->image)->i_data);
 
@@ -102,6 +107,9 @@ qresp server_serve(preddata *pd, control_ctx *cctx) {
                 if (result.error) {
                     free(buf);
                     return result;
+                } else if (ncctx->qctx->next->cut) {
+                    free(buf);
+                    return respond(q_error, "server shutdown");
                 }
 
                 free(ncctx);
