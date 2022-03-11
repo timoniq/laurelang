@@ -815,7 +815,7 @@ laure_parse_result laure_parse(string query) {
                 laure_parse_result right_result = laure_parse(right);
 
                 if (!left_result.is_ok || !right_result.is_ok) {
-                    error_result("invalid left or right side of assignation");
+                    error_result("invalid left or right side of expression");
                 }
 
                 laure_expression_set *set = laure_expression_set_link(NULL, left_result.exp);
@@ -1268,7 +1268,7 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
 
             if (left->t == let_pred_call && right->t == let_pred_call) {
                 string vname = laure_stack_get_uname(LAURE_SESSION->stack);
-                laure_expression_t *var = laure_expression_create(let_var, NULL, false, vname, 0, NULL);
+                laure_expression_t *var = laure_expression_create(let_var, left->s, false, vname, 0, NULL);
                 left->ba->set = laure_expression_set_link(left->ba->set, var);
                 left->ba->has_resp = true;
                 right->ba->set = laure_expression_set_link(right->ba->set, var);
@@ -1306,7 +1306,7 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
                     char buff[32];
                     snprintf(buff, 32, "$%ld", laure_stack_get_uid(LAURE_SESSION->stack));
 
-                    laure_expression_t *var = laure_expression_create(let_var, NULL, false, strdup(buff), 0, NULL);
+                    laure_expression_t *var = laure_expression_create(let_var, arg_exp->s, false, strdup(buff), 0, NULL);
 
                     laure_expression_set *assert_set = laure_expression_set_link(NULL, var);
                     assert_set = laure_expression_set_link(assert_set, arg_exp);

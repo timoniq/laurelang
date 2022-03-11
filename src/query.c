@@ -366,7 +366,6 @@ qresp laure_showcast(laure_stack_t *stack, var_process_kit *vpk) {
     for (int i = 0; i < vpk->tracked_vars_len; i++) {
         Instance *ins = laure_stack_get(stack, vpk->tracked_vars[i]);
         if (!ins) continue;
-
         
         if (stack != stack->global) {
             Cell cell = laure_stack_get_cell(stack->global, ins->name);
@@ -380,20 +379,29 @@ qresp laure_showcast(laure_stack_t *stack, var_process_kit *vpk) {
             }
         }
         
+        char name[64];
+        strncpy(name, ins->name, 64);
+
+        if (str_starts(name, "$")) {
+            string doc = instance_get_doc(ins);
+            if (doc && strlen(doc)) {
+                snprintf(name, 64, "%s %s[%s]%s", ins->name, GRAY_COLOR, doc, NO_COLOR);
+            }
+        }
 
         string repr = ins->repr(ins);
 
         string showcast;
 
         if (strlen(repr) > 264) {
-            printf("  %s = ", ins->name, repr);
+            printf("  %s = ", name, repr);
             printf("%s\n", repr);
             showcast = "";
         } else {
-            uint showcast_n = strlen(ins->name) + strlen(repr) + 6;
+            uint showcast_n = strlen(name) + strlen(repr) + 6;
             showcast = malloc(showcast_n + 1);
             memset(showcast, 0, showcast_n + 1);
-            snprintf(showcast, showcast_n, "  %s = %s", ins->name, repr);
+            snprintf(showcast, showcast_n, "  %s = %s", name, repr);
         }
 
         free(repr);
@@ -822,6 +830,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
             } else {
                 Instance *renamed = v1.instance ? v1.instance : v2.instance;
                 renamed->name = strdup(v1.instance ? v2_exp->s : v1_exp->s);
+                renamed->doc = v2_exp->docstring;
                 return RESPOND_OK;
             }
         }
@@ -1105,6 +1114,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                                     Cell arg_cell_in_stack;
                                     arg_cell_in_stack.instance = instance_deepcopy(stack, varname, arg);
                                     arg_cell_in_stack.link_id = laure_stack_get_uid(prev_stack);
+                                    arg_cell_in_stack.instance->doc = arg_exp->docstring;
 
                                     if (is_global(stack)) {
                                         Cell glob = laure_stack_get_cell(stack, varname);
@@ -1201,6 +1211,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                                         Cell resp_cell_in_stack;
                                         resp_cell_in_stack.instance = instance_deepcopy(stack, respn, resp);
                                         resp_cell_in_stack.link_id = laure_stack_get_uid(prev_stack);
+                                        resp_cell_in_stack.instance->doc = resp_exp->docstring;
 
                                         if (is_global(stack)) {
                                             Cell glob = laure_stack_get_cell(stack, respn);
@@ -1347,6 +1358,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                                     Cell arg_cell_in_stack;
                                     arg_cell_in_stack.instance = instance_deepcopy(stack, orig_vname, arg);
                                     arg_cell_in_stack.link_id = laure_stack_get_uid(prev_stack);
+                                    arg_cell_in_stack.instance->doc = arg_exp->docstring;
 
                                     if (is_global(stack)) {
                                         Cell glob = laure_stack_get_cell(stack, orig_vname);
@@ -1425,6 +1437,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                                         Cell resp_cell_in_stack;
                                         resp_cell_in_stack.instance = instance_deepcopy(stack, orig_respn, resp);
                                         resp_cell_in_stack.link_id = laure_stack_get_uid(prev_stack);
+                                        resp_cell_in_stack.instance->doc = resp_exp->docstring;
 
                                         if (is_global(stack)) {
                                             Cell glob = laure_stack_get_cell(stack, orig_respn);

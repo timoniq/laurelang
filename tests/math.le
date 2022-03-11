@@ -77,3 +77,12 @@
     y = -x;
     &all y { y = -10 };
 }
+
+// 42
+// 87
+: ?test_chain(int).
+
+?test_chain(x) when
+    1 + 4 + 45 - 4 * 2 = x.
+?test_chain(x) when 
+    1 + 4 + (45 - 4) * 2 = x.
