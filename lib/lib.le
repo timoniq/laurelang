@@ -35,6 +35,12 @@
 ?*(x, y) -> x __* y.
 ?/(x * y, y) -> x.
 
+// math `sqrt` predicate
+: ?sqrt(int) -> int.
+?sqrt(0) -> 0.
+?sqrt(1) -> 1.
+?sqrt(x) -> __sqrt(x).
+
 // Plus-minus predicate.
 // ```x = (-b +- sqrt(D)) / (2 * a)```
 : ?+-(int, int) -> int.
@@ -81,9 +87,13 @@
 : ?message(string).
 ?message(m) when __message(m).
 
+// between (boundaries secluded)
 : #between(int, int) -> int.
 #between(a, b) -> c when c > a, c < b, !.
 #between(a, b) -> c when c < a, c > b.
 
+// between (boundaries included).
+// `x = 0 .. 4`
+// `5 = 0 .. 4 -> fail()`
 : #..(int, int) -> int.
-#..(a, b) -> c when between(a, b) = c.
+#..(a, b) -> c when c >eq a, c <eq b.

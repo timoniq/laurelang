@@ -319,7 +319,7 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
 
     } else {
         __finalize;
-        return respond(q_error, "cannot instantiate");
+        return respond(q_error, "op. int +|-: too ambiguative; unify");
     }
 }
 
@@ -400,7 +400,7 @@ qresp laure_predicate_integer_multiply(preddata *pd, control_ctx* cctx) {
         if (!gr.r) return gr.qr;
         return sum_ctx->found_any ? respond(q_yield, 1) : respond(q_false, NULL);
     } else {
-        return respond(q_error, strdup("cannot instantiate"));
+        return respond(q_error, strdup("op. int *|/: too ambiguative; unify"));
     }
 }
 
@@ -495,5 +495,32 @@ qresp laure_predicate_message(preddata *pd, control_ctx *cctx) {
         //! s_exp pointer lost
         bool result = arr->translator->invoke(s_exp, arr, cctx->stack);
         return respond(result ? q_true : q_false, 0);
+    }
+}
+
+qresp laure_predicate_sqrt(preddata *pd, control_ctx *cctx) {
+    Instance *n = pd_get_arg(pd, 0);
+    Instance *s = pd->resp;
+    struct IntImage *n_img = (struct IntImage*) n->image;
+    struct IntImage *s_img = (struct IntImage*) s->image;
+    if (instantiated(n) && instantiated(s)) {
+        bigint bi[1];
+        bigint_init(bi);
+        bigint_sqrt(bi, n_img->i_data);
+        return respond((bigint_cmp(bi, s_img->i_data) == 0) ? q_true : q_false, 0);
+    } else if (instantiated(n)) {
+        bigint bi[1];
+        bigint_init(bi);
+        bigint_sqrt(bi, n_img->i_data);
+        INT_ASSIGN(s_img, bi);
+        return respond(q_true, 0);
+    } else if (instantiated(s)) {
+        bigint bi[1];
+        bigint_init(bi);
+        bigint_mul(bi, s_img->i_data, s_img->i_data);
+        INT_ASSIGN(n_img, bi);
+        return respond(q_true, 0);
+    } else {
+        return respond(q_error, "sqrt: too ambiguative; unify");
     }
 }

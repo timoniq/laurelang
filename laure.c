@@ -336,6 +336,7 @@ int laure_process_query(laure_session_t *session, string line) {
     }
 
     int code = 1;
+    if (str_starts(line, "\\")) line++;
     
     laure_parse_result res = laure_parse(line);
     if (!res.is_ok) {
@@ -550,6 +551,6 @@ int main(int argc, char *argv[]) {
         if (!res) break;
         free(line);
     }
-
+    
     return 0;
 }

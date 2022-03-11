@@ -20,6 +20,7 @@ void laure_register_builtins(laure_session_t *session) {
         struct Builtin builtin = BUILTIN_INSTANCES[i];
         Instance *ins = malloc(sizeof(Instance));
         *ins = builtin.generate();
+        ins->doc = strdup(builtin.doc);
         Cell builtin_cell;
         builtin_cell.instance = ins;
         builtin_cell.link_id = laure_stack_get_uid(stack);
@@ -103,7 +104,7 @@ Instance builtin_integer() {
     Instance instance;
     instance.name = "int";
     instance.derived = NULL;
-    instance.doc = "";
+    instance.doc = NULL;
     instance.locked = true;
     instance.repr = integer_repr;
     instance.image = integer_u_new();
@@ -121,7 +122,7 @@ Instance builtin_char() {
     Instance instance;
     instance.name = "char";
     instance.derived = NULL;
-    instance.doc = "";
+    instance.doc = NULL;
     instance.locked = true;
     instance.repr = char_repr;
     instance.image = img;
@@ -132,7 +133,7 @@ Instance builtin_string() {
     Instance instance;
     instance.name = "string";
     instance.derived = NULL;
-    instance.doc = "";
+    instance.doc = NULL;
     instance.locked = true;
     instance.repr = string_repr;
     instance.image = array_u_new(laure_stack_get(LAURE_SESSION->stack, "char"));

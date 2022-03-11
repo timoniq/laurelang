@@ -434,7 +434,7 @@ int bigint_raw_mul_karatsuba(
     if (
         na < BIGINT_KARATSUBA_WORD_THRESHOLD &&
         nb < BIGINT_KARATSUBA_WORD_THRESHOLD
-    ){
+    ) {
         bigint_raw_zero(dst, 0, na + nb);
         return bigint_raw_mul_add(dst, a, na, b, nb);
     }

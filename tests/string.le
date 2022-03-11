@@ -23,3 +23,20 @@
 : ?test_string_unicode(ch) {
     ch = 'δ';
 }
+
+: ?test_string_array().
+?test_string_array() {
+    string str = "aaaaaaa";
+    char ch = 'a';
+    each of str = ch;
+}
+
+// 0
+// 2
+// 3
+: ?test_string_array2(int).
+?test_string_array2(idx) {
+    string str = "lollipops";
+    char ch = 'l';
+    str[idx] = ch;
+}
