@@ -33,6 +33,7 @@ typedef enum {
     let_quant,
     let_domain,
     let_imply,
+    let_ref,
     let_cut,
     let_nope
 } laure_expression_type;

@@ -501,6 +501,13 @@ laure_parse_result laure_parse(string query) {
         lastc(query) = 0;
         return laure_parse(query);
     }
+
+    if (str_eq(query, "$")) {
+        laure_parse_result lpr;
+        lpr.is_ok = true;
+        lpr.exp = laure_expression_create(let_ref, NULL, 0, NULL, 0, NULL);
+        return lpr;
+    }
     
     char det = query[0];
     query++;

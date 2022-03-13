@@ -1142,13 +1142,16 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                                 struct predicate_arg pa;
                                 
                                 Instance *arg = instance_deepcopy(stack, pf->c.hints[idx]->name, hint_instance);
+                                if (! arg->image)
+                                    RESPOND_ERROR("specification of %s is needed in %s call", arg_exp->s, predicate_ins->name);
+
                                 bool result = read_head(arg->image).translator->invoke(arg_exp, arg->image, prev_stack);
 
                                 if  (!result) {
                                     __query_free_scopes_nqctx;
                                     return RESPOND_FALSE;
                                 }
-                                
+
                                 pa.index = idx;
                                 pa.arg = arg;
                                 pa.is_instance = true;
@@ -1245,6 +1248,10 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                                     }
 
                                     Instance *resp = instance_deepcopy(stack, strdup("$R"), hint_instance);
+                                    
+                                    if (! resp->image)
+                                        RESPOND_ERROR("specification of response is needed in %s call", predicate_ins->name);
+                                    
                                     bool result = read_head(resp->image).translator->invoke(resp_exp, resp->image, prev_stack);
 
                                     if (!result) {

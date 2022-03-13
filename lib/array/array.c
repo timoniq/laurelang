@@ -14,9 +14,13 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
     Instance *arr_ins = pd_get_arg(pd, 0);
     Instance *el_ins = pd->resp;
 
-    if (! arr_ins || ! el_ins) {
-        return respond(q_error, strdup( "each cannot operate on non-hinted instances, add hints or use generic" ) );
-    } 
+    if (!arr_ins->image && !el_ins->image)
+        return respond(q_error, "each: operating array or element must be specified; add hint");
+    
+    if (!arr_ins->image)
+        arr_ins->image = array_u_new(el_ins);
+    else if (!el_ins->image)
+        el_ins->image = image_deepcopy(cctx->stack, ((struct ArrayImage*)arr_ins->image)->arr_el->image);
 
     struct ArrayImage *arr_img = arr_ins->image;
 
@@ -81,7 +85,7 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
         return respond(q_error, "by_idx: operating array or element must be specified; add hint");
     
     if (!arr_ins->image)
-        arr_ins->image = image_deepcopy(cctx->stack, array_u_new(el_ins));
+        arr_ins->image = array_u_new(el_ins);
     else if (!el_ins->image) {
         el_ins->image = image_deepcopy(cctx->stack, ((struct ArrayImage*)arr_ins->image)->arr_el->image);
     }
@@ -215,19 +219,19 @@ int package_include(laure_session_t *session) {
     laure_cle_add_predicate(
         session, "each", 
         array_predicate_each, 
-        1, "arr:_", NULL, false, 
+        1, "ARRAY:_", "_", false, 
         DOC_each
     );
     laure_cle_add_predicate(
         session, "by_idx", 
         array_predicate_by_idx, 
-        2, "arr:_ idx:int", "_", false, 
+        2, "ARRAY:_ idx:int", "_", false, 
         DOC_by_idx
     );
     laure_cle_add_predicate(
         session, "length", 
         array_predicate_length, 
-        1, "arr:_", "int", false, 
+        1, "ARRAY:!", "int", false, 
         DOC_length
     );
     return 0;
