@@ -4,9 +4,9 @@
 #include <math.h>
 #include <builtin.h>
 
-#define DOC_each "Array enumerating predicate\n```each(array) = element```"
-#define DOC_by_idx "Predicate of idx to element relation in array\n```array by_idx idx = element```"
-#define DOC_length "Array length declaration"
+#define DOC_each "Array enumerating predicate\n```each(array) = element```\nFrom @/array pkg"
+#define DOC_by_idx "Predicate of idx to element relation in array\n```array by_idx idx = element```\nFrom @/array pkg"
+#define DOC_length "Array length declaration\nFrom @/array pkg"
 
 #define TOO_AMBIG respond(q_error, strdup( "too much ambiguations [wip]") );
 

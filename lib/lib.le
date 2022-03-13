@@ -55,13 +55,12 @@
 
 // Integer pow predicate
 : ?pow(int, int) -> int.
-?pow(x, 0) -> 1 when !.
-?pow(x, 1) -> x when !.
+?pow(x, 0) -> 1.
+?pow(x, 1) -> x.
 
 ?pow(Value, Pow) -> R {
     Pow > 1;
     R = Value * pow(Value, Pow - 1);
-    !;
 }
 
 // Absolute value predicate
