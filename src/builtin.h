@@ -27,16 +27,6 @@ const struct BuiltinPred BUILTIN_PREDICATES[] = {
     {"__*", laure_predicate_integer_multiply, 2, "builtin multiplication predicate", {"x:int y:int", "int"}, false},
     {"__message", laure_predicate_message, 1, "builtin message predicate", {"m:string", NULL}, false},
     {"__sqrt", laure_predicate_sqrt, 1, "builtin sqrt predicate", {"x:int", "int"}, false}
-    /*
-    {"__message", laure_predicate_message, 1, "Builtin predicate to operate with IO with strings", {"s:string", NULL}, false},
-    {"__getchar", laure_predicate_getchar, 0, "Builtin predicate to operate with IO with chars", {"", "char"}, false},
-    {"__*", laure_predicate_integer_mutiple, 2, "Builtin multiple predicate", {"x:int y:int", "int"}, false},
-    {"__>", laure_predicate_gt, 2, "", {"x:int y:int", NULL}, true},
-    {"__>eq", laure_predicate_gte, 2, "", {"x:int y:int", NULL}, true},
-    {"repr", laure_predicate_repr, 1, "", {"!:_", "string"}, false},
-    {"format", laure_predicate_format, 1, "", {"s:string", "string"}, false},
-    {"length", laure_predicate_length, 1, "", {"x:_", "index"}, false},
-    */
 };
 
 void laure_register_builtins(laure_session_t*);

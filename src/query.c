@@ -1076,12 +1076,6 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                     for (int idx = 0; idx < ent_exp->ba->body_len; idx++) {
                         laure_expression_t *arg_exp = laure_expression_set_get_by_idx(ent_exp->ba->set, idx);
 
-                        if (str_eq(pf->c.hints[idx]->hint, "$")) {
-                            struct predicate_arg pa = {idx, arg_exp, false, 0};
-                            preddata_push(pd, pa);
-                            continue;
-                        }
-
                         switch (arg_exp->t) {
                             case let_var: {
                                 string argn = strdup(pf->c.hints[idx]->name);
@@ -1145,6 +1139,8 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                                 if (!hint_instance)
                                     RESPOND_ERROR("predicate %s can't resolve meaning of %s", predicate_ins->name, arg_exp->s);
                                 
+                                struct predicate_arg pa;
+                                
                                 Instance *arg = instance_deepcopy(stack, pf->c.hints[idx]->name, hint_instance);
                                 bool result = read_head(arg->image).translator->invoke(arg_exp, arg->image, prev_stack);
 
@@ -1152,14 +1148,17 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                                     __query_free_scopes_nqctx;
                                     return RESPOND_FALSE;
                                 }
+                                
+                                pa.index = idx;
+                                pa.arg = arg;
+                                pa.is_instance = true;
+                                pa.link_id = 0;
 
                                 Cell cell;
                                 cell.instance = arg;
                                 cell.link_id = laure_stack_get_uid(prev_stack);
 
                                 laure_stack_insert(new_stack, cell);
-
-                                struct predicate_arg pa = {idx, arg, true, 0};
                                 preddata_push(pd, pa);
                                 break;
                             }

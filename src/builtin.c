@@ -13,6 +13,17 @@ string bc_repr(Instance* ins) {
     return strdup(buff);
 }
 
+Instance *get_hint(string hint, laure_stack_t *stack) {
+    /*
+    if (str_eq(hint, "!"))
+        arg = NULL;
+    else if (str_eq(hint, "_"))
+        arg = instance_new(strdup("abstract"), NULL, NULL);
+    else arg = laure_stack_get(stack, hint);
+    */
+    return laure_stack_get(stack, hint);
+}
+
 void laure_register_builtins(laure_session_t *session) {
      laure_stack_t *stack = session->stack;
 
@@ -49,7 +60,7 @@ void laure_register_builtins(laure_session_t *session) {
                 string hint_name = linked2->s;
                 string hint_tname = linked2->next->s;
 
-                Instance *arg = str_eq(hint_tname, "_") ? NULL : laure_stack_get(stack, hint_tname);
+                Instance *arg = get_hint(hint_tname, stack);
                 cimage->hints[j] = hint_new(hint_name, arg);
                 j++;
                 linked1 = linked1->next;
@@ -60,7 +71,9 @@ void laure_register_builtins(laure_session_t *session) {
         }
 
         if (builtin.hint.resp_type != NULL) {
-            cimage->resp_hint = laure_stack_get(stack, builtin.hint.resp_type);
+            string hint = builtin.hint.resp_type;
+            Instance *resp = get_hint(hint, stack);
+            cimage->resp_hint = resp;
         } else {
             cimage->resp_hint = NULL;
         }
@@ -171,7 +184,7 @@ Instance *laure_cle_add_predicate(
             string hint_name = linked2->s;
             string hint_tname = linked2->next->s;
 
-            Instance *arg = str_eq(hint_tname, "_") ? NULL : laure_stack_get(session->stack, hint_tname);
+            Instance *arg = get_hint(hint_tname, session->stack);
             cimage->hints[j] = hint_new(hint_name, arg);
             j++;
             linked1 = linked1->next;
@@ -182,7 +195,7 @@ Instance *laure_cle_add_predicate(
     }
 
     if (response_hint != NULL) {
-        cimage->resp_hint = laure_stack_get(session->stack, response_hint);
+        cimage->resp_hint = get_hint(response_hint, session->stack);
     } else {
         cimage->resp_hint = NULL;
     }

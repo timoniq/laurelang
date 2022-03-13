@@ -105,7 +105,7 @@ struct PredicateImage *predicate_header_new(struct InstanceSet *args, Instance *
 struct ArrayIData array_i_data_deepcopy(laure_stack_t *stack, struct ArrayIData old_i_data);
 
 void *image_deepcopy(laure_stack_t *stack, void *img) {
-    assert(img != NULL);
+    if (!img) return 0;
     void *new_img_ptr = NULL;
 
     struct ImageHead head = read_head(img);
@@ -919,6 +919,8 @@ bool instantiated_or_mult(Instance *ins) {
 }
 
 bool instantiated(Instance *ins) {
+    if (!ins->image) return false;
+
     struct ImageHead head = read_head(ins->image);
     switch (head.t) {
         case INTEGER:
@@ -1240,6 +1242,9 @@ bool int_check(void *img_, void *bi_) {
 }
 
 bool img_equals(void* img1, void* img2) {
+
+    if (!img1 || !img2) return true;
+
     struct ImageHead head1 = read_head(img1);
     struct ImageHead head2 = read_head(img2);
 
