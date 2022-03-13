@@ -12,10 +12,6 @@
     i > 0;
     i < length of arr;
     &all i {
-        int i2 = i - 1;
-        int x = arr[i];
-        arr?;
-        int y = arr[i2];
-        x cons y;
+        arr[i] cons arr[i - 1];
     };
 }
