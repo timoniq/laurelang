@@ -1,8 +1,8 @@
 TARGET = laure
 PREFIX = /usr/local
 LIBFLAG = -Dlib_path=\"lib\"
-CFLAGS = -Isrc -Isubmodules/bigint -I/usr/local/include -g $(LIBFLAG) -fPIE -rdynamic
-LDFLAGS = -L/usr/local/lib -lreadline -lm -g
+CFLAGS = -Isrc -Isubmodules/bigint -I/usr/local/include -g $(LIBFLAG) -fPIC -rdynamic
+LDFLAGS = -L/usr/local/lib -lreadline -lm -g -ldl
 CC = gcc
 
 ifeq ($(DEBUG), 1)
@@ -25,7 +25,7 @@ $(TARGET): $(OBJECTS)
 	$(CC) -ldl -rdynamic -g -o $(TARGET) $(OBJECTS) $(LDFLAGS)
 
 packages: $(LIB)
-	$(CC) -fPIE -shared -g -o laurelang.so $(LIB) $(LDFLAGS)
+	$(CC) -fPIC -shared -g -o laurelang.so $(LIB) $(LDFLAGS)
 	python3 utility/build_pkg.py
 
 clean:

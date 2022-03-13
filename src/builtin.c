@@ -14,14 +14,14 @@ string bc_repr(Instance* ins) {
 }
 
 Instance *get_hint(string hint, laure_stack_t *stack) {
-    /*
+    Instance *arg;
     if (str_eq(hint, "!"))
         arg = NULL;
     else if (str_eq(hint, "_"))
         arg = instance_new(strdup("abstract"), NULL, NULL);
     else arg = laure_stack_get(stack, hint);
-    */
-    return laure_stack_get(stack, hint);
+    
+    return arg;
 }
 
 void laure_register_builtins(laure_session_t *session) {
