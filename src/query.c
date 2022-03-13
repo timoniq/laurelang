@@ -154,7 +154,7 @@ gen_resp image_generator_rec(void *img, igctx *ctx) {
 
     qresp r = laure_eval(cctx_new, ctx->expset);
 
-    free(cctx_new);
+    // free(cctx_new);
 
     if (r.state != q_true) {
 
@@ -897,6 +897,8 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                 return qr;
             }
 
+            qctx->cut = n_if_qctx->cut;
+
             if (! qr.state) {
                 laure_stack_free(nstack);
                 if (n_fact_qctx->mark) {
@@ -905,7 +907,6 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                     return RESPOND_OK;
                 }
             } else {
-                qctx->cut = n_if_qctx->cut;
                 laure_stack_add_to(nstack, stack);
                 laure_stack_free(nstack);
                 return respond(q_true, NULL);

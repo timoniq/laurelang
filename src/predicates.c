@@ -418,7 +418,9 @@ qresp laure_constraint_gte(preddata *pd, control_ctx* cctx) {
     if (i_i && gt_i) {
         return bigint_cmp(i_im->i_data, gt_im->i_data) >= 0 ? respond(q_true, 0) : respond(q_false, 0);
     } else if (!i_i && gt_i) {
-        if (!int_check(i_im, gt_im->i_data)) return respond(q_false, 0);
+        if (i_im->u_data->rborder.t != INFINITE) {
+            if (bigint_cmp(i_im->u_data->rborder.data, gt_im->i_data) < 0) return respond(q_false, 0);
+        }
         struct IntValue v;
         v.t = INCLUDED;
         v.data = bigint_copy(gt_im->i_data);
@@ -451,7 +453,14 @@ qresp laure_constraint_gt(preddata *pd, control_ctx* cctx) {
         return bigint_cmp(i_im->i_data, gt_im->i_data) > 0 ? respond(q_true, 0) : respond(q_false, 0);
     } else if (!i_i && gt_i) {
         if (i_im->u_data->lborder.t == SECLUDED && bigint_cmp(gt_im->i_data, i_im->u_data->lborder.data) == 0) return respond(q_true, 0);
-        else if (!int_check(i_im, gt_im->i_data)) return respond(q_false, 0);
+        if (i_im->u_data->rborder.t != INFINITE) {
+            if (i_im->u_data->rborder.t == INCLUDED) {
+                if (bigint_cmp(i_im->u_data->rborder.data, gt_im->i_data) <= 0) return respond(q_false, 0);
+            } else {
+                if (bigint_cmp(i_im->u_data->rborder.data, gt_im->i_data) < 0) return respond(q_false, 0);
+            }
+        }
+        //else if (!int_check(i_im, gt_im->i_data)) return respond(q_false, 0);
         struct IntValue v;
         v.t = SECLUDED;
         v.data = bigint_copy(gt_im->i_data);

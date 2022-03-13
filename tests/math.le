@@ -16,6 +16,19 @@
 // 0
 : ?test_math_sqrt(int).
 
+: ?test_gt().
+?test_gt() {
+    1 > 0;
+    11 > 4;
+    11 > 12 -> fail();
+    11 < 14;
+    1..2 > 0;
+    1..2 >eq 0;
+    1..2 >eq 1;
+    1..2 >eq 2;
+    1..2 >eq 3 -> fail();
+}
+
 : ?test_bigint().
 
 ?test_math_basic() {
@@ -81,6 +94,14 @@
     2 pow 50 = 1125899906842624;
     int x = 3041409320171337804361260;
     x * 16 = 48662549122741404869780160;
+}
+
+: ?test_natural().
+
+?test_natural() {
+    n ~ natural;
+    n < 10;
+    &all n { n > 0; };
 }
 
 : ?test_negate().

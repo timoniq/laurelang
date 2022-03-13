@@ -1,3 +1,5 @@
+int natural = 1...
+
 // Read docs at /docs/builtin.md#integer-add
 // ```a + b = c;
 // +(a, b) = c;```

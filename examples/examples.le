@@ -1,5 +1,6 @@
 : ?include(
     "factorial.le",
     "fibonacci.le",
-    "integers.le"
+    "integers.le",
+    "prime.le"
 ).

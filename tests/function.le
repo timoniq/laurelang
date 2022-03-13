@@ -69,3 +69,23 @@
         y = 7;
     };
 }
+
+: ?test_prime_check().
+?test_prime_check() {
+    prime(2);
+    prime(5);
+    prime(7);
+    prime(4) -> fail();
+}
+
+// 5
+// 7
+// 11
+// 13
+// 17
+// 19
+: ?test_prime_gen(int).
+?test_prime_gen(n) {
+    n = between(3, 20);
+    prime(n);
+}
