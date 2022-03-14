@@ -150,7 +150,6 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     sess->_doc_buffer = NULL;
     sess->signal = 0;
 
-    laure_trace_init();
     void *old_sess = LAURE_SESSION;
     LAURE_SESSION = sess;
 
@@ -271,7 +270,6 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
                 }
                 case q_false:
                 case q_error: {
-                    laure_trace_erase();
                     if (mode == full)
                     printf("%s: %s%sfailed%s\n", predicate->name, spaces, RED_COLOR, NO_COLOR);
                     comments[i] = response.error;

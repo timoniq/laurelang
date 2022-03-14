@@ -354,6 +354,7 @@ struct laure_flag {
 
 extern uint DFLAG_N;
 extern char DFLAGS[DFLAG_MAX][2][32];
+extern char* EXPT_NAMES[];
 
 char *get_dflag(char *flagname);
 void add_dflag(char *flagname, char *value);

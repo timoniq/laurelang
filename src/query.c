@@ -622,6 +622,10 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
     laure_expression_t *ent_exp = expression_set->expression;
     expression_set = expression_set->next;
 
+    if (ent_exp->s) {
+        laure_trace_add(ent_exp->s, EXPT_NAMES[ent_exp->t]);
+    }
+
     #ifdef DEBUG
     printf("[%d] %s:%s %s %s (%d)\n", stack->current.id, GRAY_COLOR, YELLOW_COLOR, ent_exp->s, NO_COLOR, ent_exp->t);
     #endif

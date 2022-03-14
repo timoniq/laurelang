@@ -115,7 +115,7 @@ string integer_repr(Instance *ins) {
 
 Instance builtin_integer() {
     Instance instance;
-    instance.name = "int";
+    instance.name = strdup("int");
     instance.derived = NULL;
     instance.doc = NULL;
     instance.locked = true;
@@ -133,7 +133,7 @@ Instance builtin_char() {
     img->translator = new_translator(char_translator);
 
     Instance instance;
-    instance.name = "char";
+    instance.name = strdup("char");
     instance.derived = NULL;
     instance.doc = NULL;
     instance.locked = true;
@@ -144,7 +144,7 @@ Instance builtin_char() {
 
 Instance builtin_string() {
     Instance instance;
-    instance.name = "string";
+    instance.name = strdup("string");
     instance.derived = NULL;
     instance.doc = NULL;
     instance.locked = true;

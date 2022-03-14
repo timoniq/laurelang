@@ -353,6 +353,8 @@ int laure_process_query(laure_session_t *session, string line) {
         control_ctx *cctx = laure_control_ctx_get(session, expset);
         qresp response = laure_eval(cctx, expset);
         // laure_gc_run(session->stack);
+        laure_trace_erase();
+        laure_trace_init();
 
         if (!laure_is_silent(cctx)) {
             if (response.state == q_true) {
@@ -505,6 +507,9 @@ int main(int argc, char *argv[]) {
         free(path);
         filenames = filenames->next;
     }
+
+    laure_trace_erase();
+    laure_trace_init();
 
     if (FLAG_QUERY) {
         printf("%s%s\n", DPROMPT, FLAG_QUERY);

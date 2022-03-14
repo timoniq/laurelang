@@ -45,7 +45,7 @@ laure_trace_linked *laure_trace_last_linked() {
 }
 
 void laure_trace_add(string data, string address) {
-    assert(LAURE_TRACE != NULL);
+    if (!LAURE_TRACE) return;
 
     laure_trace_linked *linked = malloc(sizeof(laure_trace_linked));
     linked->address = address;
@@ -71,7 +71,7 @@ void laure_trace_add(string data, string address) {
 }
 
 void laure_trace_erase() {
-    assert(LAURE_TRACE != NULL);
+    if (!LAURE_TRACE) return;
     LAURE_TRACE->active = false;
     laure_trace_linked *l = laure_trace_last_linked();
     do {
@@ -97,12 +97,10 @@ void laure_trace_print() {
         do {
             if (l == NULL) break;
             laure_print_indent(indent);
-            printf("In %s:\n", l->address);
+            printf("in %s:\n", l->address);
             laure_print_indent(indent+1);
             //! data beautifiers
-            printf("%s%s%s\n", RED_COLOR, l->data, NO_COLOR);
-            indent++;
-
+            printf("%s%s%s\n", RED_COLOR, l->data, NO_COLOR);\
             if (l->prev == NULL && LAURE_TRACE->comment != NULL) {
                 laure_print_indent(indent);
                 printf("%s(%s)%s\n", RED_COLOR, LAURE_TRACE->comment, NO_COLOR);
