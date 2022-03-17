@@ -241,6 +241,7 @@ struct PredicateHeaderImage {
 
 struct PredicateImage {
     IMAGE_HEAD
+    bool is_primitive;
     struct PredicateHeaderImage header;
     struct PredicateImageVariationSet *variations;
 };

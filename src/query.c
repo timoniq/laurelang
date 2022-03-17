@@ -751,6 +751,24 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
             laure_expression_t *exp1 = laure_expression_set_get_by_idx(ent_exp->ba->set, 0);
             laure_expression_t *exp2 = laure_expression_set_get_by_idx(ent_exp->ba->set, 1);
 
+            if (exp1->t == let_pred || exp1->t == let_constraint) RESPOND_ERROR("imaging left side cannot be %s", EXPT_NAMES[exp1->t]);
+            else if (exp2->t == let_pred && exp1->t == let_var) {
+                if (! exp2->flag) return respond(q_error, "primitive expected");
+                Instance *ins = laure_stack_get(stack, exp1->s);
+                if (! ins) {
+                    struct PredicateImage *img = (struct PredicateImage*) laure_apply_pred(exp2, stack);
+                    img->is_primitive = true;
+                    if (! img) return respond(q_error, "hint in predicate primitive is undefined");
+                    Instance *prim = instance_new(exp1->s, NULL, img);
+                    prim->repr = predicate_repr;
+                    Cell cell; cell.instance = prim; cell.link_id = laure_stack_get_uid(stack);
+                    laure_stack_insert(stack, cell);
+                    return RESPOND_OK;
+                } else {
+                    printf("todo\n");
+                }
+            }
+
             if (exp1->t == let_var && exp2->t == let_var) {
 
                 Instance *var1 = laure_stack_get(stack, exp1->s);
@@ -809,7 +827,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                     RESPOND_ERROR("both variables %s and %s are unknown", exp1->s, exp2->s);
                 
             } else {
-                RESPOND_ERROR("both variables %s and %s are undefined", exp1->s, exp2->s);
+                RESPOND_ERROR("invalid imaging %s to %s", exp1->s, exp2->s);
             }
             break;
         }
@@ -1029,6 +1047,11 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
             bool turn_off_consmode = is_constraint && !qctx->constraint_mode;
 
             struct PredicateImage *pred_img = (struct PredicateImage*) predicate_ins->image;
+
+            if (pred_img->is_primitive) {
+                predicate_addvar(pred_img, ent_exp);
+                return RESPOND_OK;
+            }
             
             if (is_constraint) {
                 qctx->constraint_mode = true;

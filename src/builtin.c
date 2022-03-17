@@ -90,6 +90,7 @@ void laure_register_builtins(laure_session_t *session) {
         img->t = !builtin.is_constraint ? PREDICATE_FACT : CONSTRAINT_FACT;
         img->variations = variations;
         img->translator = NULL;
+        img->is_primitive = false;
 
         Instance *ins = instance_new(builtin.name, builtin.doc, img);
         ins->repr = builtin.is_constraint ? bc_repr : bp_repr;
@@ -212,6 +213,7 @@ Instance *laure_cle_add_predicate(
     img->t = !is_constraint ? PREDICATE_FACT : CONSTRAINT_FACT;
     img->variations = variations;
     img->translator = NULL;
+    img->is_primitive = false;
 
     Instance *ins = instance_new(name, doc, img);
     ins->repr = is_constraint ? bc_repr : bp_repr;

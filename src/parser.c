@@ -22,7 +22,7 @@ string RESTRICTED = "[](). ";
 #define LAURE_SYNTAX_INFIX_PREPOSITION "of"
 #endif
 
-char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Structure Definition", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "[Nope]"};
+char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Structure Definition", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Predicate Primitive", "[Nope]"};
 
 laure_expression_t *laure_expression_create(laure_expression_type t, string docstring, bool is_header, string s, uint flag, laure_expression_compact_bodyargs *ba) {
     laure_expression_t *exp = malloc(sizeof(laure_expression_t));
@@ -640,10 +640,11 @@ laure_parse_result laure_parse(string query) {
             }
 
             laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, body_len, has_resp);
+            bool is_primitive = strlen(name) == 0 && body_len == 0;
 
             laure_parse_result lpr;
             lpr.is_ok = true;
-            lpr.exp = laure_expression_create(type, "", false, name, 0, ba);
+            lpr.exp = laure_expression_create(type, "", false, name, is_primitive, ba);
 
             return lpr;
         }

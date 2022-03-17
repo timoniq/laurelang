@@ -98,6 +98,7 @@ struct PredicateImage *predicate_header_new(struct InstanceSet *args, Instance *
     img->translator = NULL;
     img->header = header;
     img->variations = pvs_new();
+    img->is_primitive = false;
     
     return img;
 }
@@ -694,8 +695,11 @@ string predicate_repr(Instance *ins) {
         snprintf(respbuff, 64, " -> %s", img->header.resp->name);
     } else
         respbuff[0] = 0;
+
+    string name = ins->name;
+    if (img->is_primitive) name = "\0";
     
-    snprintf(buff, 128, "(?%s(%s)%s)", ins->name, argsbuff, respbuff);
+    snprintf(buff, 128, "(?%s(%s)%s)", name, argsbuff, respbuff);
     return strdup(buff);
 }
 
@@ -1404,6 +1408,24 @@ bool img_equals(void* img1, void* img2) {
             EnhancedImageHead head2 = read_enhanced_head(img2);
             if (strcmp(head.identifier, head2.identifier) != 0) return false;
             return head.eq && head.eq(img1, img2);
+        }
+        case PREDICATE_FACT:
+        case CONSTRAINT_FACT: {
+            struct PredicateImage *p1 = (struct PredicateImage*)img1;
+            struct PredicateImage *p2 = (struct PredicateImage*)img2;
+            if (! (p1->is_primitive || p2->is_primitive)) return false;
+            else if (p1->is_primitive && p2->is_primitive) {
+                printf("cmp primitives not implemented\n");
+                return false;
+            }
+            struct PredicateImage *prim, *nonprim;
+            if (p1->is_primitive) {
+                prim = p1; nonprim = p2;
+            } else {
+                prim = p2; nonprim = p1;
+            }
+            
+            // ...
         }
     }
 }
