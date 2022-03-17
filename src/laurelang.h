@@ -286,6 +286,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set);
 control_ctx *laure_control_ctx_get(laure_session_t *session, laure_expression_set *expset);
 
 void laure_register_builtins(laure_session_t*);
+void *laure_apply_pred(laure_expression_t *predicate_exp, laure_stack_t *stack);
 
 void laure_consult_recursive(laure_session_t *session, char *path);
 
