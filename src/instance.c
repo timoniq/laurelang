@@ -179,7 +179,16 @@ void *image_deepcopy(laure_stack_t *stack, void *img) {
         }
         case CONSTRAINT_FACT:
         case PREDICATE_FACT: {
-            new_img_ptr = img;
+            struct PredicateImage *prim = (struct PredicateImage*)img;
+            if (prim->is_primitive) {
+                struct PredicateImage *copy = predicate_header_new(prim->header.args, prim->header.resp, prim->t == CONSTRAINT_FACT);
+                copy->is_primitive = true;
+                copy->header.nestings = prim->header.nestings;
+                copy->header.response_nesting = prim->header.response_nesting;
+                new_img_ptr = copy;
+            } else {
+                new_img_ptr = img;
+            }
             break;
         }
         case CHOICE: {
@@ -474,6 +483,36 @@ gen_resp generate_array(bigint *length_, void *ctx_) {
     return image_generate(ctx->stack, get_image(gen_ary_ctx->im->arr_el), generate_array_tail, gen_ary_ctx);
 }
 
+bool predicate_search_check(Instance *chd, struct PredicateImage *prim) {
+    if (read_head(chd->image).t != prim->t) return false;
+    else if (str_starts(chd->name, "__")) return false;
+    struct PredicateImage *nonprim = (struct PredicateImage*) chd->image;
+    if (nonprim->is_primitive) return false;
+    else if (nonprim->variations->set[0].t == PREDICATE_C) return false;
+    
+    if (
+        (prim->header.args->len != nonprim->header.args->len) ||
+        (prim->header.resp != nonprim->header.resp) || 
+        (prim->header.response_nesting != nonprim->header.response_nesting)
+    ) return false;
+
+    for (uint idx = 0; idx < prim->header.args->len; idx++) {
+        Instance *prim_arg = prim->header.args->data[idx];
+        Instance *nonprim_arg = nonprim->header.args->data[idx];
+        //! todo smart check
+        if (read_head(prim_arg->image).t != read_head(nonprim_arg->image).t) return false;
+    }
+
+    if (
+        prim->header.resp &&
+        read_head(prim->header.resp->image).t 
+        != read_head(nonprim->header.resp->image).t
+    ) { 
+        return false;
+    }
+    return true;
+}
+
 struct unify_array_ctx {
     gen_resp (*rec)(void*, void*);
     void *external_ctx;
@@ -595,6 +634,27 @@ gen_resp image_generate(laure_stack_t *stack, void* img, gen_resp (*rec)(void*, 
             EnhancedImageHead head = read_enhanced_head(img);
             if (head.is_instantiated && head.is_instantiated(img)) {
                 return rec(img, external_ctx);
+            }
+            break;
+        }
+        case CONSTRAINT_FACT:
+        case PREDICATE_FACT: {
+            struct PredicateImage *im = (struct PredicateImage*)img;
+            if (im->is_primitive) {
+                // predicate search
+                Cell cell;
+                STACK_ITER(stack, cell, {
+                    if (predicate_search_check(cell.instance, im)) {
+                        rec(cell.instance->image, external_ctx);
+                    }
+                }, false);
+                STACK_ITER(stack->global, cell, {
+                    if (predicate_search_check(cell.instance, im)) {
+                        rec(cell.instance->image, external_ctx);
+                    }
+                }, false);
+            } else {
+                return rec(im, external_ctx);
             }
             break;
         }
@@ -1425,7 +1485,29 @@ bool img_equals(void* img1, void* img2) {
                 prim = p2; nonprim = p1;
             }
             
-            // ...
+            if (
+                (prim->header.args->len != nonprim->header.args->len) ||
+                (prim->header.resp != nonprim->header.resp) || 
+                (prim->header.response_nesting != nonprim->header.response_nesting)
+            ) return false;
+
+            for (uint idx = 0; idx < prim->header.args->len; idx++) {
+                Instance *prim_arg = prim->header.args->data[idx];
+                Instance *nonprim_arg = nonprim->header.args->data[idx];
+                //! todo smart check
+                if (read_head(prim_arg->image).t != read_head(nonprim_arg->image).t) return false;
+            }
+
+            if (
+                prim->header.resp &&
+                read_head(prim->header.resp->image).t 
+                != read_head(nonprim->header.resp->image).t
+            ) { 
+                return false;
+            }
+
+            *prim = *nonprim;
+            return true;
         }
     }
 }

@@ -1049,8 +1049,11 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
             struct PredicateImage *pred_img = (struct PredicateImage*) predicate_ins->image;
 
             if (pred_img->is_primitive) {
+                /*
                 predicate_addvar(pred_img, ent_exp);
                 return RESPOND_OK;
+                */
+                RESPOND_ERROR("primitive (%s) call is prohibited before instantiation; unify", predicate_name);
             }
             
             if (is_constraint) {
