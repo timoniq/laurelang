@@ -10,8 +10,7 @@
 ?no_repeat(arr) when length of arr = 1.
 
 ?no_repeat(arr) {
-    i > 0;
-    i < length of arr;
+    i = between(0, length of arr);
     &all i {
         arr[i] cons arr[i - 1];
     };
