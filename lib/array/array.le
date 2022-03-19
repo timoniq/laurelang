@@ -3,6 +3,7 @@
 : ?each_int(int[]) -> int.
 ?each_int(arr) -> element when each(arr) = element.
 
+// Predicate states that there are no nearby standing equal elements in array
 : ?no_repeat(int[]).
 
 ?no_repeat([]).

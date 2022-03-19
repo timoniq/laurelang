@@ -1,5 +1,7 @@
 #include "laureimage.h"
 
+char* IMG_NAMES[] = {"Integer", "Char", "Array", "Atom", "Predicate", "Constraint", "Structure", "", "[External]"};
+
 int char_isnumber(int _c) {
     return _c >= 48 && _c <= 57;
 }
@@ -489,7 +491,7 @@ bool predicate_search_check(Instance *chd, struct PredicateImage *prim) {
     struct PredicateImage *nonprim = (struct PredicateImage*) chd->image;
     if (nonprim->is_primitive) return false;
     else if (nonprim->variations->set[0].t == PREDICATE_C) return false;
-    
+
     if (
         (prim->header.args->len != nonprim->header.args->len) ||
         (prim->header.resp != nonprim->header.resp) || 
@@ -642,23 +644,37 @@ gen_resp image_generate(laure_stack_t *stack, void* img, gen_resp (*rec)(void*, 
             struct PredicateImage *im = (struct PredicateImage*)img;
             if (im->is_primitive) {
                 // predicate search
+                bool found = false;
                 Cell cell;
                 STACK_ITER(stack, cell, {
                     if (predicate_search_check(cell.instance, im)) {
-                        rec(cell.instance->image, external_ctx);
+                        gen_resp resp = rec(cell.instance->image, external_ctx);
+                        found = true;
+                        if (!resp.r) return resp;
                     }
                 }, false);
                 STACK_ITER(stack->global, cell, {
                     if (predicate_search_check(cell.instance, im)) {
-                        rec(cell.instance->image, external_ctx);
+                        gen_resp resp = rec(cell.instance->image, external_ctx);
+                        found = true;
+                        if (!resp.r) return resp;
                     }
                 }, false);
+                if (! found) {
+                    gen_resp gr;
+                    gr.r = false;
+                    gr.qr = respond(q_false, 0);
+                    return gr;
+                }
             } else {
                 return rec(im, external_ctx);
             }
             break;
         }
         default: {
+            char msg[128];
+            strcpy(msg, "no instantiation implemented for ");
+            strcat(msg, IMG_NAMES[head.t]);
             gen_resp gr;
             gr.qr = respond(q_error, strdup("cannot instantiate"));
             gr.r = false;
