@@ -260,7 +260,7 @@ void laure_stack_show(laure_stack_t* stack) {
         Instance *instance = stack->current.cells[i].instance;
         long link = stack->current.cells[i].link_id;
         string r = instance != NULL ? instance->repr(instance) : NULL;
-        printf("%d: name=%s link=%ld value=%s doc=%s\n", i, instance == NULL ? "?" : instance->name, link, r == NULL ? "(deleted)" : r, instance == NULL ? "" : (instance->doc == NULL ? "-" : "+"));
+        printf("%ld: %sname=%s%s %svalue=%s%s\n", link, GRAY_COLOR, NO_COLOR, instance == NULL ? "?" : instance->name, GRAY_COLOR, NO_COLOR, r == NULL ? "(deleted)" : r);
         free(r);
     }
     printf("---\n");

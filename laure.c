@@ -38,7 +38,7 @@ struct cmd_info {
 };
 
 const struct cmd_info commands[] = {
-    {0, ".consult", -1, "Consults files. Any number of args, each arg is a filename."},
+    {0, ".consult", -1, "Consults files. Each arg is a filename."},
     {1, ".quit", 0, "Quits laurelang REPL."},
     {2, ".help", 0, "Shows this message."},
     {3, ".flags", 0, "Shows all available flags for laure interpreter."},
