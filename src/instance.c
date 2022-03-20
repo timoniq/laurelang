@@ -494,7 +494,7 @@ bool predicate_search_check(Instance *chd, struct PredicateImage *prim) {
 
     if (
         (prim->header.args->len != nonprim->header.args->len) ||
-        (prim->header.resp != nonprim->header.resp) || 
+        ((prim->header.resp == 0) != (nonprim->header.resp == 0)) || 
         (prim->header.response_nesting != nonprim->header.response_nesting)
     ) return false;
 
@@ -650,14 +650,12 @@ gen_resp image_generate(laure_stack_t *stack, void* img, gen_resp (*rec)(void*, 
                     if (predicate_search_check(cell.instance, im)) {
                         gen_resp resp = rec(cell.instance->image, external_ctx);
                         found = true;
-                        if (!resp.r) return resp;
                     }
                 }, false);
                 STACK_ITER(stack->global, cell, {
                     if (predicate_search_check(cell.instance, im)) {
                         gen_resp resp = rec(cell.instance->image, external_ctx);
                         found = true;
-                        if (!resp.r) return resp;
                     }
                 }, false);
                 if (! found) {
@@ -683,6 +681,7 @@ gen_resp image_generate(laure_stack_t *stack, void* img, gen_resp (*rec)(void*, 
     }
     gen_resp gr;
     gr.r = true;
+    gr.qr = respond(q_true, 0);
     return gr;
 };
 
@@ -1009,6 +1008,7 @@ bool instantiated(Instance *ins) {
             return ((struct ArrayImage*)ins->image)->state == I;
         case ATOM:
             return ((struct AtomImage*)ins->image)->unified;
+        case CONSTRAINT_FACT:
         case PREDICATE_FACT:
             return true;
         case STRUCTURE:
@@ -1503,7 +1503,7 @@ bool img_equals(void* img1, void* img2) {
             
             if (
                 (prim->header.args->len != nonprim->header.args->len) ||
-                (prim->header.resp != nonprim->header.resp) || 
+                ((prim->header.resp == 0) != (nonprim->header.resp == 0)) || 
                 (prim->header.response_nesting != nonprim->header.response_nesting)
             ) return false;
 

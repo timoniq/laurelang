@@ -632,7 +632,6 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
 
     switch(ent_exp->t) {
         case let_assert: {
-
             laure_expression_t *lvar = laure_expression_set_get_by_idx(ent_exp->ba->set, 0);
             laure_expression_t *rvar = laure_expression_set_get_by_idx(ent_exp->ba->set, 1);
             
@@ -1604,6 +1603,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
             break;
         }
         case let_set: {
+            if (! ent_exp->ba->set) return RESPOND_OK;
             qcontext *nqctx = qcontext_new(ent_exp->ba->set);
             nqctx->next = qcontext_new_shifted(qctx, expression_set);
             laure_stack_t *private_stack = laure_stack_clone(stack, true);

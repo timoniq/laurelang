@@ -134,3 +134,21 @@
 ?test_empty_set() {
     {{{{{{}}}}}};
 }
+
+// 14
+// 40
+: ?test_pred_prim(natural).
+?test_pred_prim(x) {
+    prim ~ (?(int, int) -> int);
+    prim = +|-|*;
+    x = 4 prim 10;
+}
+
+: ?test_pred_prim_fullsearch().
+?test_pred_prim_fullsearch() {
+    primitive ~ (?(int) -> int);
+    primitive?;
+    primitive(-100) = 100;
+    primitive(8 - 10) = x;
+    &all x { x = 2 };
+}

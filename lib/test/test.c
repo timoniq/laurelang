@@ -178,10 +178,10 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     for (int i = 0; i < len; i++) {
         Instance *predicate = tests[i];
         struct PredicateImage *pred_im = (struct PredicateImage*)predicate->image;
-        char spaces[28] = {0};
+        char spaces[128] = {0};
         for (int j = laure_string_strlen(predicate->name); j < max_name_len; j++) {
             strcat(spaces, " ");
-            if (j >= 27) break;
+            if (j >= 127) break;
         }
 
         if (should_skip(skips, predicate->name)) {
