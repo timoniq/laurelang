@@ -565,7 +565,8 @@ laure_parse_result laure_parse(string query) {
                 query = query + strlen(args) + 1;
 
                 string sp = read_til(query, '>');
-                resp = query + strlen(sp) + 2;
+                if (sp)
+                    resp = query + strlen(sp) + 2;
                 
                 free(sp);
             } else if (easy_pattern_parse(query, ".*(.*).*")) {
