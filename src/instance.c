@@ -1194,7 +1194,7 @@ bool atom_translator(laure_expression_t *exp, void* rimg, laure_stack_t *stack) 
             return str_eq(im->atom, exp->s);
         } else {
             for (uint idx = 0; idx < im->mult->amount; idx++) {
-                if (str_eq(im->mult->members[idx], exp->s + 1)) {
+                if (str_eq(im->mult->members[idx], exp->s)) {
                     im->single = true;
                     im->atom = im->mult->members[idx];
                     return true;

@@ -536,46 +536,6 @@ laure_parse_result laure_parse(string query) {
             }
             return result;
         }
-        case '@': {
-            // flag = 0 | 1
-            // 0 SINGLE
-            // 1 SET
-            if (str_starts(query, "{")) {
-                if (! lastc(query) == '}') {
-                    error_result("invalid atomic set; expected `}`");
-                }
-                query++;
-                lastc(query) = 0;
-                if (! laure_string_strlen(query)) error_result("empty atomic sets are forbidden");
-                laure_parse_many_result lpmr = laure_parse_many(query, ',', NULL);
-                if (! lpmr.is_ok) {
-                    error_format("error parsing atomic set: %s", lpmr.err);
-                }
-                laure_expression_t *ptr; EXPSET_ITER(lpmr.exps, ptr, {
-                    if (ptr->t != let_var && ptr->t != let_custom) {
-                        error_format("error parsing atomic set, atom -> `%s`, Atom declaration cannot be %s\nMust be var-like or data-like", ptr->s, ptr->t != let_atom ? EXPT_NAMES[ptr->t] : "another atom");
-                    }
-                });
-                laure_parse_result lpr;
-                lpr.is_ok = true;
-                lpr.exp = laure_expression_create(
-                    let_atom, NULL, false, --query, 1, 
-                    laure_bodyargs_create(lpmr.exps, laure_expression_get_count(lpmr.exps), 0)
-                );
-                return lpr;
-            } else {
-                laure_parse_result lpr = laure_parse(query);
-                if (! lpr.is_ok) error_format("cannot read atom `@%s`", query);
-                else if (lpr.exp->t != let_var && lpr.exp->t != let_custom) {
-                    error_format(
-                        "error parsing atom -> `%s`, Atom declaration cannot be %s\nMust be var-like or data-like", 
-                        query, lpr.exp->t != let_atom ? EXPT_NAMES[lpr.exp->t] : "another atom"
-                    );
-                }
-                lpr.exp = laure_expression_create(let_atom, NULL, false, --query, 0, NULL);
-                return lpr;
-            }
-        }
         case '?':
         case '#': {
 
@@ -1057,6 +1017,48 @@ laure_parse_result laure_parse(string query) {
                     }
                 }
 
+                if (str_starts(query, "@")) {
+                    // flag = 0 | 1
+                    // 0 SINGLE
+                    // 1 SET
+                    query++;
+                    if (str_starts(query, "{")) {
+                        if (! lastc(query) == '}') {
+                            error_result("invalid atomic set; expected `}`");
+                        }
+                        query++;
+                        lastc(query) = 0;
+                        if (! laure_string_strlen(query)) error_result("empty atomic sets are forbidden");
+                        laure_parse_many_result lpmr = laure_parse_many(query, ',', NULL);
+                        if (! lpmr.is_ok) {
+                            error_format("error parsing atomic set: %s", lpmr.err);
+                        }
+                        laure_expression_t *ptr; EXPSET_ITER(lpmr.exps, ptr, {
+                            if (ptr->t != let_var && ptr->t != let_custom) {
+                                error_format("error parsing atomic set, atom -> `%s`, Atom declaration cannot be %s\nMust be var-like or data-like", ptr->s, ptr->t != let_atom ? EXPT_NAMES[ptr->t] : "another atom");
+                            }
+                        });
+                        laure_parse_result lpr;
+                        lpr.is_ok = true;
+                        lpr.exp = laure_expression_create(
+                            let_atom, NULL, false, --query, 1, 
+                            laure_bodyargs_create(lpmr.exps, laure_expression_get_count(lpmr.exps), 0)
+                        );
+                        return lpr;
+                    } else {
+                        laure_parse_result lpr = laure_parse(query);
+                        if (! lpr.is_ok) error_format("cannot read atom `@%s`", query);
+                        else if (lpr.exp->t != let_var && lpr.exp->t != let_custom) {
+                            error_format(
+                                "error parsing atom -> `%s`, Atom declaration cannot be %s\nMust be var-like or data-like", 
+                                query, lpr.exp->t != let_atom ? EXPT_NAMES[lpr.exp->t] : "another atom"
+                            );
+                        }
+                        lpr.exp = laure_expression_create(let_atom, NULL, false, query, 0, NULL);
+                        return lpr;
+                    }
+                }
+
                 uint nesting = 0;
                 while (strlen(dup) > 2 && str_eq(dup + strlen(dup) - 2, "[]")) {
                     nesting++;
@@ -1204,7 +1206,14 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
         }
 
         case let_cut: {
+            printindent(indent);
             printf("cut\n");
+            break;
+        }
+
+        case let_atom: {
+            printindent(indent);
+            printf("atom\n");
             break;
         }
     
@@ -1348,12 +1357,11 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
             break;
         }
         case let_pred_call: {
-            // if (exp->ba->has_resp) break;
             laure_expression_set *args = NULL;
 
             for (int i = 0; i < exp->ba->body_len; i++) {
                 laure_expression_t *arg_exp = laure_expression_set_get_by_idx(exp->ba->set, i);
-                if (arg_exp->t == let_var || arg_exp->t == let_custom || arg_exp->t == let_array) {
+                if (arg_exp->t == let_var || arg_exp->t == let_custom || arg_exp->t == let_array || arg_exp->t == let_atom) {
                     args = laure_expression_set_link(args, arg_exp);
                 } else {
                     assert(LAURE_SESSION);
@@ -1371,9 +1379,11 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
                     set = laure_expression_set_link_branch(set, laure_expression_compose_one(assert_exp));
                 }
             }
+            
             if (exp->ba->has_resp) {
                 args = laure_expression_set_link(args, laure_expression_set_get_by_idx(exp->ba->set, exp->ba->body_len));
             }
+            
             exp->ba->set = args;
             set = laure_expression_set_link(set, exp);
             break;
