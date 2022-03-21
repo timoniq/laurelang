@@ -22,7 +22,7 @@ string RESTRICTED = "[](). ";
 #define LAURE_SYNTAX_INFIX_PREPOSITION "of"
 #endif
 
-char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Structure Definition", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Predicate Primitive", "[Nope]"};
+char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Structure Definition", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Predicate Primitive", "Atom", "[Nope]"};
 
 laure_expression_t *laure_expression_create(laure_expression_type t, string docstring, bool is_header, string s, uint flag, laure_expression_compact_bodyargs *ba) {
     laure_expression_t *exp = malloc(sizeof(laure_expression_t));
@@ -535,6 +535,46 @@ laure_parse_result laure_parse(string query) {
                 result.exp->is_header = true;
             }
             return result;
+        }
+        case '@': {
+            // flag = 0 | 1
+            // 0 SINGLE
+            // 1 SET
+            if (str_starts(query, "{")) {
+                if (! lastc(query) == '}') {
+                    error_result("invalid atomic set; expected `}`");
+                }
+                query++;
+                lastc(query) = 0;
+                if (! laure_string_strlen(query)) error_result("empty atomic sets are forbidden");
+                laure_parse_many_result lpmr = laure_parse_many(query, ',', NULL);
+                if (! lpmr.is_ok) {
+                    error_format("error parsing atomic set: %s", lpmr.err);
+                }
+                laure_expression_t *ptr; EXPSET_ITER(lpmr.exps, ptr, {
+                    if (ptr->t != let_var && ptr->t != let_custom) {
+                        error_format("error parsing atomic set, atom -> `%s`, Atom declaration cannot be %s\nMust be var-like or data-like", ptr->s, ptr->t != let_atom ? EXPT_NAMES[ptr->t] : "another atom");
+                    }
+                });
+                laure_parse_result lpr;
+                lpr.is_ok = true;
+                lpr.exp = laure_expression_create(
+                    let_atom, NULL, false, --query, 1, 
+                    laure_bodyargs_create(lpmr.exps, laure_expression_get_count(lpmr.exps), 0)
+                );
+                return lpr;
+            } else {
+                laure_parse_result lpr = laure_parse(query);
+                if (! lpr.is_ok) error_format("cannot read atom `@%s`", query);
+                else if (lpr.exp->t != let_var && lpr.exp->t != let_custom) {
+                    error_format(
+                        "error parsing atom -> `%s`, Atom declaration cannot be %s\nMust be var-like or data-like", 
+                        query, lpr.exp->t != let_atom ? EXPT_NAMES[lpr.exp->t] : "another atom"
+                    );
+                }
+                lpr.exp = laure_expression_create(let_atom, NULL, false, --query, 0, NULL);
+                return lpr;
+            }
         }
         case '?':
         case '#': {

@@ -750,7 +750,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
             laure_expression_t *exp1 = laure_expression_set_get_by_idx(ent_exp->ba->set, 0);
             laure_expression_t *exp2 = laure_expression_set_get_by_idx(ent_exp->ba->set, 1);
 
-            if (exp1->t == let_pred || exp1->t == let_constraint) RESPOND_ERROR("imaging left side cannot be %s", EXPT_NAMES[exp1->t]);
+            if (exp1->t == let_pred || exp1->t == let_constraint || exp1->t == let_atom) RESPOND_ERROR("imaging left side cannot be %s", EXPT_NAMES[exp1->t]);
             else if (exp2->t == let_pred && exp1->t == let_var) {
                 if (! exp2->flag) return respond(q_error, "primitive expected");
                 Instance *ins = laure_stack_get(stack, exp1->s);
@@ -766,6 +766,53 @@ qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set) {
                 } else {
                     printf("todo\n");
                 }
+            } else if (exp2->t == let_atom) {
+                if (exp1->t != let_var) RESPOND_ERROR("left side in imaging with atom must be Var not %s", EXPT_NAMES[exp1->t]);
+                Instance *ins = laure_stack_get(stack, exp1->s);
+                if (! ins) {
+                    if (! exp2->flag) {
+                        RESPOND_ERROR("%s's universum is unknown, maybe you need to declare the whole set, like this:\n`%s = @{%s}`", exp1->s, exp1->s, exp2->s);
+                    }
+                    struct AtomImage *atomset = malloc(sizeof(struct AtomImage));
+                    atomset->t = ATOM;
+                    atomset->mark = false;
+                    atomset->translator = new_translator(atom_translator);
+                    atomset->single = false;
+                    atomset->mult = multiplicity_create();
+                    laure_expression_t *ptr;
+                    EXPSET_ITER(exp2->ba->set, ptr, {
+                        multiplicity_insert(atomset->mult, ptr->s);
+                    });
+                    Cell cell;
+                    cell.instance = instance_new(exp1->s, NULL, atomset);
+                    cell.instance->repr = atom_repr;
+                    cell.link_id = laure_stack_get_uid(stack);
+                    laure_stack_insert(stack, cell);
+                } else {
+                    struct AtomImage *atomset = ins->image;
+                    if (atomset->single) {
+                        laure_expression_t *ptr;
+                        EXPSET_ITER(exp2->ba->set, ptr, {
+                            if (str_eq(atomset->atom, ptr->s))
+                                return RESPOND_OK;
+                        });
+                        return RESPOND_FALSE;
+                    } else {
+                        for (uint idx = 0; idx < atomset->mult->amount; idx++) {
+                            char *atom = atomset->mult->members[idx];
+                            laure_expression_t *ptr;
+                            bool found = false;
+                            EXPSET_ITER(exp2->ba->set, ptr, {
+                                if (str_eq(atom, ptr->s)) {
+                                    found = true;
+                                    break;
+                                }
+                            });
+                            if (! found) return RESPOND_FALSE;
+                        }
+                    }
+                }
+                return RESPOND_OK;
             }
 
             if (exp1->t == let_var && exp2->t == let_var) {

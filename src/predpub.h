@@ -29,8 +29,8 @@ typedef struct GenResp {
 qresp respond(qresp_state s, char *e);
 
 #define RESPOND_ERROR(msg, ...) do {\
-        char _errmsg[64]; \
-        snprintf(_errmsg, 64, msg, __VA_ARGS__); \
+        char _errmsg[128]; \
+        snprintf(_errmsg, 128, msg, __VA_ARGS__); \
         return respond(q_error, strdup(_errmsg));} while (0)
 
 #define RESPOND_TRUE           respond(q_true, NULL)

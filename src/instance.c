@@ -166,14 +166,15 @@ void *image_deepcopy(laure_stack_t *stack, void *img) {
         case ATOM: {
             struct AtomImage *new_img = malloc(sizeof(struct AtomImage));
             struct AtomImage *old_img = ((struct AtomImage*)img);
+
             new_img->t = ATOM;
-            new_img->unified = old_img->unified;
+            new_img->single = old_img->single;
             new_img->translator = old_img->translator;
             
-            if (old_img->unified) {
+            if (old_img->single) {
                 new_img->atom = strdup(old_img->atom);
             } else {
-                new_img->mult = multiplicity_deepcopy(stack, old_img->mult);
+                new_img->mult = old_img->mult;
             }
 
             new_img_ptr = new_img;
@@ -551,15 +552,6 @@ struct MultGenCtx {
     laure_stack_t *stack;
 };
 
-gen_resp multiplicity_generate(multiplicity *mult, gen_resp (*rec)(void*, void*), void* context) {
-    for (int i = 0; i < mult->amount; i++) {
-        gen_resp gr = rec(mult->members[i], context);
-        if (gr.r != 1) return gr;
-    }
-    gen_resp gr = {1, respond(q_yield, NULL)};
-    return gr;
-}
-
 gen_resp image_generate(laure_stack_t *stack, void* img, gen_resp (*rec)(void*, void*), void* external_ctx) {
     assert(img != NULL);
     struct ImageHead head = read_head(img);
@@ -571,8 +563,6 @@ gen_resp image_generate(laure_stack_t *stack, void* img, gen_resp (*rec)(void*, 
             if (im->state == I) {
                 // integer has only one value
                 return rec(im, external_ctx);
-            } else if (im->state == M) {
-                return multiplicity_generate(im->mult, rec, external_ctx);
             } else {
                 // choicepoint
                 GenCtx *gctx = malloc(sizeof(GenCtx));
@@ -602,8 +592,6 @@ gen_resp image_generate(laure_stack_t *stack, void* img, gen_resp (*rec)(void*, 
                     return gr;
                 }
                 return rec(im, external_ctx);
-            } else if (im->state == M) {
-                return multiplicity_generate(im->mult, rec, external_ctx);
             } else {
                 // generating length
                 GenCtx *gctx = malloc(sizeof(GenCtx));
@@ -619,10 +607,18 @@ gen_resp image_generate(laure_stack_t *stack, void* img, gen_resp (*rec)(void*, 
         }
         case ATOM: {
             struct AtomImage *im = (struct AtomImage*)img;
-            if (im->unified) {
+            if (im->single) {
                 return rec(im, external_ctx);
             } else {
-                return multiplicity_generate(im->mult, rec, external_ctx);
+                multiplicity *mult = im->mult;
+                for (uint idx = 0; idx < mult->amount; idx++) {
+                    char *atom = (char*) mult->members[idx];
+                    im->single = true;
+                    im->atom = atom;
+                    rec(im, external_ctx);
+                }
+                im->single = false;
+                im->mult = mult;
             }
             break;
         }
@@ -727,17 +723,17 @@ multiplicity *multiplicity_deepcopy(laure_stack_t *stack, multiplicity *mult) {
     new->capacity = mult->amount;
     new->members = malloc(sizeof(void*) * mult->amount);
     for (int i = 0; i < mult->amount; i++) {
-        new->members[i] = image_deepcopy(stack, mult->members[i]);
+        new->members[i] = mult->members[i];
     }
     return new;
 }
 
-void multiplicity_insert(multiplicity *mult, void *img) {
+void multiplicity_insert(multiplicity *mult, void *ptr) {
     if (mult->amount + 1 > mult->capacity) {
         mult->capacity = mult->capacity * 2;
         mult->members = realloc(mult->members, sizeof(void*) * mult->capacity);
     }
-    mult->members[mult->amount] = img;
+    mult->members[mult->amount] = ptr;
     mult->amount++;
 }
 
@@ -1007,7 +1003,7 @@ bool instantiated(Instance *ins) {
         case ARRAY:
             return ((struct ArrayImage*)ins->image)->state == I;
         case ATOM:
-            return ((struct AtomImage*)ins->image)->unified;
+            return ((struct AtomImage*)ins->image)->single;
         case CONSTRAINT_FACT:
         case PREDICATE_FACT:
             return true;
@@ -1172,13 +1168,47 @@ bool int_translator(laure_expression_t *exp, void* rimg, laure_stack_t *stack) {
 }
 
 bool atom_translator(laure_expression_t *exp, void* rimg, laure_stack_t *stack) {
-    printf("translate atom\n");
+    struct AtomImage *im = (struct AtomImage*)rimg;
+    if (exp->t != let_atom) return false;
+    if (exp->flag) {
+        if (im->single) {
+            if (exp->ba->body_len != 1) return false;
+            return str_eq(exp->ba->set->expression->s, im->atom);
+        } else {
+            if (exp->ba->body_len != im->mult->amount) return false;
+            laure_expression_t *ptr;
+            EXPSET_ITER(exp->ba->set, ptr, {
+                bool found = false;
+                for (uint idx = 0; idx < im->mult->amount; idx++) {
+                    if (str_eq(im->mult->members[idx], ptr->s)) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (! found) return false;
+            });
+            return true;
+        }
+    } else {
+        if (im->single) {
+            return str_eq(im->atom, exp->s);
+        } else {
+            for (uint idx = 0; idx < im->mult->amount; idx++) {
+                if (str_eq(im->mult->members[idx], exp->s + 1)) {
+                    im->single = true;
+                    im->atom = im->mult->members[idx];
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
     return true;
 }
 
-void* mul_eq(multiplicity *mult, void* img) {
+void* mul_eq_str(multiplicity *mult, char* str) {
     for (int i = 0; i < mult->amount; i++) {
-        if (img_equals(mult->members[i], img)) {
+        if (str_eq(mult->members[i], str)) {
             return mult->members[i];
         }
     }
@@ -1356,13 +1386,13 @@ bool img_equals(void* img1, void* img2) {
                 return true;
 
             } else if (img1_t->state == M && img2_t->state == I) {
-                struct IntImage *s = mul_eq(img1_t->mult, img2_t);
+                struct IntImage *s = mul_eq_str(img1_t->mult, img2_t);
                 if (s == NULL) return 0;
                 *img1_t = *s;
                 return 1;
                 
             } else if (img1_t->state == I && img2_t->state == M) {
-                struct IntImage *s = mul_eq(img2_t->mult, img1_t);
+                struct IntImage *s = mul_eq_str(img2_t->mult, img1_t);
                 if (s == NULL) return 0;
                 *img2_t = *s;
                 // fix this shiity freeing torture
@@ -1429,19 +1459,19 @@ bool img_equals(void* img1, void* img2) {
         case ATOM: {
             struct AtomImage *img1_t = (struct AtomImage*)img1;
             struct AtomImage *img2_t = (struct AtomImage*)img2;
-            if (img1_t->unified && img2_t->unified) {
+            if (img1_t->single && img2_t->single) {
                 return str_eq(img1_t->atom, img2_t->atom);
 
-            } else if (img1_t->unified && !img2_t->unified) {
-                struct AtomImage *s = mul_eq(img2_t->mult, img1_t);
+            } else if (img1_t->single && !img2_t->single) {
+                struct AtomImage *s = mul_eq_str(img2_t->mult, img1_t);
                 if (s == NULL) return 0;
-                img2_t->unified = true;
+                img2_t->single = true;
                 img2_t->atom = s->atom;
 
-            } else if (!img1_t->unified && img2_t->unified) {
-                struct AtomImage *s = mul_eq(img1_t->mult, img2_t);
+            } else if (!img1_t->single && img2_t->single) {
+                struct AtomImage *s = mul_eq_str(img1_t->mult, img2_t);
                 if (s == NULL) return 0;
-                img1_t->unified = true;
+                img1_t->single = true;
                 img1_t->atom = s->atom;
 
             } else {
@@ -1531,14 +1561,17 @@ bool img_equals(void* img1, void* img2) {
 string atom_repr(Instance* ins) {
     struct AtomImage *img = (struct AtomImage*)ins->image;
 
-    if (img->unified) {
-        return strdup(img->atom);
+    if (img->single) {
+        string s = malloc(strlen(img->atom) + 2);
+        strcpy(s, "@");
+        strcat(s, img->atom);
+        return s;
     } else {
         char buffer[64];
         memset(buffer, '\0', 64);
         strcpy(buffer, "@{");
         for (int i = 0; i < img->mult->amount; i++) {
-            strcat(buffer, ((struct AtomImage*)img->mult->members[i])->atom);
+            strcat(buffer, img->mult->members[i]);
             if (i != img->mult->amount - 1) strcat(buffer, ", ");
         }
         strcat(buffer, "}");

@@ -10,3 +10,4 @@ laurelang.so
 laurelanglib.o
 *.dSYM
 *.so
+examples/_*.le

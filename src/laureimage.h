@@ -63,8 +63,7 @@ typedef struct {
 
 multiplicity *multiplicity_create();
 multiplicity *multiplicity_deepcopy(laure_stack_t*, multiplicity*);
-gen_resp multiplicity_generate(multiplicity *mult, gen_resp (*rec)(void*, void*), void* context);
-void multiplicity_insert(multiplicity*, void *img);
+void multiplicity_insert(multiplicity*, void *ptr);
 void multiplicity_free(multiplicity*);
 
 #define IMAGE_HEAD \
@@ -166,7 +165,7 @@ typedef struct ChoiceImage {
 // abstract image
 struct AtomImage {
     IMAGE_HEAD
-    bool unified;
+    bool single;
     union {
         string atom;
         multiplicity *mult;
@@ -340,6 +339,7 @@ struct ArrayIData convert_string(string str, laure_stack_t* stack);
 bool int_translator(laure_expression_t*, void*, laure_stack_t*);
 bool char_translator(laure_expression_t*, void*, laure_stack_t*);
 bool array_translator(laure_expression_t*, void*, laure_stack_t*);
+bool atom_translator(laure_expression_t*, void*, laure_stack_t*);
 
 // translator (a tool to work with macro_string to image conversions)
 

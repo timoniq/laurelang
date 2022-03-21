@@ -152,3 +152,20 @@
     primitive(8 - 10) = x;
     &all x { x = 2 };
 }
+
+: ?test_atom().
+?test_atom() {
+    A ~ @{pen, ruler, compass};
+    A = @phone -> fail();
+    &exists A { A = ruler };
+    &exists A { A = pen };
+    &exists A { A = compass };
+}
+
+ATOMS_FOR_TEST ~ @{atom1, "atom2", 1, X}.
+// @atom1
+// @"atom2"
+// @1
+// @X
+: ?test_atom_gen(ATOMS_FOR_TEST).
+?test_atom_gen(x).

@@ -35,6 +35,7 @@ typedef enum {
     let_imply,
     let_ref,
     let_cut,
+    let_atom,
     let_nope
 } laure_expression_type;
 
@@ -85,8 +86,8 @@ typedef struct laure_expression_set_ {
 
 #ifndef FEATURE_LINKED_SCOPE
 
-#define SCOPE_SIZE 2000
-#define SCOPE_MAX_COUNT 2000
+#define SCOPE_SIZE 3000
+#define SCOPE_MAX_COUNT 3000
 
 typedef struct {
     Cell *cells;
