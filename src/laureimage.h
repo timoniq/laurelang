@@ -1,19 +1,15 @@
-#ifndef IMAGE_H
-#define IMAGE_H
+#ifndef LAUREIMAGE_H
+#define LAUREIMAGE_H
 
 #include "laurelang.h"
-#include "utils.h"
 #include "bigint.h"
-#include "predpub.h"
 #include "domain.h"
 
 // U (0) - not instantiated
 // I (1) - instantiated
-// M (2) - multiplicity
 enum ImageState {
-    U, // Uninstantiated, not unified
-    I, // Instantiated, unified
-    M, // instantiated Multiplicity
+    U,
+    I
 };
 
 // Image types
@@ -25,7 +21,6 @@ enum ImageT {
     PREDICATE_FACT,
     CONSTRAINT_FACT,
     STRUCTURE,
-    CHOICE,
     IMG_CUSTOM_T,
 };
 
@@ -38,7 +33,7 @@ typedef struct {
     gen_resp (*rec)(void*, void*);
     void* external_ctx;
 
-    laure_stack_t *stack;
+    laure_scope_t *scope;
     struct ArrayImage *aid, *im;
 
     uint length;
@@ -47,7 +42,7 @@ typedef struct {
 typedef struct {
     gen_resp (*rec)(void*, void*);
     void* external_ctx;
-    laure_stack_t *stack;
+    laure_scope_t *scope;
     void *im;
     void *im2;
     GenArrayCtx *gac;
@@ -62,7 +57,7 @@ typedef struct {
 #define MULTIPLICITY_CAPACITY 8
 
 multiplicity *multiplicity_create();
-multiplicity *multiplicity_deepcopy(laure_stack_t*, multiplicity*);
+multiplicity *multiplicity_deepcopy(multiplicity*);
 void multiplicity_insert(multiplicity*, void *ptr);
 void multiplicity_free(multiplicity*);
 
@@ -89,21 +84,14 @@ enum PredicateT {
     PREDICATE_C
 };
 
-enum IntImageT {
-    BINT,
-    MULT,
-};
-
 // `int` image
 // size should be 32 bytes
 struct IntImage {
     IMAGE_HEAD
     enum ImageState state;
-    enum IntImageT datatype;
     union {
         bigint* i_data;
         Domain *u_data;
-        multiplicity *mult;
     };
 };
 
@@ -128,10 +116,15 @@ typedef struct StructureImage {
     };
 } laure_structure;
 
+typedef struct array_linked {
+    Instance *data;
+    struct array_linked *next;
+} array_linked_t;
+
 // instantiated array data
 struct ArrayIData {
     int length;
-    Instance** array;
+    array_linked_t *linked;
 };
 
 // not instantiated array data
@@ -154,12 +147,6 @@ struct ArrayImage {
         multiplicity *mult;
     };
 };
-
-typedef struct ChoiceImage {
-    IMAGE_HEAD
-    Instance **multiplicity;
-    int length;
-} choice_img;
 
 
 // abstract image
@@ -187,15 +174,17 @@ typedef struct {
     struct predicate_arg *argv;
     void*                 resp;
     long                  resp_link;
-    laure_stack_t        *stack;
+    laure_scope_t        *scope;
 } preddata;
 
 void *pd_get_arg(preddata *pd, int index);
 long pd_get_arg_link(preddata *pd, int index);
 
+void preddata_free(preddata *pd);
+
 // work with control when generating
-typedef struct ControlCtx {
-    laure_stack_t*  stack;
+typedef struct laure_control_ctx {
+    laure_scope_t*  scope;
     qcontext*       qctx;
     var_process_kit* vpk;
     void*           data;
@@ -267,7 +256,7 @@ struct PredicateFinalC {
 
 struct PredicateFinalInterior {
     string* argn;
-    int argc;
+    int     argc;
     string respn;
     laure_expression_set *body;
 };
@@ -282,28 +271,26 @@ typedef struct PredicateFinal {
 
 typedef struct ImageHead {
     IMAGE_HEAD
-} ImageHead;
+} laure_image_head;
 
 typedef struct EnhancedImageHead {
     ENHANCED_IMAGE_HEAD(void);
-} EnhancedImageHead;
+} laure_image_head_enh;
 
 // --- methods ---
 
 // reading image head
 
-ImageHead read_head(void *img);
-EnhancedImageHead read_enhanced_head(void *img);
+laure_image_head read_head(void *img);
+laure_image_head_enh read_enhanced_head(void *img);
 
 // Create image
-void *integer_i_new(int data);
-void *integer_u_new();
-void *array_i_new(Instance **array, int length);
-void *array_u_new(Instance *element);
-void *abstract_new(string atom);
+struct IntImage *laure_create_integer_i(int value);
+struct IntImage *laure_create_integer_u(Domain *dom);
+
 struct PredicateImage *predicate_header_new(struct InstanceSet *args, Instance *resp, bool is_constraint);
 
-void *image_deepcopy(laure_stack_t *stack, void *img);
+void *image_deepcopy(laure_scope_t *scope, void *img);
 
 // Modify image
 // * add bodied variation to predicate image
@@ -316,10 +303,6 @@ void predicate_addvar(
 struct PredicateImageVariationSet *pvs_new();
 void pvs_push(struct PredicateImageVariationSet*, struct PredicateImageVariation);
 
-choice_img *choice_img_new();
-
-void choice_img_add(choice_img *cimg, Instance *n);
-
 // create predfinal (final predicate wrapper)
 predfinal *get_pred_final(struct PredicateImageVariation);
 
@@ -327,28 +310,28 @@ predfinal *get_pred_final(struct PredicateImageVariation);
 // [0] Image*: not instantiated image to generate from
 // [1] void (*rec) (Image*, void*): receiver function, takes instantiated image and context
 // [2] void*: context to pass into receiver
-gen_resp image_generate(laure_stack_t*, void*, gen_resp (*rec)(void*, void*), void*);
+gen_resp image_generate(laure_scope_t*, void*, gen_resp (*rec)(void*, void*), void*);
 
 
 // miscellanous
 
-struct ArrayIData convert_string(string str, laure_stack_t* stack);
+struct ArrayIData convert_string(string str, laure_scope_t* scope);
 
 // translators
 
-bool int_translator(laure_expression_t*, void*, laure_stack_t*);
-bool char_translator(laure_expression_t*, void*, laure_stack_t*);
-bool array_translator(laure_expression_t*, void*, laure_stack_t*);
-bool atom_translator(laure_expression_t*, void*, laure_stack_t*);
+bool int_translator(laure_expression_t*, void*, laure_scope_t*);
+bool char_translator(laure_expression_t*, void*, laure_scope_t*);
+bool array_translator(laure_expression_t*, void*, laure_scope_t*);
+bool atom_translator(laure_expression_t*, void*, laure_scope_t*);
 
 // translator (a tool to work with macro_string to image conversions)
 
 struct Translator {
     // needed to cast macro string to image
-    bool (*invoke)(laure_expression_t*, void*, laure_stack_t*); // (exp, image, stack)
+    bool (*invoke)(laure_expression_t*, void*, laure_scope_t*); // (exp, image, scope)
 };
 
-struct Translator *new_translator(bool (*invoke)(string, void*, laure_stack_t*));
+struct Translator *new_translator(bool (*invoke)(string, void*, laure_scope_t*));
 
 struct predicate_arg {
     int index;
@@ -368,68 +351,71 @@ struct PredicateCImageHint *hint_new(string, Instance*);
 void laure_ensure_bigint(struct IntImage* img);
 
 size_t image_get_size_deep(void *image);
-string array_repr(Instance *ins);
-string char_repr(Instance *ins);
-string string_repr(Instance *ins);
 
 // --- methods ---
 
 // Create instance
 Instance *instance_new(string name, string doc, void *image);
-Instance *instance_deepcopy(laure_stack_t*, string name, Instance *from_instance);
+Instance *instance_deepcopy(laure_scope_t*, string name, Instance *from_instance);
 Instance *instance_shallow_copy(string name, Instance *from_instance);
-Instance *instance_deepcopy_with_image(laure_stack_t*, string name, Instance *from_instance, void *image);
+Instance *instance_deepcopy_with_image(laure_scope_t*, string name, Instance *from_instance, void *image);
 size_t instance_get_size_deep(Instance *instance);
 string instance_repr(Instance*);
 string instance_get_doc(Instance *ins);
 void instance_lock(Instance *ins);
 void instance_unlock(Instance *ins);
 
-Instance *choice_instance_new(string name, string doc);
-
 // instance set
 struct InstanceSet *instance_set_new();
 void instance_set_push(struct InstanceSet*, Instance*);
 
 // work with preddata (predicate call data)
-preddata *preddata_new(laure_stack_t *stack);
+preddata *preddata_new(laure_scope_t *scope);
 void preddata_push(preddata*, struct predicate_arg);
 struct predicate_arg *predicate_arg_set_new();
 
-control_ctx *create_control_ctx(laure_stack_t* stack, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig);
+control_ctx *create_control_ctx(laure_scope_t* scope, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig);
 qresp        image_control     (void *inst_img, control_ctx* ctx);
 
 // used to determine if instance is instantiated or not
 bool instantiated(Instance*);
-bool instantiated_or_mult(Instance*);
 
 // translators
 
-bool int_translator(laure_expression_t*, void*, laure_stack_t *stack);
-bool char_translator(laure_expression_t*, void*, laure_stack_t *stack);
-bool array_translator(laure_expression_t*, void*, laure_stack_t *stack);
-bool string_translator(laure_expression_t*, void*, laure_stack_t *stack);
-bool atom_translator(laure_expression_t*, void*, laure_stack_t *stack);
+bool int_translator(laure_expression_t*, void*, laure_scope_t *scope);
+bool char_translator(laure_expression_t*, void*, laure_scope_t *scope);
+bool array_translator(laure_expression_t*, void*, laure_scope_t *scope);
+bool string_translator(laure_expression_t*, void*, laure_scope_t *scope);
+bool atom_translator(laure_expression_t*, void*, laure_scope_t *scope);
 
 multiplicity *translate_to_multiplicity(
     laure_expression_t*, 
-    bool (*transl) (laure_expression_t*, void*, laure_stack_t*, bool),
+    bool (*transl) (laure_expression_t*, void*, laure_scope_t*, bool),
     void *rimg,
-    laure_stack_t *stack
+    laure_scope_t *scope
 );
 
 // --- miscellaneous ---
+
+// -- repr --
+string int_repr(Instance *ins);
+string array_repr(Instance *ins);
+string char_repr(Instance *ins);
+string string_repr(Instance *ins);
 string predicate_repr(Instance*);
 string constraint_repr(Instance*);
 string atom_repr(Instance*);
-bool img_equals(void*, void*);
+// --
+
+bool image_equals(void*, void*);
+void image_free(void*);
 char convert_escaped_char(char c);
 
 // checks for predicates
 bool is_array_of_int(Instance*);
 bool is_int(Instance*);
 
-bool int_check(void *img_, void *bi_);
+bool int_check(void *img_, bigint *bi);
 
 Instance *laure_cle_add_predicate(
     laure_session_t *session,
@@ -441,5 +427,4 @@ Instance *laure_cle_add_predicate(
     bool is_constraint,
     string doc
 );
-
 #endif
