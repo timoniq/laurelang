@@ -17,7 +17,7 @@ apply_result_t respond_apply(apply_status_t status, string e) {
     return ar;
 };
 
-bool laure_load_shared(laure_session_t *session, char *path) {
+int laure_load_shared(laure_session_t *session, char *path) {
     void *lib = dlopen(path, RTLD_NOW);
 
     // Shared CLE (C logic environment) extension
@@ -32,9 +32,9 @@ bool laure_load_shared(laure_session_t *session, char *path) {
     void *dfs = dlsym(lib, "DFLAGS");
     memcpy(dfs, DFLAGS, DFLAG_MAX * 32 * 2);
     
-    int (*perform_upload)(laure_session_t*) = dlsym(lib, "package_include");
+    int (*perform_upload)(laure_session_t*) = dlsym(lib, "on_include");
     if (!perform_upload) {
-        printf("function cle_perform_upload(laure_session_t*) is undefined in CLE extension %s\n", path);
+        printf("function on_include(laure_session_t*) is undefined in CLE extension %s\n", path);
         return false;
     }
     int response = perform_upload(session);
@@ -47,19 +47,11 @@ bool laure_load_shared(laure_session_t *session, char *path) {
 
 void strrev_via_swap(string s) {
     int l = strlen(s);
-    int mid;
 
-    if (l % 2 == 0) {
-        mid = l / 2;
-    } else {
-        mid = (l - 1) / 2;
-    }
-    l--;
-
-    for (int i = 0; i < mid; i++) {
+    for (int i = 0; i < l / 2; i++) {
         char b = s[i];
-        s[i] = s[l-i];
-        s[l-i] = b;
+        s[i] = s[l-i-1];
+        s[l-i-1] = b;
     }
 }
 
@@ -71,16 +63,17 @@ string get_work_dir_path(string f_addr) {
     return naddr;
 }
 
-string get_nested_ins_name(Instance *atom, uint nesting, laure_stack_t *stack) {
+string get_nested_ins_name(Instance *atom, uint nesting, laure_scope_t *scope) {
     assert(atom != NULL);
     char buff[64];
     strcpy(buff, atom->name);
     for (int i = 0; i < nesting; i++) {
         strcat(buff, "[]");
     }
-    if (!laure_stack_get(stack, buff)) {
+    if (!laure_scope_find_by_key(scope->glob, buff, true)) {
         Instance *ins = atom;
         
+        /* == nestings ==
         while (nesting) {
             void *img = array_u_new(ins);
             ins = instance_new(strdup("el"), NULL, img);
@@ -90,17 +83,16 @@ string get_nested_ins_name(Instance *atom, uint nesting, laure_stack_t *stack) {
 
         ins->name = strdup(buff);
         ins->repr = array_repr;
+        */
 
         // create constant nested type
-        Cell cell;
-        cell.instance = ins;
-        cell.link_id = laure_stack_get_uid(stack);
-        laure_stack_insert(stack, cell);
+        // which will be used later for hinting
+        laure_scope_insert(scope->glob, ins);
     }
     return strdup(buff);
 }
 
-void *laure_apply_pred(laure_expression_t *predicate_exp, laure_stack_t *stack) {
+void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) {
     struct InstanceSet *args_set = instance_set_new();
     uint all_count = laure_expression_get_count(predicate_exp->ba->set);
     if (predicate_exp->ba->has_resp) all_count--;
@@ -113,15 +105,15 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_stack_t *stack) 
         uint nesting = aexp->flag;
         string tname;
         if (nesting) {
-            Instance *to_nest = laure_stack_get(stack, aexp->s);
+            Instance *to_nest = laure_scope_find_by_key(scope, aexp->s, true);
             if (!to_nest) {
                 return NULL;
             }
-            tname = get_nested_ins_name(to_nest, nesting, stack);
+            tname = get_nested_ins_name(to_nest, nesting, scope);
         } else {
             tname = aexp->s;
         }
-        Instance *arg = laure_stack_get(stack, tname);
+        Instance *arg = laure_scope_find_by_key(scope, tname, true);
         if (! arg) {
             return NULL;
         }
@@ -137,13 +129,13 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_stack_t *stack) 
         string tname;
         resp_nesting = rexp->flag;
         if (resp_nesting) {
-            Instance *to_nest = laure_stack_get(stack, rexp->s);
+            Instance *to_nest = laure_scope_find_by_key(scope, rexp->s, true);
             if (!to_nest) {
                 return NULL;
             }
-            tname = get_nested_ins_name(to_nest, resp_nesting, stack);
+            tname = get_nested_ins_name(to_nest, resp_nesting, scope);
         } else tname = rexp->s;
-        resp = laure_stack_get(stack, tname);
+        resp = laure_scope_find_by_key(scope, tname, true);
         if (! resp) {
             return NULL;
         }
@@ -157,14 +149,19 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_stack_t *stack) 
     return img;
 }
 
-apply_result_t laure_consult_predicate(laure_session_t *session, laure_stack_t *stack, laure_expression_t *predicate_exp, string address) {
+apply_result_t laure_consult_predicate(
+    laure_session_t *session, 
+    laure_scope_t *scope, 
+    laure_expression_t *predicate_exp, 
+    string address
+) {
     assert(predicate_exp->t == let_pred || predicate_exp->t == let_constraint);
-    Instance *pred_ins = laure_stack_get(stack, predicate_exp->s);
+    Instance *pred_ins = laure_scope_find_by_key(scope, predicate_exp->s, true);
 
     bool is_header = (pred_ins == NULL && predicate_exp->is_header);
 
     if (is_header) {
-        // Header predicates may have some meta-funtions
+        // headers may be include/cle_include functions
         if (
             str_eq(predicate_exp->s, "include") 
             || str_eq(predicate_exp->s, "cle_include")
@@ -218,7 +215,7 @@ apply_result_t laure_consult_predicate(laure_session_t *session, laure_stack_t *
 
         Instance *maybe_header = pred_ins;
 
-        void *img = laure_apply_pred(predicate_exp, stack);
+        void *img = laure_apply_pred(predicate_exp, scope);
 
         if (! img) return respond_apply(apply_error, "predicate hint is undefined");
 
@@ -226,10 +223,7 @@ apply_result_t laure_consult_predicate(laure_session_t *session, laure_stack_t *
         Instance *ins = instance_new(name, session->_doc_buffer, img);
         ins->repr = predicate_exp->t == let_pred ? predicate_repr : constraint_repr;
 
-        Cell cell;
-        cell.instance = ins;
-        cell.link_id = laure_stack_get_uid(stack);
-        laure_stack_insert(stack, cell);
+        laure_scope_insert(scope, ins);
 
         session->_doc_buffer = NULL;
         return respond_apply(apply_ok, NULL);
@@ -276,10 +270,10 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
     laure_expression_t *exp = result.exp;
     laure_expression_set *expset = laure_expression_compose_one(exp);
     qcontext *qctx = qcontext_new(expset);
-    control_ctx *cctx = control_new(session->stack, qctx, NULL, NULL, true);
+    control_ctx *cctx = control_new(session->scope, qctx, NULL, NULL, true);
     cctx->silent = true;
 
-    qresp response = laure_eval(cctx, expset);
+    qresp response = laure_start(cctx, expset);
     if (response.error) {
         return respond_apply(apply_error, response.error);
     }
@@ -287,23 +281,6 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
 }
 
 int laure_init_structures(laure_session_t *session) {
-    #ifndef FEATURE_LINKED_SCOPE
-    return 0;
-    #else
-    int count = 0;
-
-    Cell cell;
-    STACK_ITER(session->stack, cell, {
-        if (read_head(cell.instance->image).t == STRUCTURE) {
-            struct StructureImage *structure = (struct StructureImage*)cell.instance->image;
-            if (!structure->is_initted) {
-                // laure_structure_init(session->heap, session->stack, structure);
-                count++;
-            }
-        }
-    }, false);
-    return count;
-    #endif
 }
 
 string consult_single(laure_session_t *session, string fname, FILE *file) {

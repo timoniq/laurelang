@@ -1,7 +1,6 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "utils.h"
 #include "laurelang.h"
 
 size_t laure_string_strlen(const char *s) {

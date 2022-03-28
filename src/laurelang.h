@@ -1,17 +1,88 @@
 #ifndef LAURELANG_H
 #define LAURELANG_H
 
-#include <ctype.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <stddef.h>
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>
 #include <time.h>
 
+#define ulong unsigned long
+#define streq(s, s2) strcmp(s, s2) == 0
+#define str_eq(s, s2) strcmp(s, s2) == 0
+#define str_starts(s, start) (strncmp(start, s, strlen(start)) == 0)
+#define string char*
+#define NULL (void*)0
+
+extern ulong *LAURE_LINK_ID;
+
+typedef enum {
+    false,
+    true
+} bool;
 
 typedef unsigned int uint;
-typedef enum {false, true} bool;
+
+typedef struct laure_instance {
+    string name;
+    string doc;
+    bool locked;
+    string (*repr)(struct laure_instance *ins);
+    void *image;
+} Instance;
+
+/* =-----------=
+     Scope
+=-----------= */
+
+typedef struct linked_scope {
+    Instance *ptr;
+    ulong link;
+    struct linked_scope *next;
+} linked_scope_t;
+
+typedef struct laure_scope {
+    long *nlink;
+    uint idx, repeat;
+    linked_scope_t *linked;
+    struct laure_scope  *tmp, *glob;
+} laure_scope_t;
+
+#define laure_scope_iter(scope, to_ptr, body) do { \
+        linked_scope_t *to_ptr; \
+        linked_scope_t *__l = scope->linked; \
+        while (__l) { \
+            to_ptr = __l; \
+            body; \
+            __l = __l->next; \
+        } \
+    } while (0)
+
+linked_scope_t *laure_scope_insert(laure_scope_t *scope, Instance *ptr);
+linked_scope_t *laure_scope_insert_l(laure_scope_t *scope, Instance *ptr, ulong link);
+linked_scope_t *laure_scope_find(
+    laure_scope_t *scope, 
+    bool (*checker)(linked_scope_t*, void*),
+    void *payload,
+    bool copy,
+    bool search_glob
+);
+Instance *laure_scope_find_by_key(laure_scope_t *scope, string key, bool search_glob);
+Instance *laure_scope_find_by_key_l(laure_scope_t *scope, string key, ulong *link, bool search_glob);
+Instance *laure_scope_find_by_link(laure_scope_t *scope, ulong link, bool search_glob);
+Instance *laure_scope_change_link_by_key(laure_scope_t *scope, string key, ulong new_link, bool search_glob);
+Instance *laure_scope_change_link_by_link(laure_scope_t *scope, ulong link, ulong new_link, bool search_glob);
+laure_scope_t *laure_scope_create_copy(laure_scope_t *scope);
+void laure_scope_show(laure_scope_t *scope);
+ulong laure_scope_generate_link();
+string laure_scope_generate_unique_name();
+laure_scope_t *laure_scope_create_global();
+laure_scope_t *laure_scope_new(laure_scope_t *global, laure_scope_t *next);
+void laure_scope_free(laure_scope_t *scope);
+
+/* =-----------=
+    Parser
+=-----------= */
 
 typedef enum {
     let_set,
@@ -41,22 +112,6 @@ typedef enum {
 
 struct laure_expression_set_;
 
-typedef struct _Instance {
-    char             * name;
-    struct _Instance * derived;
-    bool               locked;
-    char*           (* repr ) (struct _Instance*);
-    char             * doc;
-    void             * image;
-    // GARBAGE COLLECTION
-    bool mark;
-} Instance;
-
-typedef struct Cell {
-    long link_id;
-    Instance *instance;
-} Cell;
-
 typedef struct {
     // set consists of
     // body of length body_len
@@ -84,123 +139,21 @@ typedef struct laure_expression_set_ {
     struct laure_expression_set_ *next;
 } laure_expression_set;
 
-#ifndef FEATURE_LINKED_SCOPE
-
-#define SCOPE_SIZE 3000
-#define SCOPE_MAX_COUNT 3000
-
-typedef struct {
-    Cell *cells;
-    int   count;
-    unsigned short id;
-} Scope;
-
-typedef struct Stack {
-    long *next_link_id;
-    Scope current;
-    struct Stack* next;
-    struct Stack* global;
-    uint repeat;
-} laure_stack_t;
-
-#define STACK_ITER(stack, cell_, body, allow_null) do { \
-            if (! stack->current.cells) break; \
-            for (int i = 0; i < stack->current.count; i++) { \
-                Cell __cell = stack->current.cells[i]; \
-                if (__cell.instance == NULL) continue; \
-                cell_ = __cell; \
+#define EXPSET_ITER(set_, ptr_, body) do { \
+            laure_expression_set *_set = set_; \
+            while (_set) { \
+                ptr_ = _set->expression; \
                 body; \
+                _set = _set->next; \
             } \
-        } while (0)
+        } while (0);
 
-#else
+typedef struct string_linked_ {
+    char *s;
+    struct string_linked_ *next;
+} string_linked;
 
-typedef struct LinkedCell_ {
-    Cell cell;
-    struct LinkedCell_ *link;
-} LinkedCell;
-
-typedef struct {
-    LinkedCell *cells;
-    unsigned short id;
-} Scope;
-
-typedef struct Stack {
-    Scope current;
-    long *next_link_id;
-    
-    struct Stack* next;
-    struct Stack* global;
-
-    // for temp stack
-    bool           is_temp;
-    struct Stack *main;
-    uint repeat;
-
-} laure_stack_t;
-
-#define STACK_ITER(stack, cell_, body, allow_null) do { \
-            LinkedCell *lcell = stack->current.cells; \
-            while (lcell != NULL) { \
-                cell_ = lcell->cell; \
-                if (cell_.instance == NULL || (!allow_null && !cell_.instance->image)) {lcell = lcell->link; continue;} \
-                body; \
-                lcell = lcell->link; \
-            } \
-        } while (0)
-
-#endif
-
-void laure_gc_track_instance(Instance *instance);
-void laure_gc_track_image(void *image);
-void laure_gc_mark_image(void *image);
-void laure_gc_mark_instance(Instance *instance);
-void laure_gc_mark(laure_stack_t *reachable);
-void laure_image_destroy(void *img);
-uint laure_gc_destroy();
-void laure_gc_set_null();
-uint laure_gc_run(laure_stack_t *reachable);
-
-#define laure_included_fp_max 512
-
-typedef struct Session {
-    laure_stack_t *stack;
-    short int signal; // signals // -1 false; 0 idle; 1 true
-    char *_doc_buffer;
-    char *_included_filepaths[laure_included_fp_max];
-} laure_session_t;
-
-#define LAURE_TRACE_LIMIT 10
-
-typedef struct _laure_trace_linked {
-    char               *data;
-    char               *address;
-    struct _laure_trace_linked *prev;
-    struct _laure_trace_linked *next;
-} laure_trace_linked;
-
-typedef struct {
-    laure_trace_linked *linked;
-    int8_t length;
-    bool   active;
-    char  *comment;
-} laure_trace;
-
-extern laure_trace       *LAURE_TRACE;
-extern laure_session_t   *LAURE_SESSION;
-extern char              *LAURE_CURRENT_ADDRESS;
-extern char              *LAURE_INTERPRETER_PATH;
-extern uint               LAURE_GC_COLLECTED;
-extern uint               LAURE_RECURSION_DEPTH;
-
-extern uint               LAURE_TIMEOUT;
-extern clock_t            LAURE_CLOCK;
-
-#ifndef LAURE_RECURSION_DEPTH_LIMIT
-#define LAURE_RECURSION_DEPTH_LIMIT 350
-#endif
-
-#define COND_TIMEOUT (LAURE_TIMEOUT != 0 && ((((double)(clock() - LAURE_CLOCK)) / CLOCKS_PER_SEC) >= LAURE_TIMEOUT))
+string_linked *string_split(char *s, int delimiter);
 
 laure_expression_set *laure_expression_set_link(laure_expression_set *root, laure_expression_t *new_link);
 uint laure_expression_get_count(laure_expression_set *root);
@@ -233,8 +186,13 @@ typedef struct {
 } laure_parse_many_result;
 
 laure_parse_result laure_parse(char *query);
+laure_parse_many_result laure_parse_many(const string query_, char divisor, laure_expression_set *linked_opt);
 bool laure_parser_needs_continuation(char *query);
 bool laure_is_silent(void *cctx);
+
+/* =-----------=
+    String
+=-----------= */
 
 size_t laure_string_strlen(const char *s);
 size_t laure_string_substrlen(const char *s, size_t n);
@@ -249,87 +207,6 @@ int laure_string_getc(int (*fn)(), void *p);
 int laure_string_char_at_pos(const char *buff, size_t buff_len, size_t i);
 size_t laure_string_offset_at_pos(const char *buff, size_t buff_len, size_t i);
 
-laure_session_t *laure_session_new();
-void laure_trace_init();
-laure_trace_linked *laure_trace_last_linked();
-void laure_trace_add(char *data, char *address);
-void laure_trace_erase();
-void laure_print_indent(int indent);
-void laure_trace_print();
-void laure_trace_comment(char *comment);
-void laure_set_timeout(uint timeout);
-
-laure_stack_t *laure_stack_parent();
-laure_stack_t *laure_stack_init(laure_stack_t *next);
-Instance *laure_stack_get(laure_stack_t *stack, char *key);
-int laure_stack_delete(laure_stack_t *stack, char *key);
-void laure_stack_insert(laure_stack_t *stack, Cell cell);
-char *laure_stack_get_uname(laure_stack_t *stack);
-long laure_stack_get_uid(laure_stack_t *stack);
-laure_stack_t *laure_stack_clone(laure_stack_t *from, bool deep);
-Cell laure_stack_get_cell(laure_stack_t *stack, char *key);
-Cell laure_stack_get_cell_by_lid(laure_stack_t *stack, long lid, bool allow_global);
-Cell laure_stack_get_cell_only_locals(laure_stack_t *stack, char *key);
-void laure_stack_show(laure_stack_t *stack);
-void laure_stack_free(laure_stack_t *stack);
-size_t laure_stack_get_size_deep(laure_stack_t *stack);
-void laure_stack_change_lid_by_lid(laure_stack_t *stack, long old, long);
-void laure_stack_change_lid(laure_stack_t *stack, char *key, long lid);
-void laure_stack_add_to(laure_stack_t *from, laure_stack_t *to);
-
-typedef void (*single_proc)(laure_stack_t*, char*, void*);
-typedef bool (*sender_rec)(char*, void*);
-
-typedef struct _laure_qresp qresp;
-typedef struct ControlCtx control_ctx;
-
-qresp laure_eval(control_ctx *cctx, laure_expression_set *expression_set);
-control_ctx *laure_control_ctx_get(laure_session_t *session, laure_expression_set *expset);
-
-void laure_register_builtins(laure_session_t*);
-void *laure_apply_pred(laure_expression_t *predicate_exp, laure_stack_t *stack);
-
-void laure_consult_recursive(laure_session_t *session, char *path);
-
-typedef enum VPKMode {
-    INTERACTIVE,
-    SENDER,
-    SILENT,
-} vpk_mode_t;
-
-typedef struct VPK {
-
-    vpk_mode_t mode;
-    bool       do_process;
-    void      *payload;
-
-    char** tracked_vars;
-    int     tracked_vars_len;
-    bool    interactive_by_name;
-
-    single_proc single_var_processor;
-    sender_rec  sender_receiver;
-
-} var_process_kit;
-
-typedef struct string_linked_ {
-    char *s;
-    struct string_linked_ *next;
-} string_linked;
-
-string_linked *string_split(char *s, int delimiter);
-
-struct laure_flag {
-    int    id;
-    char  *name;
-    char  *doc;
-    bool   readword;
-};
-
-// error mocks
-#define LAURE_ERR_MOCK 0x1
-
-// logging
 #ifndef DISABLE_COLORING
 #define RED_COLOR "\033[31;1m"
 #define GREEN_COLOR "\033[32;1m"
@@ -343,6 +220,11 @@ struct laure_flag {
 #define GRAY_COLOR ""
 #define NO_COLOR ""
 #endif
+#define lastc(s) s[strlen(s)-1]
+
+/* =-----------=
+Miscellaneous
+=-----------= */
 
 #ifndef lib_path
 #define lib_path "lib"
@@ -352,23 +234,67 @@ struct laure_flag {
 #define PROMPT "| "
 #endif
 
+/* =-----------=
+   Session
+=-----------= */
+
 #define DFLAG_MAX 32
 
 extern uint DFLAG_N;
 extern char DFLAGS[DFLAG_MAX][2][32];
 extern char* EXPT_NAMES[];
 extern char* IMG_NAMES[];
+extern char* MOCK_NAME;
 
 char *get_dflag(char *flagname);
 void add_dflag(char *flagname, char *value);
 
-#define EXPSET_ITER(set_, ptr_, body) do { \
-            laure_expression_set *_set = set_; \
-            while (_set) { \
-                ptr_ = _set->expression; \
-                body; \
-                _set = _set->next; \
-            } \
-        } while (0);
+#define included_fp_max 128
+
+typedef struct {
+    laure_scope_t *scope;
+    char *_doc_buffer;
+    char *_included_filepaths[included_fp_max];
+} laure_session_t;
+
+laure_session_t *laure_session_new();
+
+extern uint               LAURE_TIMEOUT;
+extern clock_t            LAURE_CLOCK;
+extern char              *LAURE_INTERPRETER_PATH;
+extern char              *LAURE_CURRENT_ADDRESS;
+
+char *get_dflag(char *flagname);
+void add_dflag(char *flagname, char *value);
+
+/* =-----------=
+   Querying
+=-----------= */
+
+typedef struct laure_qresp qresp;
+typedef struct laure_control_ctx control_ctx;
+typedef struct laure_vpk var_process_kit;
+
+qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set *expset);
+void laure_register_builtins(laure_session_t*);
+void laure_set_translators();
+
+var_process_kit *laure_vpk_create(laure_expression_set *expset);
+void laure_vpk_free(var_process_kit*);
+/* =-----------=
+   Consulting
+=-----------= */
+typedef struct apply_result apply_result_t;
+
+void laure_consult_recursive(laure_session_t *session, string path);
+apply_result_t laure_apply(laure_session_t *session, string fact);
+apply_result_t laure_consult_predicate(
+    laure_session_t *session, 
+    laure_scope_t *scope, 
+    laure_expression_t *predicate_exp, 
+    string address
+);
+void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope);
+int laure_load_shared(laure_session_t *session, char *path);
 
 #endif

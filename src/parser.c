@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include "utils.h"
 
 #define ERR_MAX_LEN 100
 
@@ -1023,7 +1022,7 @@ laure_parse_result laure_parse(string query) {
                     // 1 SET
                     query++;
                     if (str_starts(query, "{")) {
-                        if (! lastc(query) == '}') {
+                        if (lastc(query) != '}') {
                             error_result("invalid atomic set; expected `}`");
                         }
                         query++;
@@ -1330,7 +1329,7 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
             }
 
             if (left->t == let_pred_call && right->t == let_pred_call) {
-                string vname = laure_stack_get_uname(LAURE_SESSION->stack);
+                string vname = laure_scope_generate_unique_name();
                 laure_expression_t *var = laure_expression_create(let_var, left->s, false, vname, 0, NULL);
                 left->ba->set = laure_expression_set_link(left->ba->set, var);
                 left->ba->has_resp = true;
@@ -1364,9 +1363,8 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
                 if (arg_exp->t == let_var || arg_exp->t == let_custom || arg_exp->t == let_array || arg_exp->t == let_atom) {
                     args = laure_expression_set_link(args, arg_exp);
                 } else {
-                    assert(LAURE_SESSION);
-                    char buff[32];
-                    snprintf(buff, 32, "$%ld", laure_stack_get_uid(LAURE_SESSION->stack));
+                    char buff[16];
+                    snprintf(buff, 16, "$%lu", laure_scope_generate_link());
 
                     laure_expression_t *var = laure_expression_create(let_var, arg_exp->s, false, strdup(buff), 0, NULL);
 

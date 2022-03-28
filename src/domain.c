@@ -1,6 +1,5 @@
 #include "laurelang.h"
 #include "domain.h"
-#include "utils.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -24,8 +23,6 @@ Domain *int_domain_new() {
     dom->t = DOMAIN;
     dom->lborder = start;
     dom->rborder = end;
-    dom->constraints = NULL;
-    dom->constraints_len = 0;
     return dom;
 }
 
@@ -104,16 +101,6 @@ bool int_domain_check(Domain *dom, bigint* i) {
             return ((dom->lborder.t == INCLUDED) ? bigint_cmp(i, dom->lborder.data) >= 0 : bigint_cmp(i, dom->lborder.data) > 0) && ((dom->rborder.t == INCLUDED) ? bigint_cmp(i, dom->rborder.data) <= 0 : bigint_cmp(i, dom->rborder.data) < 0);
         }
     }
-}
-
-void int_domain_constraint(Domain *dom, IntValue v) {
-    dom->constraints_len++;
-    if (dom->constraints == NULL) printf("fixme\n");
-    dom->constraints = NULL;
-    /*
-    IntValue *constraints = (IntValue*)dom->constraints;
-    constraints[dom->constraints_len-1] = v;
-    dom->constraints = (void*)constraints;*/
 }
 
 string int_domain_repr(Domain *dom) {
@@ -198,7 +185,9 @@ bigint* int_inc(bigint* n) {
     bigint *bi = malloc(sizeof(bigint));
     bigint_init(bi);
     bigint_cpy(bi, n);
-    bigint_add(bi, n, bigint_create(1));
+    bigint *o = bigint_create(1);
+    bigint_add(bi, n, o);
+    bigint_free(o);
     return bi;
 }
 
@@ -206,17 +195,20 @@ bigint* int_dec(bigint* n) {
     bigint *bi = malloc(sizeof(bigint));
     bigint_init(bi);
     bigint_cpy(bi, n);
-    bigint_sub(bi, n, bigint_create(1));
+    bigint *o = bigint_create(1);
+    bigint_sub(bi, n, o);
+    bigint_free(o);
     return bi;
 }
 
-bigint* int_jump(bigint* n) {
-    bigint *bi = malloc(sizeof(bigint));
-    bigint_init(bi);
-    bigint_cpy(bi, n);
-    if (n->neg || bigint_cmp(bi, bigint_create(0)) == 0) {
+bigint* int_jump(bigint* bi) {
+    if (bi->neg || bigint_cmp_to_z(bi) == 0) {
         bigint_negate(bi);
-        bigint_add(bi, bi, bigint_create(1));
+        bigint one[1];
+        bigint_init(one);
+        bigint_from_int(one, 1);
+        bigint_add(bi, bi, one);
+        bigint_free(one);
     } else {
         bigint_negate(bi);
     }
@@ -322,15 +314,6 @@ gen_resp int_domain_generate(Domain *dom, gen_resp (*receiver)(bigint*, void*), 
             for (;;) {
                 bool not_constrainted = true;
 
-                // check contraints
-                for (int i = 0; i < dom->constraints_len; i++) {
-                    IntValue *c = ((IntValue**)(dom->constraints))[i];
-                    if (bigint_cmp(value, c->data) == 0) {
-                        not_constrainted = false;
-                        break;
-                    }
-                }
-
                 if (not_constrainted) {
                     gen_resp gr = (receiver)(value, context);
                     if (gr.r != 1) {
@@ -354,25 +337,26 @@ gen_resp int_domain_generate(Domain *dom, gen_resp (*receiver)(bigint*, void*), 
             return (receiver)(dom->lborder.data, context);
         }
     }
-    gen_resp r = {1, respond(q_yield, NULL)};
+    gen_resp r = {1, respond(q_yield, 1)};
     return r;
+}
+
+IntValue copy_int_value(IntValue old) {
+    IntValue new;
+    new.t = old.t;
+    if (old.t != INFINITE && old.data)
+        new.data = bigint_copy(old.data);
+    return new;
 }
 
 Domain *int_domain_copy(Domain *dom) {
     Domain *dom_new = malloc(sizeof(Domain));
-
-    //! shallow copy constraints
-    dom_new->constraints = dom->constraints;
-    dom_new->constraints_len = dom->constraints_len;
-
-    dom_new->lborder = dom->lborder;
-    dom_new->rborder = dom->rborder;
-
     dom_new->t = dom->t;
+    dom_new->lborder = copy_int_value(dom->lborder);
+    dom_new->rborder = copy_int_value(dom->rborder);
     return dom_new;
 }
 
 void int_domain_free(Domain *dom) {
-    if (dom == NULL) return;
-    //free(dom);
+    
 }
