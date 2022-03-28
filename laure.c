@@ -11,11 +11,17 @@
 #define erase printf("\33[2K\r")
 #define PATH_MAX 1024
 
-#define str_eq(s1, s2) (s1 != NULL && s2 != NULL && strcmp(s1, s2) == 0)
 #define str_starts(s, start) (strncmp(start, s, strlen(start)) == 0)
 
 #define VERSION        "0.1"
 #define BUGTRACKER_URL "github.com/timoniq/laurelang"
+
+struct laure_flag {
+    int    id;
+    char  *name;
+    char  *doc;
+    bool   readword;
+};
 
 const struct laure_flag flags[] = {
     // 0
@@ -43,7 +49,7 @@ const struct cmd_info commands[] = {
     {2, ".help", 0, "Shows this message."},
     {3, ".flags", 0, "Shows all available flags for laure interpreter."},
     {4, ".stack", 0, "Shows global scope values; needed for debug."},
-    {5, ".gc", 0, "Runs garbage collector."},
+    // {5, ...},
     {6, ".doc", 1, "Shows documentation for object."},
     {7, ".getinfo", 0, "Shows information about reasoning system."},
     {8, ".ast", -1, "Shows AST of query passed."},
@@ -193,16 +199,11 @@ int laure_process_query(laure_session_t *session, string line) {
             break;
         }
         case 4: {
-            laure_stack_show(session->stack);
-            break;
-        }
-        case 5: {
-            uint collected = laure_gc_run(session->stack);
-            printf("  Destroyed %zi garbage, summary %zi\n", collected, LAURE_GC_COLLECTED);
+            laure_scope_show(session->scope);
             break;
         }
         case 6: {
-            Instance *ins = laure_stack_get(session->stack, args.argv[1]);
+            Instance *ins = laure_scope_find_by_key(session->scope, args.argv[1], true);
 
             if (!ins) {
                 printf("  sorry, can't find instance named `%s`\n", args.argv[1]);
@@ -247,12 +248,9 @@ int laure_process_query(laure_session_t *session, string line) {
             #endif
             );
             printf("    lib_path: `%s`\n", lib_path);
-            printf("    trace limit: %d\n", LAURE_TRACE_LIMIT);
-            printf("    recursion depth limit: %d\n", LAURE_RECURSION_DEPTH_LIMIT);
             printf("    compiled at: %s %s\n", __DATE__, __TIME__);
-            printf("  garbage collected: %d\n", LAURE_GC_COLLECTED);
             if (LAURE_TIMEOUT != 0)
-                printf("  timeout: %zis\n", LAURE_TIMEOUT);
+                printf("  timeout: %us\n", LAURE_TIMEOUT);
             else printf("  timeout: no\n");
             printf("  flags: [ ");
             if (FLAG_CLEAN) printf("CLEAN ");
@@ -285,7 +283,7 @@ int laure_process_query(laure_session_t *session, string line) {
             } else {
                 for (int j = 1; j < args.argc; j++) {
                     string name = args.argv[j];
-                    Instance *to_lock = laure_stack_get(session->stack, name);
+                    Instance *to_lock = laure_scope_find_by_key(session->scope, name, true);
                     if (! to_lock) {
                         printf("  %s %sis undefined%s\n", name, RED_COLOR, NO_COLOR);
                     } else {
@@ -302,7 +300,7 @@ int laure_process_query(laure_session_t *session, string line) {
             } else {
                 for (int j = 1; j < args.argc; j++) {
                     string name = args.argv[j];
-                    Instance *to_unlock = laure_stack_get(session->stack, name);
+                    Instance *to_unlock = laure_scope_find_by_key(session->scope, name, true);
                     if (! to_unlock) {
                         printf("  %s %sis undefined%s\n", name, RED_COLOR, NO_COLOR);
                     } else {
@@ -320,7 +318,7 @@ int laure_process_query(laure_session_t *session, string line) {
             else value = atoi(value_s);
             if (value < 0) break;
             LAURE_TIMEOUT = (uint)value;
-            printf("  timeout was set to %zis\n", LAURE_TIMEOUT);
+            printf("  timeout was set to %us\n", LAURE_TIMEOUT);
             break;
         }
         default: break;
@@ -352,9 +350,6 @@ int laure_process_query(laure_session_t *session, string line) {
 
         control_ctx *cctx = laure_control_ctx_get(session, expset);
         qresp response = laure_eval(cctx, expset);
-        // laure_gc_run(session->stack);
-        laure_trace_erase();
-        laure_trace_init();
 
         if (!laure_is_silent(cctx)) {
             if (response.state == q_true) {
@@ -476,7 +471,6 @@ int main(int argc, char *argv[]) {
 
     laure_session_t *session = laure_session_new();
     laure_register_builtins(session);
-    LAURE_SESSION = session;
 
     if (! FLAG_CLEAN) {
         string lp = FLAG_LIBRARY ? FLAG_LIBRARY : lib_path;
@@ -508,9 +502,6 @@ int main(int argc, char *argv[]) {
         filenames = filenames->next;
     }
 
-    laure_trace_erase();
-    laure_trace_init();
-
     if (FLAG_QUERY) {
         printf("%s%s\n", DPROMPT, FLAG_QUERY);
         int result = laure_process_query(session, FLAG_QUERY);
@@ -519,7 +510,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    Instance *main_p = laure_stack_get(session->stack, "main");
+    Instance *main_p = laure_scope_find_by_key(session->scope, "main", true);
     if (main_p && ! FLAG_NOMAIN) {
         if (!laure_process_query(session, "main()"))
             return 0;
