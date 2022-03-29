@@ -2,6 +2,10 @@
 #include "laureimage.h"
 #include "predpub.h"
 
+#include <readline/readline.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+
 #define YIELD_OK (void*)1
 #define YIELD_FAIL (void*)0
 #define ANONVAR_NAME "_"
@@ -10,6 +14,13 @@ typedef void (*single_proc)(laure_scope_t*, char*, void*);
 typedef bool (*sender_rec)(char*, void*);
 
 #define is_global(stack) stack->glob == stack
+
+#define MAX_ARGS 32
+
+char *RESPN = NULL;
+char *CONTN = NULL;
+char *ARGN_BUFF[32];
+bool IS_BUFFN_INITTED = 0;
 
 typedef enum VPKMode {
     INTERACTIVE,
@@ -31,6 +42,14 @@ typedef struct laure_vpk {
 
 } var_process_kit;
 
+void laure_upd_scope(ulong link, laure_scope_t *to, laure_scope_t *from) {
+    Instance *to_ins = laure_scope_find_by_link(to, link, false);
+    if (! to_ins) return;
+    Instance *from_ins = laure_scope_find_by_link(from, link, false);
+    if (! from_ins) return;
+    image_equals(to_ins->image, from_ins->image);
+}
+
 // Start evaluating search tree
 qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
     laure_expression_t *exp;
@@ -46,7 +65,153 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
             return respond(q_yield, YIELD_FAIL);
         }
     });
+    if (cctx->qctx && cctx->qctx->next) {
+        laure_scope_t *nscope;
+        bool should_free = false;
+        if (cctx->scope->repeat > 0) {
+            nscope = cctx->scope;
+            nscope->repeat--;
+        } else if (cctx->scope->next) {
+            should_free = true;
+            nscope = laure_scope_create_copy(cctx->scope->next);
+            grab_linked_iter(cctx, laure_upd_scope, cctx->scope, nscope);
+        } else nscope = cctx->scope;
+        cctx->qctx = cctx->qctx->next;
+        cctx->scope = nscope;
+        qresp resp = laure_start(cctx, cctx->qctx->expset);
+        if (should_free) laure_scope_free(nscope);
+        return resp;
+    }
+    laure_showcast(cctx->scope, cctx->vpk);
     return respond(q_yield, YIELD_OK);
+}
+
+#define up printf("\033[A") 
+#define down printf("\n") 
+#define erase printf("\33[2K\r")
+
+void laure_init_name_buffs() {
+    assert(! IS_BUFFN_INITTED);
+    RESPN = strdup("$R");
+    CONTN = strdup("$C");
+    for (uint idx = 0; idx < MAX_ARGS; idx++) {
+        char name[4];
+        snprintf(name, 4, "$%u", idx);
+        ARGN_BUFF[idx] = strdup(name);
+    }
+    IS_BUFFN_INITTED = true;
+}
+
+string laure_get_argn(uint idx) {
+    assert(IS_BUFFN_INITTED);
+    assert(idx < MAX_ARGS);
+    return ARGN_BUFF[idx];
+}
+
+string laure_get_respn() {
+    assert(IS_BUFFN_INITTED);
+    return RESPN;
+}
+
+string laure_get_contn() {
+    assert(IS_BUFFN_INITTED);
+    return CONTN;
+}
+
+void *crop_showcast(string showcast) {
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    if (strlen(showcast) > w.ws_col) {
+        showcast = showcast + w.ws_col;
+    }
+    return showcast;
+}
+
+qresp check_interactive(string cmd, string showcast) {
+    if (str_eq(cmd, ".")) {
+        return respond(q_stop, "");
+    }
+    else if (strlen(cmd) == 0) {
+        up;
+        erase;
+        showcast = crop_showcast(showcast);
+        printf("%s;\n", showcast);
+        free(showcast);
+        return respond(q_continue, NULL);
+    }
+    else if (str_eq(cmd, ";")) {
+        return respond(q_continue, NULL);
+    }
+    else {
+        up;
+        erase;
+        showcast = crop_showcast(showcast);
+        cmd = readline(showcast);
+        return check_interactive(cmd, showcast);
+    }
+}
+
+qresp laure_showcast(laure_scope_t *scope, var_process_kit *vpk) {
+
+    string last_string = NULL;
+    int j = 0;
+
+    for (int i = 0; i < vpk->tracked_vars_len; i++) {
+        ulong link[1];
+        Instance *glob_ins = laure_scope_find_by_key_l(scope->glob, vpk->tracked_vars[i], link, true);
+        if (! glob_ins) continue;
+        Instance *ins = laure_scope_find_by_link(scope, *link, true);
+        if (!ins) continue;
+
+        bool res = image_equals(glob_ins->image, ins->image);
+        
+        char name[64];
+        strncpy(name, glob_ins->name, 64);
+
+        if (str_starts(name, "$")) {
+            string doc = ins->doc;
+            if (doc && strlen(doc)) {
+                snprintf(name, 64, "%s %s[%s]%s", ins->name, GRAY_COLOR, doc, NO_COLOR);
+            }
+        }
+
+        string repr = ins->repr(ins);
+        string showcast;
+
+        if (strlen(repr) > 264) {
+            printf("  %s = ", name, repr);
+            printf("%s\n", repr);
+            showcast = "";
+        } else {
+            uint showcast_n = strlen(name) + strlen(repr) + 6;
+            showcast = malloc(showcast_n + 1);
+            memset(showcast, 0, showcast_n + 1);
+            snprintf(showcast, showcast_n, "  %s = %s", name, repr);
+        }
+
+        free(repr);
+
+        last_string = showcast;
+
+        if (i + 1 != vpk->tracked_vars_len) {
+            printf("%s,\n", showcast);
+        } else {
+            string cmd = readline(showcast);
+            return check_interactive(cmd, showcast);
+        }
+        j++;
+    }
+
+    if (j != vpk->tracked_vars_len) {
+        if (last_string != NULL) {
+            up;
+            erase;
+            string cmd = readline(last_string);
+            return check_interactive(cmd, last_string);
+        }
+    }
+
+    return respond(q_true, 0);
 }
 
 /* ===================
@@ -500,13 +665,15 @@ struct arg_rec_ctx {
 #define isanonvar(__name) (str_eq(__name, ANONVAR_NAME))
 ARGPROC_RES pred_call_procvar(
     predfinal *pf, 
+    control_ctx *cctx,
     laure_scope_t *scope,
     laure_scope_t *previous_scope,
     string argn,
     Instance *hint_opt,
     laure_expression_t *exp, 
     RECORDER_T(recorder),
-    struct arg_rec_ctx *ctx
+    struct arg_rec_ctx *ctx,
+    bool create_copy
 ) {
     switch (exp->t) {
         case let_var: {
@@ -530,6 +697,7 @@ ARGPROC_RES pred_call_procvar(
                     Instance *glob = laure_scope_find_by_key_l(scope, vname, l, true);
                     if (! glob) {
                         linked_scope_t *linked = laure_scope_insert(scope->glob, instance_deepcopy(scope->glob, vname, arg));
+                        laure_add_grabbed_link(cctx, linked->link);
                         *l = linked->link;
                     }
                     preset_link = l[0];
@@ -540,7 +708,8 @@ ARGPROC_RES pred_call_procvar(
                 } else
                     laure_scope_insert(previous_scope, arg);
             } else {
-                arg = instance_deepcopy(scope, argn, arg);
+                if (create_copy)
+                    arg = instance_deepcopy(scope, argn, arg);
             }
             recorder(arg, link[0] ? link[0] : laure_scope_generate_link(), ctx);
             break;
@@ -570,13 +739,23 @@ void cpred_arg_recorder(Instance *ins, ulong link, struct arg_rec_ctx *ctx) {
 }
 
 void dompred_arg_recorder(Instance *ins, ulong link, struct arg_rec_ctx *ctx) {
-    printf("%lu\n", link);
     laure_scope_insert_l(ctx->new_scope, ins, link);
 }
 
 void cpred_resp_recorder(Instance *ins, ulong link, struct arg_rec_ctx *ctx) {
     ctx->pd->resp = ins;
     ctx->pd->resp_link = link;
+}
+
+void pd_show(preddata *pd) {
+    for (uint i = 0; i < pd->argc; i++) {
+        Instance *ins = pd->argv[i].arg;
+        printf("|%d| %s\n", i, ins->repr(ins));
+    }
+    if (pd->resp) {
+        Instance *ins = pd->resp;
+        printf("resp %s\n", ins->repr(ins));
+    }
 }
 
 /* =-------=
@@ -587,7 +766,6 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
     assert(e->t == let_pred_call);
     UNPACK_CCTX(cctx);
     string predicate_name = e->s;
-    printf("[ %s ]\n", predicate_name);
     Instance *predicate_ins = laure_scope_find_by_key(scope, predicate_name, true);
     if (! predicate_ins)
         RESPOND_ERROR("predicate %s is undefined", predicate_name);
@@ -613,13 +791,14 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
         pred_img->variations->finals = pfs;
     }
 
-    bool need_more, found = false, false;
+    bool need_more = false;
+    bool found = false;
     laure_scope_t *init_scope = laure_scope_create_copy(scope);
     for (uint variation_idx = 0; variation_idx < pred_img->variations->len; variation_idx++) {
         predfinal *pf = pred_img->variations->finals[variation_idx];
-        laure_scope_t *prev = laure_scope_create_copy(init_scope);
 
         if (pf->t == PF_C) {
+            laure_scope_t *prev = NULL;
             // C source predicate
             if (e->ba->body_len != pf->c.argc && pf->c.argc != -1) {
                 laure_scope_free(init_scope);
@@ -628,7 +807,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             preddata *pd = preddata_new(scope);
             struct arg_rec_ctx actx[1];
             actx->pd = pd;
-            actx->prev_scope = prev;
+            actx->prev_scope = scope;
 
             laure_expression_set *arg_l = e->ba->set;
             for (uint idx = 0; idx < e->ba->body_len; idx++) {
@@ -636,11 +815,12 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 laure_expression_t *argexp = arg_l->expression;
 
                 ARGPROC_RES res = pred_call_procvar(
-                    pf, scope, prev, 
-                    pf->c.hints[idx]->name, 
+                    pf, cctx,
+                    scope, scope, 
+                    argexp->s, 
                     pf->c.hints[idx]->hint, 
                     argexp, cpred_arg_recorder, 
-                    actx);
+                    actx, false);
 
                 ARGPROC_RES_(
                     res, 
@@ -648,7 +828,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     {pred_call_cleanup; return respond(q_error, err);}, 
                     {pred_call_cleanup; return RESPOND_FALSE;},
                     err);
-
+                
                 arg_l = arg_l->next;
             }
 
@@ -663,11 +843,12 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 } else {
                     actx->idx_pd = 0;
                     ARGPROC_RES res = pred_call_procvar(
-                        pf, scope, prev,
-                        MOCK_NAME,
+                        pf, cctx, 
+                        scope, scope,
+                        exp->s,
                         pf->c.resp_hint,
                         exp, cpred_resp_recorder,
-                        actx);
+                        actx, false);
                     
                     ARGPROC_RES_(
                         res, 
@@ -681,27 +862,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 pd->resp_link = 0;
             }
 
-            qresp resp = pf->c.pred(pd, cctx);
-            printf("%d\n", resp.state);
-
-            // Updating args
-            for (uint j = 0; j < pd->argc; j++) {
-                struct predicate_arg arg = pd->argv[j];
-                Instance *arg_ins = laure_scope_find_by_link(prev, arg.link_id, false);
-                if (arg_ins)
-                    image_equals(arg_ins->image, ((Instance*)arg.arg)->image);
-            }
-            // Updating resp
-            if (pd->resp) {
-                printf("%s\n", ((Instance*)pd->resp)->repr(((Instance*)pd->resp)));
-                Instance *resp_ins = laure_scope_find_by_link(prev, pd->resp_link, false);
-                printf("%d\n", resp_ins != NULL);
-                if (resp_ins)
-                    image_equals(resp_ins->image, ((Instance*)pd->resp)->image);
-            }
-
-            laure_scope_show(prev);
-            
+            qresp resp = pf->c.pred(pd, cctx);    
             preddata_free(pd);
 
             if (tfc) {
@@ -713,15 +874,15 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 pred_call_cleanup;
                 return resp;
             } else if (resp.state == q_yield) {
-                laure_scope_free(prev);
                 continue;
             }
-            cctx->scope = prev;
-            laure_scope_show(prev);
-            resp = laure_start(cctx, cctx->qctx);
-            printf("%d\n", resp.state);
-            cctx->scope = scope;
+            laure_expression_set *full = qctx->expset;
+            qctx->expset = expset;
+            resp = laure_start(cctx, expset);
+            qctx->expset = full;
         } else {
+            laure_scope_t *prev = laure_scope_create_copy(init_scope);
+
             if (e->ba->body_len != pf->interior.argc) {
                 laure_scope_free(init_scope);
                 RESPOND_ERROR("predicate %s got %d args, expected %d", predicate_name, e->ba->body_len, pf->interior.argc);
@@ -736,11 +897,12 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 laure_expression_t *argexp = arg_l->expression;
 
                 ARGPROC_RES res = pred_call_procvar(
-                    pf, scope, prev, 
-                    pf->interior.argn[idx], 
+                    pf, cctx,
+                    scope, prev, 
+                    laure_get_argn(idx), 
                     pred_img->header.args->data[idx], 
                     argexp, dompred_arg_recorder, 
-                    actx);
+                    actx, true);
 
                 ARGPROC_RES_(
                     res, 
@@ -764,11 +926,12 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     laure_expression_t *exp = arg_l->expression;
 
                     ARGPROC_RES res = pred_call_procvar(
-                        pf, scope, prev,
-                        pf->interior.respn,
+                        pf, cctx,
+                        scope, prev,
+                        laure_get_respn(),
                         pred_img->header.resp,
                         exp, dompred_arg_recorder,
-                        actx);
+                        actx, true);
                     
                     ARGPROC_RES_(
                         res,
@@ -783,17 +946,20 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             body = laure_expression_compose(body);
 
             qcontext *nqctx = qcontext_new(body);
+            laure_expression_set *full_expset = qctx->expset;
+            qctx->expset = expset;
             nqctx->next = qctx;
             nqctx->constraint_mode = is_constraint;
 
             cctx->scope = nscope;
             cctx->qctx = nqctx;
-            laure_scope_show(nscope);
             qresp resp = laure_start(cctx, body);
-            laure_scope_show(nscope);
+            qctx->expset = full_expset;
             cctx->qctx = qctx;
+            cctx->scope = scope;
         }
     }
+    return RESPOND_YIELD(YIELD_OK);
 }
 
 /* =-------=

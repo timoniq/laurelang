@@ -15,11 +15,7 @@
 #define NULL (void*)0
 
 extern ulong *LAURE_LINK_ID;
-
-typedef enum {
-    false,
-    true
-} bool;
+typedef enum {false, true} bool;
 
 typedef unsigned int uint;
 
@@ -45,7 +41,7 @@ typedef struct laure_scope {
     long *nlink;
     uint idx, repeat;
     linked_scope_t *linked;
-    struct laure_scope  *tmp, *glob;
+    struct laure_scope *tmp, *glob, *next;
 } laure_scope_t;
 
 #define laure_scope_iter(scope, to_ptr, body) do { \
@@ -281,6 +277,13 @@ void laure_set_translators();
 
 var_process_kit *laure_vpk_create(laure_expression_set *expset);
 void laure_vpk_free(var_process_kit*);
+qresp laure_showcast(laure_scope_t *scope, var_process_kit *vpk);
+
+void laure_init_name_buffs();
+string laure_get_argn(uint idx);
+string laure_get_respn();
+string laure_get_contn();
+
 /* =-----------=
    Consulting
 =-----------= */

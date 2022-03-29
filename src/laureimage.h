@@ -182,6 +182,12 @@ long pd_get_arg_link(preddata *pd, int index);
 
 void preddata_free(preddata *pd);
 
+// storing links to grab when merging scopes
+typedef struct laure_grab_linked {
+    ulong link;
+    struct laure_grab_linked *next;
+} laure_grab_linked;
+
 // work with control when generating
 typedef struct laure_control_ctx {
     laure_scope_t*  scope;
@@ -189,7 +195,19 @@ typedef struct laure_control_ctx {
     var_process_kit* vpk;
     void*           data;
     bool          silent, no_ambig;
+    laure_grab_linked *grabbed;
 } control_ctx;
+
+void laure_add_grabbed_link(control_ctx *cctx, ulong nlink);
+void laure_free_grab(laure_grab_linked *grab);
+
+#define grab_linked_iter(cctx, func, ...) do {\
+            laure_grab_linked *__l = cctx->grabbed; \
+            while (__l) { \
+                func(__l->link, __VA_ARGS__); \
+                __l = __l->next; \
+            } \
+        } while (0)
 
 struct PredicateCImageHint {
     string name;

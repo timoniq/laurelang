@@ -58,8 +58,7 @@ linked_scope_t *laure_scope_find(
             Instance *cp = instance_deepcopy(scope, tmp_ptr->ptr->name, tmp_ptr->ptr);
             // copying in current pos to backtrack
             // further.
-            laure_scope_insert_l(scope, cp, tmp_ptr->link);
-            return cp;
+            return laure_scope_insert_l(scope, cp, tmp_ptr->link);
         } else {
             return tmp_ptr;
         }
@@ -90,7 +89,9 @@ Instance *laure_scope_find_by_key_l(laure_scope_t *scope, string key, ulong *lin
 }
 
 Instance *laure_scope_find_by_link(laure_scope_t *scope, ulong link, bool search_glob) {
-    linked_scope_t *l = laure_scope_find(scope, linked_chk_key, &link, true, search_glob);
+    ulong li[1];
+    li[0] = link;
+    linked_scope_t *l = laure_scope_find(scope, linked_chk_link, li, true, search_glob);
     return l ? l->ptr : NULL;
 }
 
@@ -141,6 +142,7 @@ laure_scope_t *laure_scope_create_copy(laure_scope_t *scope) {
     nscope->linked = NULL;
     nscope->tmp = scope;
     nscope->nlink = scope->nlink;
+    nscope->next = scope->next;
     return nscope;
 }
 
@@ -184,6 +186,7 @@ laure_scope_t *laure_scope_create_global() {
     scope->repeat = 0;
     scope->tmp = NULL;
     scope->glob = scope;
+    scope->next = NULL;
     return scope;
 }
 
@@ -195,10 +198,12 @@ laure_scope_t *laure_scope_new(laure_scope_t *global, laure_scope_t *next) {
     scope->linked = NULL;
     scope->tmp = NULL;
     scope->repeat = 0;
+    scope->next = next;
     return scope;
 }
 
 void laure_scope_free_linked(linked_scope_t *linked) {
+    if (! linked) return;
     if (linked->next) laure_scope_free_linked(linked->next);
     free(linked);
 }
