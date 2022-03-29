@@ -714,14 +714,12 @@ predfinal *get_pred_final(struct PredicateImageVariation pv) {
             if (arg->t == let_var) {
                 // |  cast naming |
                 // |   var to var |
-                
                 laure_expression_t *old_name_var = laure_expression_create(let_var, "", false, pf->interior.argn[i], 0, NULL);
                 laure_expression_set *set = laure_expression_set_link(NULL, old_name_var);
                 set = laure_expression_set_link(set, arg);
                 laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
                 laure_expression_t *name_expression = laure_expression_create(let_name, "", false, NULL, 0, ba);
                 nset = laure_expression_set_link(nset, name_expression);
-                
             } else {
                 // |  cast assert |
                 // | var to value |
@@ -893,4 +891,23 @@ string constraint_repr(Instance *ins) {
     
     snprintf(buff, 128, "(#%s(%s)%s)", ins->name, argsbuff, respbuff);
     return strdup(buff);
+}
+
+void laure_add_grabbed_link(control_ctx *cctx, ulong nlink) {
+    laure_grab_linked *grab = malloc(sizeof(laure_grab_linked));
+    grab->link = nlink;
+    grab->next = NULL;
+    if (! cctx->grabbed) {
+        cctx->grabbed = grab;
+    } else {
+        grab->next = cctx->grabbed;
+        cctx->grabbed = grab;
+    }
+}
+
+void laure_free_grab(laure_grab_linked *grab) {
+    if (! grab) return;
+    if (grab->next)
+        laure_free_grab(grab->next);
+    free(grab);
 }
