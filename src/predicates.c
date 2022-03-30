@@ -45,7 +45,7 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
     Instance *var2 = pd_get_arg(pd, 1);
     Instance *sum = pd->resp;
 
-    struct IntImage *var1_im = (struct IntImage*)var1->image;
+    struct IntImage *var1_im = (struct IntImaikge*)var1->image;
     struct IntImage *var2_im = (struct IntImage*)var2->image;
     struct IntImage *sum_im =  (struct IntImage*)sum->image;
 
@@ -90,5 +90,43 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
 
     } else {
         return respond(q_error, "op. int +|-: too ambiguative; unify");
+    }
+}
+
+qresp laure_constraint_gt(preddata *pd, control_ctx* cctx) {
+    Instance *i = pd_get_arg(pd, 0);
+    Instance *gt = pd_get_arg(pd, 1);
+
+    struct IntImage *i_im = (struct IntImage*)i->image;
+    struct IntImage *gt_im = (struct IntImage*)gt->image;
+
+    int i_i = i_im->state == 1;
+    int gt_i = gt_im->state == 1;
+
+    if (i_i && gt_i) {
+        return bigint_cmp(i_im->i_data, gt_im->i_data) > 0 ? respond(q_true, 0) : respond(q_false, 0);
+    } else if (!i_i && gt_i) {
+        if (i_im->u_data->lborder.t == SECLUDED && bigint_cmp(gt_im->i_data, i_im->u_data->lborder.data) == 0) return respond(q_true, 0);
+        if (i_im->u_data->rborder.t != INFINITE) {
+            if (i_im->u_data->rborder.t == INCLUDED) {
+                if (bigint_cmp(i_im->u_data->rborder.data, gt_im->i_data) <= 0) return respond(q_false, 0);
+            } else {
+                if (bigint_cmp(i_im->u_data->rborder.data, gt_im->i_data) < 0) return respond(q_false, 0);
+            }
+        }
+        struct IntValue v;
+        v.t = SECLUDED;
+        v.data = bigint_copy(gt_im->i_data);
+        int_domain_gt(i_im->u_data, v);
+        return respond(q_true, 0);
+    } else if (i_i && !gt_i) {
+        struct IntValue v;
+        v.t = SECLUDED;
+        v.data = bigint_copy(i_im->i_data);
+        int_domain_lt(gt_im->u_data, v);
+        return respond(q_true, 0);
+    } else {
+        printf("todo 1\n");
+        return respond(q_true, 0);
     }
 }
