@@ -248,6 +248,15 @@ bool int_eq(struct IntImage *img1_t, struct IntImage *img2_t) {
 
             img1_t->i_data = bigint_copy(img2_t->i_data);
             img1_t->state = I;
+        } else {
+            if (img2_t->u_data->lborder.t != INFINITE)
+                int_domain_gt(img1_t->u_data, img2_t->u_data->lborder);
+            if (img2_t->u_data->rborder.t != INFINITE)
+                int_domain_lt(img1_t->u_data, img2_t->u_data->rborder);
+            if (img1_t->u_data->lborder.t != INFINITE)
+                int_domain_gt(img2_t->u_data, img1_t->u_data->lborder);
+            if (img1_t->u_data->rborder.t != INFINITE)
+                int_domain_lt(img2_t->u_data, img1_t->u_data->rborder);
         }
         return true;
     }
@@ -544,6 +553,10 @@ void *image_deepcopy(laure_scope_t *stack, void *img) {
     switch (head.t) {
         case INTEGER: {
             return int_deepcopy(img);
+        }
+        case CONSTRAINT_FACT:
+        case PREDICATE_FACT: {
+            return img;
         }
         default:
             break;

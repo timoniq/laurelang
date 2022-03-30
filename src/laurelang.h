@@ -27,9 +27,15 @@ typedef struct laure_instance {
     void *image;
 } Instance;
 
+typedef struct laure_control_ctx control_ctx;
+
 /* =-----------=
      Scope
 =-----------= */
+
+#ifdef SCOPE_LINKED
+
+// Efficient implementation of linked scope
 
 typedef struct linked_scope {
     Instance *ptr;
@@ -54,11 +60,44 @@ typedef struct laure_scope {
         } \
     } while (0)
 
-linked_scope_t *laure_scope_insert(laure_scope_t *scope, Instance *ptr);
-linked_scope_t *laure_scope_insert_l(laure_scope_t *scope, Instance *ptr, ulong link);
-linked_scope_t *laure_scope_find(
+#define SCOPE_CELL_T linked_scope_t*
+
+#else
+
+// Implementation of stodgy scope needed for debug
+
+typedef struct laure_cell {
+    Instance *ptr;
+    ulong link;
+    uint idx;
+} laure_cell;
+
+#define max_cells 32
+
+typedef struct laure_scope {
+    long *nlink;
+    uint idx, repeat, count;
+    laure_cell cells[max_cells];
+    struct laure_scope *glob, *next;
+} laure_scope_t;
+
+#define laure_scope_iter(scope, to_ptr, body) do { \
+            laure_cell *to_ptr = NULL; \
+            for (uint idx = 0; idx < scope->count; idx++) { \
+                to_ptr = &scope->cells[idx]; \
+                body; \
+            } \
+        } while (0)
+
+#define SCOPE_CELL_T laure_cell
+
+#endif
+
+SCOPE_CELL_T laure_scope_insert(laure_scope_t *scope, Instance *ptr);
+SCOPE_CELL_T laure_scope_insert_l(laure_scope_t *scope, Instance *ptr, ulong link);
+SCOPE_CELL_T laure_scope_find(
     laure_scope_t *scope, 
-    bool (*checker)(linked_scope_t*, void*),
+    bool (*checker)(SCOPE_CELL_T, void*),
     void *payload,
     bool copy,
     bool search_glob
@@ -68,7 +107,7 @@ Instance *laure_scope_find_by_key_l(laure_scope_t *scope, string key, ulong *lin
 Instance *laure_scope_find_by_link(laure_scope_t *scope, ulong link, bool search_glob);
 Instance *laure_scope_change_link_by_key(laure_scope_t *scope, string key, ulong new_link, bool search_glob);
 Instance *laure_scope_change_link_by_link(laure_scope_t *scope, ulong link, ulong new_link, bool search_glob);
-laure_scope_t *laure_scope_create_copy(laure_scope_t *scope);
+laure_scope_t *laure_scope_create_copy(control_ctx *cctx, laure_scope_t *scope);
 void laure_scope_show(laure_scope_t *scope);
 ulong laure_scope_generate_link();
 string laure_scope_generate_unique_name();
@@ -268,7 +307,6 @@ void add_dflag(char *flagname, char *value);
 =-----------= */
 
 typedef struct laure_qresp qresp;
-typedef struct laure_control_ctx control_ctx;
 typedef struct laure_vpk var_process_kit;
 
 qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set *expset);
@@ -277,7 +315,7 @@ void laure_set_translators();
 
 var_process_kit *laure_vpk_create(laure_expression_set *expset);
 void laure_vpk_free(var_process_kit*);
-qresp laure_showcast(laure_scope_t *scope, var_process_kit *vpk);
+qresp laure_showcast(control_ctx *cctx);
 
 void laure_init_name_buffs();
 string laure_get_argn(uint idx);

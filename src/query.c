@@ -50,22 +50,28 @@ void laure_upd_scope(ulong link, laure_scope_t *to, laure_scope_t *from) {
     image_equals(to_ins->image, from_ins->image);
 }
 
+#define UNPACK_CCTX(cctx) \
+        laure_scope_t *scope = cctx->scope; \
+        var_process_kit *vpk = cctx->vpk; \
+        qcontext *qctx = cctx->qctx;
+
 // Start evaluating search tree
 qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
     laure_expression_t *exp;
     qcontext *qctx = cctx->qctx;
     EXPSET_ITER(expset, exp, {
+        // printf("Evaluating %s%s%s %s\n", YELLOW_COLOR, EXPT_NAMES[exp->t], NO_COLOR, exp->s ? exp->s : "");
         qresp response = laure_eval(cctx, exp, _set->next);
         if (
             response.state == q_yield 
-            || response.state == q_error
+            || response.state == q_error 
         ) {
             return response;
         } else if (response.state == q_false) {
             return respond(q_yield, YIELD_FAIL);
         }
     });
-    if (cctx->qctx && cctx->qctx->next) {
+    if (cctx->qctx && cctx->qctx->next && cctx->scope->idx != 1) {
         laure_scope_t *nscope;
         bool should_free = false;
         if (cctx->scope->repeat > 0) {
@@ -73,8 +79,15 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
             nscope->repeat--;
         } else if (cctx->scope->next) {
             should_free = true;
-            nscope = laure_scope_create_copy(cctx->scope->next);
+            nscope = laure_scope_create_copy(cctx, cctx->scope->next);
             grab_linked_iter(cctx, laure_upd_scope, cctx->scope, nscope);
+            laure_scope_iter(cctx->scope, cellptr, {
+                Instance *sim = laure_scope_find_by_link(nscope, cellptr->link, false);
+                if (sim) {
+                    image_equals(sim->image, cellptr->ptr->image);
+                }
+            });
+
         } else nscope = cctx->scope;
         cctx->qctx = cctx->qctx->next;
         cctx->scope = nscope;
@@ -82,7 +95,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
         if (should_free) laure_scope_free(nscope);
         return resp;
     }
-    laure_showcast(cctx->scope, cctx->vpk);
+    laure_showcast(cctx);
     return respond(q_yield, YIELD_OK);
 }
 
@@ -151,19 +164,23 @@ qresp check_interactive(string cmd, string showcast) {
     }
 }
 
-qresp laure_showcast(laure_scope_t *scope, var_process_kit *vpk) {
+qresp laure_showcast(control_ctx *cctx) {
+
+    UNPACK_CCTX(cctx);
 
     string last_string = NULL;
     int j = 0;
 
+    if (! vpk) return respond(q_true, 0);
+
     for (int i = 0; i < vpk->tracked_vars_len; i++) {
         ulong link[1];
-        Instance *glob_ins = laure_scope_find_by_key_l(scope->glob, vpk->tracked_vars[i], link, true);
+        Instance *glob_ins = laure_scope_find_by_key_l(cctx->tmp_answer_scope, vpk->tracked_vars[i], link, false);
         if (! glob_ins) continue;
-        Instance *ins = laure_scope_find_by_link(scope, *link, true);
+        Instance *ins = laure_scope_find_by_link(scope, *link, false);
         if (!ins) continue;
 
-        bool res = image_equals(glob_ins->image, ins->image);
+        glob_ins->image = image_deepcopy(scope->glob, ins->image);
         
         char name[64];
         strncpy(name, glob_ins->name, 64);
@@ -273,12 +290,6 @@ void laure_vpk_free(var_process_kit *vpk) {
     free(vpk->tracked_vars);
     free(vpk);
 }
-
-#define UNPACK_CCTX(cctx) \
-        laure_scope_t *scope = cctx->scope; \
-        var_process_kit *vpk = cctx->vpk; \
-        qcontext *qctx = cctx->qctx;
-
 
 #define _laure_eval_sub_args control_ctx *cctx, laure_expression_t *e, laure_expression_set *expset
 qresp laure_eval_assert(_laure_eval_sub_args);
@@ -664,63 +675,88 @@ struct arg_rec_ctx {
 #define return_str_fmt(fmt, ...) do {char sstr[128]; snprintf(sstr, 128, fmt, __VA_ARGS__); string str = strdup( sstr ); return str;} while (0)
 #define isanonvar(__name) (str_eq(__name, ANONVAR_NAME))
 ARGPROC_RES pred_call_procvar(
-    predfinal *pf, 
-    control_ctx *cctx,
-    laure_scope_t *scope,
-    laure_scope_t *previous_scope,
-    string argn,
-    Instance *hint_opt,
+    predfinal          *pf, 
+    control_ctx        *cctx, 
+
+    laure_scope_t      *prev_scope, 
+    laure_scope_t      *new_scope, 
+
+    string              argn, 
+    Instance           *hint_opt, 
     laure_expression_t *exp, 
-    RECORDER_T(recorder),
-    struct arg_rec_ctx *ctx,
-    bool create_copy
+    RECORDER_T         (recorder), 
+    struct arg_rec_ctx *ctx, 
+    bool                create_copy 
 ) {
     switch (exp->t) {
         case let_var: {
+            // name of var in prev_scope
             string vname = exp->s;
             if (isanonvar(vname))
                 vname = laure_scope_generate_unique_name();
+            
             ulong link[1];
             link[0] = 0;
-            Instance *arg = laure_scope_find_by_key_l(scope, vname, link, true);
+            Instance *arg = laure_scope_find_by_key_l(prev_scope, vname, link, true);
+
             if (arg && arg->locked) {
                 return_str_fmt("%s is locked", arg->name);
             } else if (! arg) {
                 if (hint_opt) {
-                    arg = instance_deepcopy(scope, argn, hint_opt);
+                    arg = instance_deepcopy(prev_scope, argn, hint_opt);
                 } else {
                     return_str_fmt("specification of %s is needed", vname);
                 }
                 ulong preset_link = 0;
-                if (is_global(scope)) {
+                if (prev_scope->idx == 1) {
                     ulong l[1];
-                    Instance *glob = laure_scope_find_by_key_l(scope, vname, l, true);
+                    Instance *glob = laure_scope_find_by_key_l(cctx->tmp_answer_scope, vname, l, false);
                     if (! glob) {
-                        linked_scope_t *linked = laure_scope_insert(scope->glob, instance_deepcopy(scope->glob, vname, arg));
+                        Instance *nins = instance_deepcopy(cctx->tmp_answer_scope, vname, arg);
+                        #ifdef SCOPE_LINKED
+                        linked_scope_t *linked = laure_scope_insert(cctx->tmp_answer_scope, nins);
                         laure_add_grabbed_link(cctx, linked->link);
                         *l = linked->link;
+                        #else
+                        laure_cell cell = laure_scope_insert(cctx->tmp_answer_scope, nins);
+                        laure_add_grabbed_link(cctx, cell.link);
+                        *l = cell.link;
+                        #endif
                     }
                     preset_link = l[0];
                 }
+
+                Instance *prev_ins = instance_deepcopy(prev_scope, vname, arg);
+
                 if (preset_link > 0) {
-                    laure_scope_insert_l(previous_scope, arg, preset_link);
+                    laure_scope_insert_l(prev_scope, prev_ins, preset_link);
                     *link = preset_link;
-                } else
-                    laure_scope_insert(previous_scope, arg);
+                } else {
+                    ulong lin = laure_scope_generate_link();
+                    laure_scope_insert_l(prev_scope, prev_ins, lin);
+                    *link = lin;
+                }
+                if (! new_scope) arg = prev_ins;
             } else {
                 if (create_copy)
-                    arg = instance_deepcopy(scope, argn, arg);
+                    arg = instance_deepcopy(new_scope, argn, arg);
             }
-            recorder(arg, link[0] ? link[0] : laure_scope_generate_link(), ctx);
+            ulong lin;
+            if (link[0])
+                lin = link[0];
+            else {
+                lin = laure_scope_generate_link();
+            }
+            recorder(arg, lin, ctx);
             break;
         }
         default: {
             if (! hint_opt)
                 return_str_fmt("cannot resolve meaning of %s; add hint", exp->s);
-            Instance *arg = instance_deepcopy(scope, argn, hint_opt);
+            Instance *arg = instance_deepcopy(prev_scope, argn, hint_opt);
             if (! arg->image)
                 return_str_fmt("specification of %s is needed", argn);
-            bool result = read_head(arg->image).translator->invoke(exp, arg->image, previous_scope);
+            bool result = read_head(arg->image).translator->invoke(exp, arg->image, prev_scope);
 
             if (! result) {
                 printf("instance must be freed\n");
@@ -750,11 +786,11 @@ void cpred_resp_recorder(Instance *ins, ulong link, struct arg_rec_ctx *ctx) {
 void pd_show(preddata *pd) {
     for (uint i = 0; i < pd->argc; i++) {
         Instance *ins = pd->argv[i].arg;
-        printf("|%d| %s\n", i, ins->repr(ins));
+        printf("|%d| %s (%lu)\n", i, ins->repr(ins), pd->argv[i].link_id);
     }
     if (pd->resp) {
         Instance *ins = pd->resp;
-        printf("resp %s\n", ins->repr(ins));
+        printf("resp %s (%lu)\n", ins->repr(ins), pd->resp_link);
     }
 }
 
@@ -793,21 +829,21 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
 
     bool need_more = false;
     bool found = false;
-    laure_scope_t *init_scope = laure_scope_create_copy(scope);
+    laure_scope_t *init_scope = laure_scope_create_copy(cctx, scope);
     for (uint variation_idx = 0; variation_idx < pred_img->variations->len; variation_idx++) {
         predfinal *pf = pred_img->variations->finals[variation_idx];
+        laure_scope_t *prev = laure_scope_create_copy(cctx, init_scope);
 
         if (pf->t == PF_C) {
-            laure_scope_t *prev = NULL;
             // C source predicate
             if (e->ba->body_len != pf->c.argc && pf->c.argc != -1) {
                 laure_scope_free(init_scope);
                 RESPOND_ERROR("predicate %s got %d args, expected %d", predicate_name, e->ba->body_len, pf->c.argc);
             }
-            preddata *pd = preddata_new(scope);
+            preddata *pd = preddata_new(prev);
             struct arg_rec_ctx actx[1];
             actx->pd = pd;
-            actx->prev_scope = scope;
+            actx->prev_scope = prev;
 
             laure_expression_set *arg_l = e->ba->set;
             for (uint idx = 0; idx < e->ba->body_len; idx++) {
@@ -816,7 +852,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
 
                 ARGPROC_RES res = pred_call_procvar(
                     pf, cctx,
-                    scope, scope, 
+                    prev, NULL, 
                     argexp->s, 
                     pf->c.hints[idx]->hint, 
                     argexp, cpred_arg_recorder, 
@@ -838,13 +874,13 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     Instance *hint = pf->c.resp_hint;
                     if (! hint)
                         RESPOND_ERROR("specification of %s's response is needed", predicate_name);
-                    pd->resp = instance_deepcopy(scope, MOCK_NAME, hint);
+                    pd->resp = instance_deepcopy(prev, MOCK_NAME, hint);
                     pd->resp_link = 0;
                 } else {
                     actx->idx_pd = 0;
                     ARGPROC_RES res = pred_call_procvar(
                         pf, cctx, 
-                        scope, scope,
+                        prev, NULL,
                         exp->s,
                         pf->c.resp_hint,
                         exp, cpred_resp_recorder,
@@ -862,32 +898,38 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 pd->resp_link = 0;
             }
 
-            qresp resp = pf->c.pred(pd, cctx);    
+            qresp resp = pf->c.pred(pd, cctx);
             preddata_free(pd);
+
+            if (resp.state == q_false) continue;
 
             if (tfc) {
                 qctx->constraint_mode = false;
                 if (qctx->next)
                     qctx->next->constraint_mode = false;
             }
+
             if (resp.state == q_stop || resp.state == q_error) {
                 pred_call_cleanup;
                 return resp;
             } else if (resp.state == q_yield) {
                 continue;
             }
+
             laure_expression_set *full = qctx->expset;
             qctx->expset = expset;
+            cctx->scope = prev;
             resp = laure_start(cctx, expset);
+            cctx->scope = scope;
             qctx->expset = full;
         } else {
-            laure_scope_t *prev = laure_scope_create_copy(init_scope);
 
             if (e->ba->body_len != pf->interior.argc) {
                 laure_scope_free(init_scope);
                 RESPOND_ERROR("predicate %s got %d args, expected %d", predicate_name, e->ba->body_len, pf->interior.argc);
             }
             laure_scope_t *nscope = laure_scope_new(scope->glob, prev);
+
             struct arg_rec_ctx actx[1];
             actx->new_scope = nscope;
 
@@ -898,7 +940,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
 
                 ARGPROC_RES res = pred_call_procvar(
                     pf, cctx,
-                    scope, prev, 
+                    prev, nscope, 
                     laure_get_argn(idx), 
                     pred_img->header.args->data[idx], 
                     argexp, dompred_arg_recorder, 
@@ -927,7 +969,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
 
                     ARGPROC_RES res = pred_call_procvar(
                         pf, cctx,
-                        scope, prev,
+                        prev, nscope,
                         laure_get_respn(),
                         pred_img->header.resp,
                         exp, dompred_arg_recorder,
@@ -944,6 +986,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             
             laure_expression_set *body = pf->interior.body;
             body = laure_expression_compose(body);
+            laure_expression_t *ptr;
 
             qcontext *nqctx = qcontext_new(body);
             laure_expression_set *full_expset = qctx->expset;
@@ -982,6 +1025,7 @@ qresp laure_eval_callable_decl(_laure_eval_sub_args) {
 control_ctx *control_new(laure_scope_t* scope, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig) {
     control_ctx *cctx = malloc(sizeof(control_ctx));
     cctx->scope = scope;
+    cctx->tmp_answer_scope = laure_scope_new(scope->glob, scope);
     cctx->qctx = qctx;
     cctx->vpk = vpk;
     cctx->data = data;
