@@ -7,7 +7,7 @@ LDFLAGS = -L/usr/local/lib -lreadline -lm -g -ldl
 .PHONY: all clean
 
 LIB = $(SOURCES)/parser.o $(SOURCES)/string.o $(SOURCES)/instance.o $(SOURCES)/query.o $(SOURCES)/session.o $(SOURCES)/scope.o $(SOURCES)/domain.o $(SOURCES)/bigint.o $(SOURCES)/builtin.o $(SOURCES)/predicates.o  $(SOURCES)/apply.o
-OBJECTS = minimal.o $(LIB)
+OBJECTS = laure.o $(LIB)
 
 all: $(TARGET)
 
@@ -17,6 +17,9 @@ $(TARGET): $(OBJECTS)
 clean:
 	rm -f $(TARGET) *.o $(SOURCES)/*.o *.so lib/*.so lib/*/*.so lib/*/src/*.o
 	find . -name "*.dSYM" -prune -exec rm -rf {} \;
+
+help:
+	@cat MAKEHELP
 
 src/string.o: src/laurelang.h src/string.c
 src/parser.o: src/laurelang.h src/parser.c

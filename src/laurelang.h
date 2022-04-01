@@ -223,7 +223,7 @@ typedef struct {
 laure_parse_result laure_parse(char *query);
 laure_parse_many_result laure_parse_many(const string query_, char divisor, laure_expression_set *linked_opt);
 bool laure_parser_needs_continuation(char *query);
-bool laure_is_silent(void *cctx);
+bool laure_is_silent(control_ctx *cctx);
 
 /* =-----------=
     String
@@ -256,6 +256,7 @@ size_t laure_string_offset_at_pos(const char *buff, size_t buff_len, size_t i);
 #define NO_COLOR ""
 #endif
 #define lastc(s) s[strlen(s)-1]
+#define colored(s) YELLOW_COLOR, s, NO_COLOR
 
 /* =-----------=
 Miscellaneous
@@ -288,7 +289,6 @@ void add_dflag(char *flagname, char *value);
 
 typedef struct {
     laure_scope_t *scope;
-    char *_doc_buffer;
     char *_included_filepaths[included_fp_max];
 } laure_session_t;
 
@@ -298,6 +298,7 @@ extern uint               LAURE_TIMEOUT;
 extern clock_t            LAURE_CLOCK;
 extern char              *LAURE_INTERPRETER_PATH;
 extern char              *LAURE_CURRENT_ADDRESS;
+extern char              *LAURE_DOC_BUFF;
 
 char *get_dflag(char *flagname);
 void add_dflag(char *flagname, char *value);

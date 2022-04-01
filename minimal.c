@@ -7,6 +7,7 @@ int main() {
     printf("laure (minimal)\n");
     laure_session_t *session = laure_session_new();
     laure_set_translators();
+    laure_init_name_buffs();
     laure_register_builtins(session);
     string line;
     while ((line = readline("?- ")) != NULL) {
@@ -18,7 +19,6 @@ int main() {
             var_process_kit *vpk = laure_vpk_create(lpmr.exps);
             control_ctx *cctx = control_new(session->scope, qctx, vpk, NULL, false);
             qresp response = laure_start(cctx, qctx->expset);
-            laure_scope_show(session->scope);
             if (response.state == q_error)
                 printf("error: %s\n", response.error);
             else if (! response.error)
