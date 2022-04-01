@@ -220,12 +220,12 @@ apply_result_t laure_consult_predicate(
         if (! img) return respond_apply(apply_error, "predicate hint is undefined");
 
         string name = strdup(predicate_exp->s);
-        Instance *ins = instance_new(name, session->_doc_buffer, img);
+        Instance *ins = instance_new(name, LAURE_DOC_BUFF, img);
         ins->repr = predicate_exp->t == let_pred ? predicate_repr : constraint_repr;
 
         laure_scope_insert(scope, ins);
 
-        session->_doc_buffer = NULL;
+        LAURE_DOC_BUFF = NULL;
         return respond_apply(apply_ok, NULL);
     } else {
         if (! pred_ins)
@@ -241,23 +241,23 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
         // Saving comment
         fact = fact + 2;
         if (fact[0] == ' ') fact++;
-        if (session->_doc_buffer == NULL) {
-            session->_doc_buffer = strdup(fact);
+        if (LAURE_DOC_BUFF == NULL) {
+            LAURE_DOC_BUFF = strdup(fact);
         } else {
             char buffer[512];
             memset(buffer, 0, 512);
-            int free_space = 512 - strlen(session->_doc_buffer) - strlen(fact) - 3;
+            int free_space = 512 - strlen(LAURE_DOC_BUFF) - strlen(fact) - 3;
             if (free_space < 0) {
                 apply_result_t apply_res;
                 apply_res.error = "doc buff overflow";
                 apply_res.status = apply_error;
                 return apply_res;
             }
-            strcpy(buffer, session->_doc_buffer);
+            strcpy(buffer, LAURE_DOC_BUFF);
             strcat(buffer, "\n");
             strcat(buffer, fact);
-            free(session->_doc_buffer);
-            session->_doc_buffer = strdup(buffer);
+            free(LAURE_DOC_BUFF);
+            LAURE_DOC_BUFF = strdup(buffer);
         }
         return respond_apply(apply_ok, NULL);
     }
@@ -371,7 +371,12 @@ string consult_single(laure_session_t *session, string fname, FILE *file) {
             strcpy(buff, line);
         }
 
-        if (last != '}' && last != '.' && !str_starts(line, "//")) {
+        if (str_starts(line, "//")) {
+            laure_apply(session, line);
+            continue;
+        }
+
+        if (last != '}' && last != '.') {
             strcpy(buff, line);
         } else {
             if (lastc(line) == '.') lastc(line) = 0;

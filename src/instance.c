@@ -924,3 +924,18 @@ void laure_free_grab(laure_grab_linked *grab) {
         laure_free_grab(grab->next);
     free(grab);
 }
+
+/* ==========
+Miscellaneous
+========== */
+void instance_lock(Instance *ins) {
+    ins->locked = true;
+}
+
+void instance_unlock(Instance *ins) {
+    ins->locked = false;
+}
+
+string instance_get_doc(Instance *ins) {
+    return ins->doc ? (strlen(ins->doc) ? ins->doc : NULL) : NULL;
+}

@@ -60,7 +60,6 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
     laure_expression_t *exp;
     qcontext *qctx = cctx->qctx;
     EXPSET_ITER(expset, exp, {
-        // printf("Evaluating %s%s%s %s\n", YELLOW_COLOR, EXPT_NAMES[exp->t], NO_COLOR, exp->s ? exp->s : "");
         qresp response = laure_eval(cctx, exp, _set->next);
         if (
             response.state == q_yield 
@@ -833,6 +832,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
     for (uint variation_idx = 0; variation_idx < pred_img->variations->len; variation_idx++) {
         predfinal *pf = pred_img->variations->finals[variation_idx];
         laure_scope_t *prev = laure_scope_create_copy(cctx, init_scope);
+        qresp resp;
 
         if (pf->t == PF_C) {
             // C source predicate
@@ -898,7 +898,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 pd->resp_link = 0;
             }
 
-            qresp resp = pf->c.pred(pd, cctx);
+            resp = pf->c.pred(pd, cctx);
             preddata_free(pd);
 
             if (resp.state == q_false) continue;
@@ -996,24 +996,29 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
 
             cctx->scope = nscope;
             cctx->qctx = nqctx;
-            qresp resp = laure_start(cctx, body);
+            resp = laure_start(cctx, body);
             qctx->expset = full_expset;
             cctx->qctx = qctx;
             cctx->scope = scope;
         }
+        if (resp.state == q_error) return resp;
+        else if (resp.state == q_yield) {
+            if (resp.error == YIELD_OK) found = true;
+        }
+        laure_scope_free(prev);
     }
-    return RESPOND_YIELD(YIELD_OK);
+    laure_scope_free(init_scope);
+    return RESPOND_YIELD(found ? YIELD_OK : YIELD_FAIL);
 }
 
 /* =-------=
-Declaration of a callable instance
+Declaration of callable instance
 =-------= */
 qresp laure_eval_callable_decl(_laure_eval_sub_args) {
     assert(e->t == let_pred || e->t == let_constraint);
     UNPACK_CCTX(cctx);
     laure_session_t session[1];
     session->scope = scope;
-    session->_doc_buffer = NULL;
     memset(session->_included_filepaths, 0, sizeof(void*));
     apply_result_t result = laure_consult_predicate(session, scope, e, LAURE_CURRENT_ADDRESS);
     if (result.status)
@@ -1041,6 +1046,14 @@ qcontext *qcontext_new(laure_expression_set *expset) {
     qctx->next = NULL;
     qctx->cut = false;
     return qctx;
+}
+
+/* ==========
+Miscellaneous
+========== */
+
+bool laure_is_silent(control_ctx *cctx) {
+    return cctx->silent;
 }
 
 void *pd_get_arg(preddata *pd, int index) {

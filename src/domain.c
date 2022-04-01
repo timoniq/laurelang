@@ -181,23 +181,21 @@ string int_domain_repr(Domain *dom) {
     }
 }
 
-bigint* int_inc(bigint* n) {
-    bigint *bi = malloc(sizeof(bigint));
-    bigint_init(bi);
-    bigint_cpy(bi, n);
-    bigint *o = bigint_create(1);
-    bigint_add(bi, n, o);
-    bigint_free(o);
+bigint* int_inc(bigint* bi) {
+    bigint one[1];
+    bigint_init(one);
+    bigint_from_int(one, 1);
+    bigint_add(bi, bi, one);
+    bigint_free(one);
     return bi;
 }
 
-bigint* int_dec(bigint* n) {
-    bigint *bi = malloc(sizeof(bigint));
-    bigint_init(bi);
-    bigint_cpy(bi, n);
-    bigint *o = bigint_create(1);
-    bigint_sub(bi, n, o);
-    bigint_free(o);
+bigint* int_dec(bigint* bi) {
+    bigint one[1];
+    bigint_init(one);
+    bigint_from_int(one, 1);
+    bigint_sub(bi, bi, one);
+    bigint_free(one);
     return bi;
 }
 

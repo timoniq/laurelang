@@ -4,7 +4,8 @@ ulong  *LAURE_LINK_ID          = NULL;
 uint    LAURE_TIMEOUT          = 0;
 clock_t LAURE_CLOCK            = 0;
 char *LAURE_INTERPRETER_PATH   = NULL;
-char *LAURE_CURRENT_ADDRESS   = NULL;
+char *LAURE_CURRENT_ADDRESS    = NULL;
+char *LAURE_DOC_BUFF           = NULL;
 
 uint DFLAG_N = 0;
 char DFLAGS[DFLAG_MAX][2][32] = {{0, 0}};
@@ -12,7 +13,6 @@ char DFLAGS[DFLAG_MAX][2][32] = {{0, 0}};
 laure_session_t *laure_session_new() {
     laure_session_t *session = malloc(sizeof(laure_session_t));
     session->scope = laure_scope_create_global();
-    session->_doc_buffer = NULL;
     memset(session->_included_filepaths, 0, included_fp_max * sizeof(void*));
     return session;
 }

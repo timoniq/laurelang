@@ -48,7 +48,7 @@ const struct cmd_info commands[] = {
     {1, ".quit", 0, "Quits laurelang REPL."},
     {2, ".help", 0, "Shows this message."},
     {3, ".flags", 0, "Shows all available flags for laure interpreter."},
-    {4, ".stack", 0, "Shows global scope values; needed for debug."},
+    {4, ".scope", 0, "Shows global scope values; needed for debug."},
     // {5, ...},
     {6, ".doc", 1, "Shows documentation for object."},
     {7, ".getinfo", 0, "Shows information about reasoning system."},
@@ -206,7 +206,7 @@ int laure_process_query(laure_session_t *session, string line) {
             Instance *ins = laure_scope_find_by_key(session->scope, args.argv[1], true);
 
             if (!ins) {
-                printf("  sorry, can't find instance named `%s`\n", args.argv[1]);
+                printf("  %s%s is undefined%s\n", args.argv[1], RED_COLOR, NO_COLOR);
                 free(args.argv);
                 return 1;
             }
@@ -216,7 +216,7 @@ int laure_process_query(laure_session_t *session, string line) {
             printf("   ");
 
             if (!doc) {
-                printf("%ssorry, no documentation for this instance%s", RED_COLOR, NO_COLOR);
+                printf("%sno documentation for this instance%s", RED_COLOR, NO_COLOR);
             } else {
                 bool color_set = false;
                 for (int i = 0; i < strlen(doc); i++) {
@@ -327,7 +327,7 @@ int laure_process_query(laure_session_t *session, string line) {
             }
         }
         if (! found) {
-            printf("  Unknown command `%s`, use `.help`\n", args.argv[0]);
+            printf("  Unknown command %s%s%s, use %s%s%s\n", colored(args.argv[0]), colored(".help"));
         }
         free(args.argv);
         return 1;
@@ -336,7 +336,8 @@ int laure_process_query(laure_session_t *session, string line) {
     int code = 1;
     if (str_starts(line, "\\")) line++;
     
-    laure_parse_result res = laure_parse(line);
+    laure_parse_many_result res = laure_parse_many(line, ',', NULL);
+
     if (!res.is_ok) {
         printf("  %ssyntax_error%s %s\n", RED_COLOR, NO_COLOR, res.err);
         code = 2;
@@ -346,20 +347,25 @@ int laure_process_query(laure_session_t *session, string line) {
         laure_expression_show(res.exp, 0);
         #endif
 
-        laure_expression_set *expset = laure_expression_compose_one(res.exp);
+        laure_expression_set *expset = laure_expression_compose(res.exps);
 
-        control_ctx *cctx = laure_control_ctx_get(session, expset);
-        qresp response = laure_eval(cctx, expset);
+        qcontext *qctx = qcontext_new(laure_expression_compose(expset));
+        var_process_kit *vpk = laure_vpk_create(expset);
+        control_ctx *cctx = control_new(session->scope, qctx, vpk, NULL, false);
+
+        qresp response = laure_start(cctx, expset);
 
         if (!laure_is_silent(cctx)) {
-            if (response.state == q_true) {
-            printf("  true\n");
-            } else if (response.state == q_false) {
+            if (response.state == q_error) {
                 code = 2;
-                printf("  false\n");
-            } else if (response.state == q_error) {
-                code = 2;
-                printf("  %serror%s %s\n", RED_COLOR, NO_COLOR, response.error);
+                printf("  %serror%s: %s\n", RED_COLOR, NO_COLOR, response.error);
+            } else if (response.state == q_yield) {
+                if (response.error == 0x1) {
+                    printf("  true\n");
+                } else if (response.error == 0x0) {
+                    code = 2;
+                    printf("  false\n");
+                }
             }
         }
         free(cctx);
@@ -460,7 +466,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    printf("(laurelang v%s (c) timoniq)\n", VERSION);
+    printf("(laurelang v%s)\n", VERSION);
     LAURE_INTERPRETER_PATH = INTERPRETER_PATH;
 
     string prompt = getenv("LLPROMPT");
@@ -470,6 +476,8 @@ int main(int argc, char *argv[]) {
     if (timeout_s) LAURE_TIMEOUT = atoi(timeout_s);
 
     laure_session_t *session = laure_session_new();
+    laure_set_translators();
+    laure_init_name_buffs();
     laure_register_builtins(session);
 
     if (! FLAG_CLEAN) {
@@ -512,6 +520,7 @@ int main(int argc, char *argv[]) {
 
     Instance *main_p = laure_scope_find_by_key(session->scope, "main", true);
     if (main_p && ! FLAG_NOMAIN) {
+        printf("| %smain%s()\n", GREEN_COLOR, NO_COLOR);
         if (!laure_process_query(session, "main()"))
             return 0;
     }
