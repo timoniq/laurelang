@@ -233,7 +233,7 @@ laure_cell laure_scope_insert(
     Instance *ptr
 ) {
     if (scope->count == max_cells - 1) {
-        printf("limit of %d elements in scope exceeded.\n");
+        printf("limit of %d elements in scope exceeded.\n", max_cells);
         exit(0);
     }
     laure_cell cell;

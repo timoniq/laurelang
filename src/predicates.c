@@ -1,4 +1,5 @@
 #include "predicates.h"
+#include "readline/readline.h"
 
 qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
     Instance *var1 = pd_get_arg(pd, 0);
@@ -32,9 +33,7 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
         // 3 = 1 + X
         bigint *bi = malloc(sizeof(bigint));
         bigint_init(bi);
-
         bigint_sub(bi, sum_im->i_data, var1_im->i_data);
-
         INT_ASSIGN(var2_im, bi);
         return respond(q_true, NULL);
         
@@ -42,9 +41,7 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
         // 3 = X + 2
         bigint *bi = malloc(sizeof(bigint));
         bigint_init(bi);
-
         bigint_sub(bi, sum_im->i_data, var2_im->i_data);
-
         INT_ASSIGN(var1_im, bi);
         return respond(q_true, NULL);
 
@@ -105,23 +102,17 @@ qresp laure_predicate_integer_multiply(preddata *pd, control_ctx* cctx) {
     int prod_i  = prod_im->state == I;
 
     if (var1_i && var2_i && prod_i) {
-        bigint *real_prod = malloc(sizeof(bigint));
+        bigint real_prod[1];
         bigint_init(real_prod);
-
         bigint_mul(real_prod, var1_im->i_data, var2_im->i_data);
-        
         bool cmp = bigint_cmp(real_prod, prod_im->i_data) == 0;
-        free(real_prod->words);
-        free(real_prod);
-
+        bigint_free(real_prod);
         return respond((qresp_state)cmp, NULL);
 
     } else if (var1_i && var2_i && !prod_i) {
         bigint *bi_prod = malloc(sizeof(bigint));
         bigint_init(bi_prod);
-
         bigint_mul(bi_prod, var1_im->i_data, var2_im->i_data);
-
         INT_ASSIGN(prod_im, bi_prod);
         return respond(q_true, NULL);
 
@@ -130,21 +121,18 @@ qresp laure_predicate_integer_multiply(preddata *pd, control_ctx* cctx) {
         bigint_init(bi);
         void *success = bigint_div(bi, prod_im->i_data, var1_im->i_data, true);
         if (success == NULL) return respond(q_false, NULL);
-
         INT_ASSIGN(var2_im, bi);
         return respond(q_true, NULL);
 
     } else if (!var1_i && var2_i && prod_i) {
         bigint *bi = malloc(sizeof(bigint));
         bigint_init(bi);
-
         void *success = bigint_div(bi, prod_im->i_data, var2_im->i_data, true);
         if (success == NULL) return respond(q_false, NULL);
-
         INT_ASSIGN(var1_im, bi);
         return respond(q_true, NULL);
     } else {
-        return respond(q_error, strdup("op. int *|/: too ambiguative; unify"));
+        return respond(q_error, "op. int *|/: too ambiguative; unify");
     }
 }
 
@@ -172,5 +160,41 @@ qresp laure_predicate_sqrt(preddata *pd, control_ctx *cctx) {
         return respond(q_true, 0);
     } else {
         return respond(q_error, "sqrt: too ambiguative; unify");
+    }
+}
+
+qresp laure_predicate_message(preddata *pd, control_ctx *cctx) {
+    Instance *ins = pd_get_arg(pd, 0);
+    struct ArrayImage *img = (struct ArrayImage*) ins->image;
+    if (img->t != ARRAY)
+        RESPOND_ERROR("message's argument must be array, not %s", IMG_NAMES[img->t]);
+    
+    if (img->state) {
+        array_linked_t *linked = img->i_data.linked;
+        for (uint idx = 0; idx < img->i_data.length && linked; idx++) {
+            struct CharImage *ch = (struct CharImage*) linked->data->image;
+            int c = ch->c;
+            if (c == '\\') {
+                linked = linked->next;
+                idx++;
+                c = laure_convert_ch_esc(((struct CharImage*) linked->data->image)->c);
+            }
+            char buff[8];
+            laure_string_put_char(buff, c);
+            printf("%s", buff);
+            linked = linked->next;
+        }
+        printf("\n");
+        return respond(q_true, 0);
+    } else {
+        string s = readline("> ");
+        char buff[128];
+        snprintf(buff, 128, "\"%s\"", s);
+        free(s);
+        laure_expression_t exp[1];
+        exp->t = let_custom;
+        exp->s = buff;
+        bool result = img->translator->invoke(exp, img, cctx->scope);
+        return respond(result ? q_true : q_false, 0);
     }
 }

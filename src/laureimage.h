@@ -97,8 +97,15 @@ struct IntImage {
 
 struct CharImage {
     IMAGE_HEAD;
-    bool is_set;
-    int c;
+    // states:
+    // 0 - unset
+    // 1 - one
+    // 2 - charset
+    unsigned short state;
+    union {
+        int c;
+        string charset;
+    };
 };
 
 typedef struct {
@@ -123,7 +130,7 @@ typedef struct array_linked {
 
 // instantiated array data
 struct ArrayIData {
-    int length;
+    uint length;
     array_linked_t *linked;
 };
 
@@ -306,6 +313,12 @@ laure_image_head_enh read_enhanced_head(void *img);
 struct IntImage *laure_create_integer_i(int value);
 struct IntImage *laure_create_integer_u(Domain *dom);
 
+struct CharImage *laure_create_char_u();
+struct CharImage *laure_create_char_i(int c);
+struct CharImage *laure_create_charset(string charset);
+
+struct ArrayImage *laure_create_array_u(Instance *el_t);
+
 struct PredicateImage *predicate_header_new(struct InstanceSet *args, Instance *resp, bool is_constraint);
 
 void *image_deepcopy(laure_scope_t *scope, void *img);
@@ -445,4 +458,8 @@ Instance *laure_cle_add_predicate(
     bool is_constraint,
     string doc
 );
+
+int laure_convert_esc_ch(int c, char *write);
+int laure_convert_ch_esc(int c);
+
 #endif

@@ -11,3 +11,9 @@
     loves(Y, Z);
     X cons Y;
 }
+
+: ?mutual(string, string).
+?mutual(a, b) {
+    loves(a, b);
+    loves(b, a);
+}

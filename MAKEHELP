@@ -2,8 +2,13 @@
     |          Read installation notes at          |
     | https://docs.laurelang.org/wiki/installation |
   
-  make       - minimal build
-  make test  - run tests
-  make auto  - build interpreter and all default packages
-  make clean - delete temp files
+  make          - minimal build
+  make test     - run tests
+  make auto     - build interpreter and default pkgs
+  make packages - build all packages in lib
+  make clean    - delete temp files
+
+    Build flags:
+
+  DEBUG=true    - enable debugging features
 
