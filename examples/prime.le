@@ -5,7 +5,7 @@
 ?prime(n) {
     n > 2; n?;
     b > 1; b < n;
-    &all b { 
+    &all b {
         n / b ->
             fail();
     };

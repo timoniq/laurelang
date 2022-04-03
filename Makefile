@@ -9,10 +9,19 @@ LDFLAGS = -L/usr/local/lib -lreadline -lm -g -ldl
 LIB = $(SOURCES)/parser.o $(SOURCES)/string.o $(SOURCES)/instance.o $(SOURCES)/query.o $(SOURCES)/session.o $(SOURCES)/scope.o $(SOURCES)/domain.o $(SOURCES)/bigint.o $(SOURCES)/builtin.o $(SOURCES)/predicates.o  $(SOURCES)/apply.o
 OBJECTS = laure.o $(LIB)
 
+ifeq ($(DEBUG), true)
+	CFLAGS := $(CFLAGS) -DDEBUG=1
+else
+endif
+
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
 	$(CC) -ldl -rdynamic -g -o $(TARGET) $(OBJECTS) $(LDFLAGS)
+
+packages: $(LIB)
+	$(CC) -fPIC -shared -g -o laurelang.so $(LIB) $(LDFLAGS)
+	python3 utility/build_pkg.py
 
 clean:
 	rm -f $(TARGET) *.o $(SOURCES)/*.o *.so lib/*.so lib/*/*.so lib/*/src/*.o

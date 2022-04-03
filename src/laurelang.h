@@ -72,7 +72,7 @@ typedef struct laure_cell {
     uint idx;
 } laure_cell;
 
-#define max_cells 32
+#define max_cells 64
 
 typedef struct laure_scope {
     long *nlink;
@@ -299,6 +299,14 @@ extern clock_t            LAURE_CLOCK;
 extern char              *LAURE_INTERPRETER_PATH;
 extern char              *LAURE_CURRENT_ADDRESS;
 extern char              *LAURE_DOC_BUFF;
+
+extern Instance *CHAR_PTR;
+extern struct Translator 
+        *INT_TRANSLATOR, 
+        *CHAR_TRANSLATOR, 
+        *STRING_TRANSLATOR,
+        *ARRAY_TRANSLATOR,
+        *ATOM_TRANSLATOR;
 
 char *get_dflag(char *flagname);
 void add_dflag(char *flagname, char *value);

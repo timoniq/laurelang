@@ -1,6 +1,8 @@
 #include "builtin.h"
 #include <stdio.h>
 
+Instance *CHAR_PTR = NULL;
+
 string bp_repr(Instance* ins) {
     char buff[64];
     snprintf(buff, 64, "(predicate %s)", ins->name);
@@ -31,6 +33,7 @@ void laure_register_builtins(laure_session_t *session) {
         Instance *ins = malloc(sizeof(Instance));
         *ins = builtin.generate();
         ins->doc = strdup(builtin.doc);
+        if (str_eq(ins->name, "char")) CHAR_PTR = ins;
         laure_scope_insert(scope, ins);
     }
     
@@ -104,5 +107,26 @@ Instance builtin_integer() {
     instance.image = laure_create_integer_u(
         int_domain_new()
     );
+    return instance;
+}
+
+Instance builtin_char() {
+    Instance instance;
+    instance.name = strdup("char");
+    instance.doc = NULL;
+    instance.locked = true;
+    instance.repr = char_repr;
+    instance.image = laure_create_char_u();
+    return instance;
+}
+
+Instance builtin_string() {
+    Instance instance;
+    instance.name = strdup("string");
+    instance.doc = NULL;
+    instance.locked = true;
+    instance.repr = string_repr;
+    instance.image = laure_create_array_u(CHAR_PTR);
+    ((struct ArrayImage*) instance.image)->translator = STRING_TRANSLATOR;
     return instance;
 }

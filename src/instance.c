@@ -7,12 +7,17 @@ struct Translator *INT_TRANSLATOR,
                   *ATOM_TRANSLATOR;
 
 string MOCK_NAME;
+qresp  MOCK_QRESP;
 char* IMG_NAMES[] = {"Integer", "Char", "Array", "Atom", "Predicate", "Constraint", "Structure", "", "[External]"};
 
 #define REC_TYPE(rec) gen_resp (*rec)(void*, void*)
 
 int char_isnumber(int _c) {
     return _c >= 48 && _c <= 57;
+}
+
+gen_resp form_gen_resp(bool state, qresp qr) {
+    gen_resp gr = {state, qr};
 }
 
 /*
@@ -317,7 +322,7 @@ void int_free(struct IntImage *im) {
    Working with arrays
 */
 
-struct ArrayImage *laure_create_array_i(Instance *el_t) {
+struct ArrayImage *laure_create_array_u(Instance *el_t) {
     struct ArrayImage *img = malloc(sizeof(struct ArrayImage));
     struct ArrayUData u_data;
     u_data.length = int_domain_new();
@@ -495,6 +500,380 @@ struct ArrayImage *array_copy(struct ArrayImage *old_img) {
 }
 
 /*
+   Working with chars
+*/
+
+struct CharImage *laure_create_char_u() {
+    struct CharImage *img = malloc(sizeof(struct CharImage));
+    img->t = CHAR;
+    img->state = 0;
+    img->translator = CHAR_TRANSLATOR;
+    return img;
+}
+
+struct CharImage *laure_create_char_i(int c) {
+    struct CharImage *img = malloc(sizeof(struct CharImage));
+    img->t = CHAR;
+    img->state = 1;
+    img->c = c;
+    img->translator = CHAR_TRANSLATOR;
+    return img;
+}
+
+struct CharImage *laure_create_charset(string charset) {
+    struct CharImage *img = malloc(sizeof(struct CharImage));
+    img->t = CHAR;
+    img->state = 2;
+    img->charset = charset;
+    img->translator = CHAR_TRANSLATOR;
+    return img;
+}
+
+int laure_convert_ch_esc(int c) {
+    switch (c) {
+        case 'a': return '\a';
+        case 'b': return '\b';
+        case 'e': return '\e';
+        case 'f': return '\f';
+        case 'n': return '\n';
+        case 'r': return '\r';
+        case 't': return '\t';
+        case 'v': return '\v';
+        default: return c;
+    }
+}
+
+int laure_convert_esc_ch(int c, char *write) {
+    switch (c) {
+        case '\a': strcpy(write, "\\a"); return 2;
+        case '\b': strcpy(write, "\\b"); return 2;
+        case '\e': strcpy(write, "\\e"); return 2;
+        case '\f': strcpy(write, "\\f"); return 2;
+        case '\n': strcpy(write, "\\n"); return 2;
+        case '\r': strcpy(write, "\\r"); return 2;
+        case '\t': strcpy(write, "\\t"); return 2;
+        case '\v': strcpy(write, "\\v"); return 2;
+        default: return laure_string_put_char(write, c);
+    }
+}
+
+bool char_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
+    if (exp->t != let_custom) return false;
+    struct CharImage *img = (struct CharImage*)img_;
+    if (! ((exp->s[0] == '\'' && lastc(exp->s) == '\'') || (exp->s[0] == '\"' && lastc(exp->s) == '\"'))) return false;
+
+    if (strlen(exp->s) - 2 >= 127)
+        return false;
+    
+    char buff[128];
+    uint l = 0;
+
+    for (uint idx = 0; idx < laure_string_strlen(exp->s) - 2; idx++) {
+        int c = laure_string_char_at_pos(exp->s + 1, strlen(exp->s) - 2, idx);
+        if (c == '\\') {
+            c = laure_convert_ch_esc(
+                laure_string_char_at_pos(exp->s + 1, strlen(exp->s) - 2, ++idx)
+            );
+        }
+        l += laure_string_put_char(buff + l, c);
+    }
+
+    size_t len = laure_string_strlen(buff);
+    size_t bufflen = strlen(buff);
+
+    int ch = laure_string_char_at_pos(buff, bufflen, 0);
+
+    switch (img->state) {
+        case 0: {
+            if (len == 1) {
+                img->state = 1;
+                img->c = ch;
+            } else {
+                img->state = 2;
+                img->charset = strdup(buff);
+            }
+            return true;
+        }
+        case 1: {
+            if (len == 1) {
+                return img->c == ch;
+            } else {
+                int seek = img->c;
+                for (size_t idx = 0; idx < len; idx++) {
+                    int c = laure_string_char_at_pos(buff, bufflen, idx);
+                    if (c == '\\') {
+                        int c2 = laure_string_char_at_pos(buff, bufflen, ++idx);
+                        c = laure_convert_ch_esc(c2);
+                    }
+                    if (c == seek) return true;
+                }
+                return false;
+            }
+        }
+        case 2: {
+            size_t chset_unicode_len = laure_string_strlen(img->charset);
+            size_t chset_byte_sz = strlen(img->charset);
+            if (len == 1) {
+                int seek = ch;
+                for (size_t idx = 0; idx < chset_unicode_len; idx++) {
+                    int c = laure_string_char_at_pos(img->charset, chset_byte_sz, idx);
+                    if (c == seek) {
+                        img->state = 1;
+                        img->c = seek;
+                        return true;
+                    }
+                }
+                return false;
+            } else {
+                if (chset_unicode_len > len) return false;
+                for (size_t idx = 0; idx < chset_unicode_len; idx++) {
+                    int c = laure_string_char_at_pos(img->charset, chset_byte_sz, idx);
+                    bool f = false;
+                    for (size_t jdx = 0; jdx < len; jdx++) {
+                        if (laure_string_char_at_pos(buff, bufflen, jdx) == c) {
+                            f = true;
+                            break;
+                        }
+                    }
+                    if (! f) return false;
+                }
+                return true;
+            }
+            break;
+        }
+        default: {
+            printf("char_translator for state=%d not implemented\n", img->state);
+            return false;
+        }
+    }
+}
+
+string char_repr(Instance *ins) {
+    struct CharImage *img = (struct CharImage*)ins->image;
+    switch (img->state) {
+        case 1: {
+            char buff[8];
+            strcpy(buff, "'");
+            laure_convert_esc_ch(img->c, buff + 1);
+            strcat(buff, "'");
+            return strdup(buff);
+        }
+        case 2: {
+            size_t sz = strlen(img->charset);
+            string buff = malloc((sz * 2) + 3);
+            strcpy(buff, "\'");
+            uint l = 1;
+            for (uint idx = 0; idx < laure_string_strlen(img->charset); idx++) {
+                int c = laure_string_char_at_pos(img->charset, sz, idx);
+                l += laure_convert_esc_ch(c, buff + l);
+            }
+            strcat(buff, "\'");
+            return buff;
+        }
+        default: {
+            return strdup("(char)");
+        }
+    }
+}
+
+bool char_eq(struct CharImage *img1_t, struct CharImage *img2_t) {
+    if (img1_t->state == img2_t->state) {
+        if (img1_t->state == 1) {
+            return img1_t->c == img2_t->c;
+        } else if (img1_t->state == 0) {
+            return true;
+        } else if (img1_t->state == 2) {
+            // (intersection)
+            struct CharImage *min = img1_t;
+            struct CharImage *max = img2_t;
+            if (strlen(max->charset) < strlen(min->charset)) {
+                struct CharImage *temp = max;
+                max = min;
+                min = temp;
+            }
+            char buff[128];
+            uint l = 0;
+            for (uint idx = 0; idx < laure_string_strlen(min->charset); idx++) {
+                int c1 = laure_string_char_at_pos(min->charset, strlen(min->charset), idx);
+                for (uint jdx = 0; jdx < laure_string_strlen(max->charset); jdx++) {
+                    int c2 = laure_string_char_at_pos(max->charset, strlen(max->charset), jdx);
+                    if (c1 == c2) {
+                        if (l >= 122)
+                            break;
+                        l += laure_convert_esc_ch(c1, buff + l);
+                    }
+                }
+            }
+            if (! l) return false;
+            free(min->charset);
+            free(max->charset);
+            min->charset = strdup(buff);
+            max->charset = strdup(buff);
+            return true;
+        }
+    } else if (img1_t->state || img2_t->state) {
+        if (! img1_t->state) {
+            img1_t->state = img2_t->state;
+            if (img2_t->state == 1) {
+                img1_t->c = img2_t->c;
+            } else {
+                img1_t->charset = strdup(img2_t->charset);
+            }
+        } else {
+            img2_t->state = img1_t->state;
+            if (img1_t->state == 1) {
+                img2_t->c = img1_t->c;
+            } else {
+                img2_t->charset = strdup(img1_t->charset);
+            }
+        }
+    } else if (img1_t->state == 2 || img2_t->state == 2) {
+        struct CharImage *chset = img1_t->state == 2 ? img1_t : img2_t;
+        struct CharImage *single = img1_t->state == 2 ? img2_t : img1_t;
+        for (uint idx = 0; idx < laure_string_strlen(chset->charset); idx++) {
+            int c = laure_string_char_at_pos(chset->charset, strlen(chset->charset), idx);
+            if (c == single->c) {
+                chset->c = single->c;
+                chset->state = 1;
+                return true;
+            }
+        }
+        return false;
+    }
+    return false;
+}
+
+struct CharImage *char_deepcopy(struct CharImage *old_img) {
+    struct CharImage *image = malloc(sizeof(struct CharImage));
+    image->t = CHAR;
+    image->translator = old_img->translator;
+    image->state = old_img->state;
+    switch (image->state) {
+        case 1: {
+            image->c = old_img->c;
+            break;
+        }
+        case 2: {
+            image->charset = strdup(old_img->charset);
+            break;
+        }
+        default: break;
+    }
+    return image;
+}
+
+gen_resp char_generate(
+    laure_scope_t *scope, 
+    struct CharImage *im, 
+    REC_TYPE(rec), 
+    void *external_ctx
+) {
+    switch (im->state) {
+        case 0: {
+            return form_gen_resp(false, 
+                respond(q_error, "trying to unify on unknown charset; too ambiguative")
+            );
+        }
+        case 1: {
+            return rec(im, external_ctx);
+        }
+        case 2: {
+            size_t len = laure_string_strlen(im->charset);
+            size_t bytes = strlen(im->charset);
+            string charset = im->charset;
+            for (size_t idx = 0; idx < len; idx++) {
+                int c = laure_string_char_at_pos(charset, bytes, idx);
+                im->state = 1;
+                im->c = c; 
+                gen_resp gr = rec(im, external_ctx);
+                if (gr.r == 0) return gr;
+            }
+            im->state = 2;
+            im->charset = charset;
+            return form_gen_resp(true, MOCK_QRESP);
+        }
+    }
+}
+
+void char_free(struct CharImage *im) {
+    if (im->state == 2) {
+        free(im->charset);
+    }
+    free(im);
+}
+
+/*
+   Working with strings
+*/
+
+string string_repr(Instance *ins) {
+    struct ArrayImage *image = (struct ArrayImage*) ins->image;
+    if (image->state) {
+        // unicode character can take up to 5 bytes
+        string buff = malloc((image->i_data.length * 5) + 3);
+        uint finlen = 2;
+        strcpy(buff, "\"");
+        array_linked_t *linked = image->i_data.linked;
+        for (uint idx = 0; idx < image->i_data.length && linked; idx++) {
+            struct CharImage *ch = linked->data->image;
+            char chbuff[6];
+            finlen += laure_string_put_char(chbuff, ch->c);
+            strcat(buff, chbuff);
+            linked = linked->next;
+        }
+        strcat(buff, "\"");
+        string final = malloc(finlen + 1);
+        strcpy(final, buff);
+        free(buff);
+        return final;
+    } else {
+        return strdup("(string)");
+    }
+}
+
+bool string_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
+    assert(exp->t == let_custom);
+    struct ArrayImage *strarr = (struct ArrayImage*)img_;
+    if (! str_starts(exp->s, "\"") && lastc(exp->s) == "\"") return false;
+    int len = (int)laure_string_strlen(exp->s + 1) - 1;
+    size_t bufflen = strlen(exp->s + 1) - 1;
+    if (strarr->state) {
+        if (strarr->i_data.length != len) return false;
+        array_linked_t *linked = strarr->i_data.linked;
+        for (uint idx = 0; idx < len && linked; idx++) {
+            int c = laure_string_char_at_pos(exp->s + 1, bufflen, idx);
+            struct CharImage *ch = (struct CharImage*)linked->data->image;
+            if (c != ch->c) return false;
+            linked = linked->next;
+        }
+        return true;
+    } else {
+        bigint bi[1];
+        bigint_init(bi);
+        bigint_from_int(bi, len);
+        bool chk = int_domain_check(strarr->u_data.length, bi);
+        bigint_free(bi);
+        if (! chk) return false;
+        array_linked_t *linked = NULL;
+        for (int idx = len - 1; idx >= 0; idx--) {
+            int c = laure_string_char_at_pos(exp->s + 1, bufflen, idx);
+            struct CharImage *ch = laure_create_char_i(c);
+            Instance *chins = instance_new(MOCK_NAME, NULL, ch);
+            array_linked_t *l = malloc(sizeof(array_linked_t));
+            l->next = linked;
+            l->data = chins;
+            linked = l;
+        }
+        struct ArrayIData i_data;
+        i_data.length = len;
+        i_data.linked = linked;
+        strarr->state = I;
+        strarr->i_data = i_data;
+        return true;
+    }
+}
+
+/*
    Global methods
 */
 
@@ -502,11 +881,13 @@ struct ArrayImage *array_copy(struct ArrayImage *old_img) {
 
 void laure_set_translators() {
     INT_TRANSLATOR = new_translator(int_translator);
-    // CHAR_TRANSLATOR = new_translator(char_translator);
+    CHAR_TRANSLATOR = new_translator(char_translator);
     ARRAY_TRANSLATOR = new_translator(array_translator);
-    // STRING_TRANSLATOR = new_translator(string_translator);
+    STRING_TRANSLATOR = new_translator(string_translator);
     // ATOM_TRANSLATOR = new_translator(atom_translator);
     MOCK_NAME = strdup( "$mock_name" );
+    MOCK_QRESP.state = q_true;
+    MOCK_QRESP.error = 0;
 }
 
 // Image eq
@@ -520,6 +901,12 @@ bool image_equals(void* img1, void* img2) {
     switch (head1.t) {
         case INTEGER: {
             return int_eq((struct IntImage*) img1, (struct IntImage*) img2);
+        }
+        case CHAR: {
+            return char_eq((struct CharImage*) img1, (struct CharImage*) img2);
+        }
+        case ARRAY: {
+            return array_eq((struct ArrayImage*) img1, (struct ArrayImage*) img2);
         }
         default:
             return false;
@@ -537,6 +924,9 @@ gen_resp image_generate(laure_scope_t *scope, void *img, REC_TYPE(rec), void *ex
         case INTEGER: {
             return int_generate(scope, (struct IntImage*) img, rec, external_ctx);
         }
+        case CHAR: {
+            return char_generate(scope, (struct CharImage*) img, rec, external_ctx);
+        }
         default: {
             char error[128];
             snprintf(error, 128, "no instantiation implemented for %s", IMG_NAMES[head.t]);
@@ -552,7 +942,13 @@ void *image_deepcopy(laure_scope_t *stack, void *img) {
     laure_image_head head = read_head(img);
     switch (head.t) {
         case INTEGER: {
-            return int_deepcopy(img);
+            return int_deepcopy((struct IntImage*)img);
+        }
+        case CHAR: {
+            return char_deepcopy((struct CharImage*)img);
+        }
+        case ARRAY: {
+            return array_copy(img);
         }
         case CONSTRAINT_FACT:
         case PREDICATE_FACT: {
@@ -577,7 +973,7 @@ bool instantiated(Instance *ins) {
         case PREDICATE_FACT:
             return true;
         case CHAR:
-            return ((struct CharImage*)ins->image)->is_set;
+            return true;
         default: return true;
     }
 }
@@ -588,7 +984,12 @@ void image_free(void *image) {
     laure_image_head head = read_head(image);
     switch (head.t) {
         case INTEGER: {
-            int_free(image);
+            int_free((struct IntImage*)image);
+            break;
+        }
+        case CHAR: {
+            char_free((struct CharImage*)image);
+            break;
         }
         default: break;
     }

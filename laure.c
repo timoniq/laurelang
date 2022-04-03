@@ -342,9 +342,13 @@ int laure_process_query(laure_session_t *session, string line) {
         printf("  %ssyntax_error%s %s\n", RED_COLOR, NO_COLOR, res.err);
         code = 2;
     } else {
-
         #ifdef DEBUG
-        laure_expression_show(res.exp, 0);
+        printf("AST: %s%s%s\n", colored("["));
+        laure_expression_t *ptr;
+        EXPSET_ITER(res.exps, ptr, {
+            laure_expression_show(ptr, 2);
+        });
+        printf("%s%s%s\n", colored("]"));
         #endif
 
         laure_expression_set *expset = laure_expression_compose(res.exps);

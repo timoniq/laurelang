@@ -1095,9 +1095,7 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
         case let_constraint:
         case let_pred: {
             printindent(indent);
-            printf("--- predicate %s ---\n", exp->s);
-            printindent(indent);
-            printf("- bodyargs -\n");
+            printf("predicate %s [\n", exp->s);
             laure_expression_t *ptr = NULL;
             if (!exp->ba) {
                 return;
@@ -1106,31 +1104,31 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
                 laure_expression_show(ptr, indent + 2);
             });
             printindent(indent);
-            printf("---\n");
+            printf("]\n");
             break;
         }
 
         case let_array: {
             printindent(indent);
-            printf("-- array --\n");
+            printf("array [\n");
             laure_expression_t *ptr = NULL;
             EXPSET_ITER(exp->ba->set, ptr, {
                 laure_expression_show(ptr, indent + 2);
             });
             printindent(indent);
-            printf("--\n");
+            printf("]\n");
             break;
         }
 
         case let_quant: {
             printindent(indent);
-            printf("-- quantified %s %s --\n", exp->flag ? "All" : "Exists", exp->s);
+            printf("quantified %s %s [\n", exp->flag ? "All" : "Exists", exp->s);
             laure_expression_t *ptr = NULL;
             EXPSET_ITER(exp->ba->set, ptr, {
                 laure_expression_show(ptr, indent + 2);
             });
             printindent(indent);
-            printf("--\n");
+            printf("]\n");
             break;
         }
 
@@ -1142,37 +1140,37 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
 
         case let_name: {
             printindent(indent);
-            printf("-- naming --\n");
+            printf("naming [\n");
             laure_expression_t *ptr = NULL;
             EXPSET_ITER(exp->ba->set, ptr, {
                 laure_expression_show(ptr, indent + 2);
             });
             printindent(indent);
-            printf("--\n");
+            printf("]\n");
             break;
         }
 
         case let_pred_call: {
             printindent(indent);
-            printf("--- call pred %s ---\n", exp->s);
+            printf("call pred %s [\n", exp->s);
             laure_expression_t *ptr = NULL;
             EXPSET_ITER(exp->ba->set, ptr, {
                 laure_expression_show(ptr, indent + 2);
             });
             printindent(indent);
-            printf("--\n");
+            printf("]\n");
             break;
         }
 
         case let_assert: {
             printindent(indent);
-            printf("=assert=\n");
+            printf("assert [\n");
             laure_expression_t *ptr = NULL;
             EXPSET_ITER(exp->ba->set, ptr, {
                 laure_expression_show(ptr, indent + 2);
             });
             printindent(indent);
-            printf("=\n");
+            printf("]\n");
             break;
         }
 
