@@ -1307,6 +1307,7 @@ string constraint_repr(Instance *ins) {
     return strdup(buff);
 }
 
+/*
 void laure_add_grabbed_link(control_ctx *cctx, ulong nlink) {
     laure_grab_linked *grab = malloc(sizeof(laure_grab_linked));
     grab->link = nlink;
@@ -1325,6 +1326,7 @@ void laure_free_grab(laure_grab_linked *grab) {
         laure_free_grab(grab->next);
     free(grab);
 }
+*/
 
 /* ==========
 Miscellaneous
