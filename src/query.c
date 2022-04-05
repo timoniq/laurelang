@@ -728,11 +728,11 @@ ARGPROC_RES pred_call_procvar(
                         Instance *nins = instance_deepcopy(cctx->tmp_answer_scope, vname, arg);
                         #ifdef SCOPE_LINKED
                         linked_scope_t *linked = laure_scope_insert(cctx->tmp_answer_scope, nins);
-                        laure_add_grabbed_link(cctx, linked->link);
+                        // laure_add_grabbed_link(cctx, linked->link);
                         *l = linked->link;
                         #else
                         laure_cell cell = laure_scope_insert(cctx->tmp_answer_scope, nins);
-                        laure_add_grabbed_link(cctx, cell.link);
+                        // laure_add_grabbed_link(cctx, cell.link);
                         *l = cell.link;
                         #endif
                     }
