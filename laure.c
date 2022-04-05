@@ -372,6 +372,7 @@ int laure_process_query(laure_session_t *session, string line) {
                 }
             }
         }
+        laure_scope_free(cctx->tmp_answer_scope);
         free(cctx);
     }
     return code;

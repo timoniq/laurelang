@@ -1021,9 +1021,9 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
         } else if (resp.state == q_yield) {
             if (resp.error == YIELD_OK) found = true;
         }
-        laure_scope_free(prev);
+        // laure_scope_free(prev);
     }
-    laure_scope_free(init_scope);
+    // laure_scope_free(init_scope);
     return RESPOND_YIELD(found ? YIELD_OK : YIELD_FAIL);
 }
 
@@ -1035,7 +1035,7 @@ qresp laure_eval_callable_decl(_laure_eval_sub_args) {
     UNPACK_CCTX(cctx);
     laure_session_t session[1];
     session->scope = scope;
-    memset(session->_included_filepaths, 0, sizeof(void*));
+    memset(session->_included_filepaths, 0, sizeof(void*) * included_fp_max);
     apply_result_t result = laure_consult_predicate(session, scope, e, LAURE_CURRENT_ADDRESS);
     if (result.status)
         return RESPOND_TRUE;
@@ -1182,6 +1182,7 @@ control_ctx *control_new(laure_scope_t* scope, qcontext* qctx, var_process_kit* 
     control_ctx *cctx = malloc(sizeof(control_ctx));
     cctx->scope = scope;
     cctx->tmp_answer_scope = laure_scope_new(scope->glob, scope);
+    cctx->tmp_answer_scope->next = 0;
     cctx->qctx = qctx;
     cctx->vpk = vpk;
     cctx->data = data;
