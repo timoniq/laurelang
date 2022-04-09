@@ -11,19 +11,8 @@
 #define DOC_tests_run "used to run all tests\ntest name should start with `test_`"
 
 // error codes
-#define GENERATOR_FAULT_VALUE "GF1"
-#define GENERATOR_FAULT_COUNT "GF2"
-
-
-#if defined(__APPLE__)
-extern uint LAURE_RECURSION_DEPTH;
-extern laure_session_t* LAURE_SESSION;
-extern clock_t LAURE_CLOCK;
-#else
-uint LAURE_RECURSION_DEPTH = 0;
-laure_session_t* LAURE_SESSION = NULL;
-clock_t LAURE_CLOCK = 0;
-#endif
+#define GENERATOR_FAULT_VALUE "Value"
+#define GENERATOR_FAULT_COUNT "Count"
 
 struct receiver_payload {
     char **data;
@@ -120,23 +109,24 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     memset(tests, 0, sizeof(void*) * 256);
     int len = 0;
 
-    Cell cell;
-    STACK_ITER(cctx->stack->global, cell, {
-        if (str_starts(cell.instance->name, "test_")) {
+    laure_scope_iter(cctx->scope->glob, cellptr, {
+        Instance *ins = cellptr->ptr;
+        if (str_starts(ins->name, "test_")) {
             if (len >= 255) {
                 printf("too many tests. max 256 per suite\n");
                 break;
             }
-            ImageHead h = read_head(cell.instance->image);
+            laure_image_head h = read_head(ins->image);
             if (h.t == PREDICATE_FACT) {
-                tests[len] = cell.instance;
+                tests[len] = ins;
                 len++;
             }
         }
-    }, false);
+    });
 
-    if (!len && mode == full) {
-        printf("Collected 0 tests. Terminating.\n");
+    if (!len) {
+        if (mode == full)
+            printf("Collected 0 tests. Terminating.\n");
         return respond(q_true, NULL);
     }
 
@@ -144,14 +134,10 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     uint tests_passed = 0;
 
     laure_session_t *sess = malloc(sizeof(laure_session_t));
-    sess->stack = laure_stack_clone(cctx->stack->global, true);
-    sess->stack->global = sess->stack;
-    sess->_included_filepaths[0] = 0;
-    sess->_doc_buffer = NULL;
-    sess->signal = 0;
 
-    void *old_sess = LAURE_SESSION;
-    LAURE_SESSION = sess;
+    sess->scope = cctx->scope->glob;
+    sess->scope->glob = sess->scope;
+    memset(sess->_included_filepaths, 0, included_fp_max * sizeof(void*));
 
     string comments[256];
     memset(comments, 0, sizeof(void*) * 256);
@@ -225,7 +211,21 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         }
 
         laure_expression_set *expset = laure_expression_compose_one(res.exp);
-        control_ctx *ncctx = laure_control_ctx_get(sess, expset);
+
+        qcontext nqctx[1];
+        nqctx->expset = expset;
+        nqctx->cut = false;
+        nqctx->next = NULL;
+        nqctx->constraint_mode = false;
+
+        control_ctx ncctx[1];
+        ncctx->data = NULL;
+        ncctx->qctx = nqctx;
+        ncctx->scope = cctx->scope;
+        ncctx->silent = false;
+        ncctx->tmp_answer_scope = laure_scope_new(cctx->scope->glob, cctx->scope);
+        ncctx->tmp_answer_scope->next = NULL;
+        ncctx->vpk = laure_vpk_create(expset);
         ncctx->vpk->sender_receiver = test_suite_receiver;
 
         struct receiver_payload *payload = malloc(sizeof(struct receiver_payload));
@@ -234,12 +234,12 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         payload->data = data;
         payload->data_cnt = argc;
         payload->got_invalid = NULL;
+
         ncctx->vpk->payload = payload;
         ncctx->vpk->mode = SENDER;
 
-        LAURE_RECURSION_DEPTH = 0;
         LAURE_CLOCK = clock();
-        qresp response = laure_eval(ncctx, expset);
+        qresp response = laure_start(ncctx, expset);
 
         if (mode == full) {
             up;
@@ -249,7 +249,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         if (! payload->passed && payload->got_invalid) {
             if (mode == full) printf("%s: %s%sfailed (%s)%s\n", predicate->name, spaces, RED_COLOR, GENERATOR_FAULT_VALUE, NO_COLOR);
             char buff[256];
-            snprintf(buff, 256, "[%s] incorrect value generated: got `%s%s%s` expected `%s%s%s`", GENERATOR_FAULT_VALUE, RED_COLOR, payload->got_invalid, NO_COLOR, GREEN_COLOR, payload->data[payload->idx], NO_COLOR);
+            snprintf(buff, 256, "[%s] number %d: \n    GOT %s%s%s \n    EXP %s%s%s", GENERATOR_FAULT_VALUE, payload->idx + 1, RED_COLOR, payload->got_invalid, NO_COLOR, GREEN_COLOR, payload->data[payload->idx], NO_COLOR);
             comments[i] = strdup( buff );
         } else if (payload->idx != payload->data_cnt) {
             if (mode == full) printf("%s: %s%sfailed (%s)%s\n", predicate->name, spaces, RED_COLOR, GENERATOR_FAULT_COUNT, NO_COLOR);
@@ -262,17 +262,20 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
             tests_passed++;
         } else {
             switch (response.state) {
-                case q_true: {
-                    if (mode == full)
-                    printf("%s: %s%spassed%s\n", predicate->name, spaces, GREEN_COLOR, NO_COLOR);
-                    tests_passed++;
+                case q_yield: {
+                    if (response.error == 0x1) {
+                        if (mode == full)
+                        printf("%s: %s%spassed%s\n", predicate->name, spaces, GREEN_COLOR, NO_COLOR);
+                        tests_passed++;
+                    } else {
+                        printf("%s: %s%sfailed%s\n", predicate->name, spaces, RED_COLOR, NO_COLOR);
+                    }
                     break;
                 }
-                case q_false:
                 case q_error: {
                     if (mode == full)
                     printf("%s: %s%sfailed%s\n", predicate->name, spaces, RED_COLOR, NO_COLOR);
-                    comments[i] = response.error;
+                    comments[i] = strdup(response.error);
                     break;
                 }
                 default: {
@@ -282,6 +285,8 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
                 }
             }
         }
+        free(payload);
+        laure_scope_free(ncctx->tmp_answer_scope);
     }
 
     len = checked_len;
@@ -289,7 +294,6 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     t = clock() - t;
     double elapsed = ((double)t) / CLOCKS_PER_SEC;
 
-    laure_stack_free(sess->stack);
     free(sess);
 
     if (mode != nologs) {
@@ -311,13 +315,11 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         printf("----------------------\n");
     }
 
-    LAURE_SESSION = old_sess;
     return respond(tests_passed == len ? q_true : q_false, NULL);
 }
 
-int package_include(laure_session_t *session) {
-    LAURE_SESSION = session;
-    laure_cle_add_predicate(
+int on_include(laure_session_t *session) {
+    laure_api_add_predicate(
         session, "tests_run", 
         test_predicate_run, 
         0, NULL, NULL, false, 

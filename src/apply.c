@@ -31,6 +31,15 @@ int laure_load_shared(laure_session_t *session, char *path) {
 
     void *dfs = dlsym(lib, "DFLAGS");
     memcpy(dfs, DFLAGS, DFLAG_MAX * 32 * 2);
+
+    ulong **link_id = dlsym(lib, "LAURE_LINK_ID");
+    *link_id = LAURE_LINK_ID;
+
+    void (*init_nb)() = dlsym(lib, "laure_init_name_buffs");
+    init_nb();
+
+    void (*set_transl)() = dlsym(lib, "laure_set_translators");
+    set_transl();
     
     int (*perform_upload)(laure_session_t*) = dlsym(lib, "on_include");
     if (!perform_upload) {

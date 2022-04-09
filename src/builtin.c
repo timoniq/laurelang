@@ -130,3 +130,69 @@ Instance builtin_string() {
     ((struct ArrayImage*) instance.image)->translator = STRING_TRANSLATOR;
     return instance;
 }
+
+/* API */
+
+Instance *laure_api_add_predicate(
+    laure_session_t *session,
+    string name,
+    qresp (*callable)(preddata*, control_ctx*),
+    uint argc, string arg_hints, string response_hint,
+    bool is_constraint, string doc
+) {
+    struct PredicateCImage *cimage = malloc(sizeof(struct PredicateCImage));
+
+    cimage->argc = argc;
+    cimage->pred = callable;
+
+    if (arg_hints != NULL) {
+        cimage->hints = malloc(sizeof(Instance*) * argc);
+
+        string hint_names_s = arg_hints;
+
+        string_linked *linked1 = string_split(hint_names_s, ' ');
+        int j = 0;
+
+        do {
+            string hint_pattern = linked1->s;
+            string_linked *linked2 = string_split(hint_pattern, ':');
+            string hint_name = linked2->s;
+            string hint_tname = linked2->next->s;
+
+            Instance *arg = get_hint(hint_tname, session->scope);
+            cimage->hints[j] = hint_new(hint_name, arg);
+            linked1 = linked1->next;
+            j++;
+        } while (linked1);
+
+    } else {
+        cimage->hints = NULL;
+    }
+
+    if (response_hint != NULL) {
+        string hint = response_hint;
+        Instance *resp = get_hint(hint, session->scope);
+        cimage->resp_hint = resp;
+    } else {
+        cimage->resp_hint = NULL;
+    }
+
+    struct PredicateImageVariation pv;
+    pv.t = PREDICATE_C;
+    pv.c = *cimage;
+
+    struct PredicateImage *img = malloc(sizeof(struct PredicateImage));
+
+    struct PredicateImageVariationSet *variations = pvs_new();
+    pvs_push(variations, pv);
+
+    img->t = !is_constraint ? PREDICATE_FACT : CONSTRAINT_FACT;
+    img->variations = variations;
+    img->translator = NULL;
+    img->is_primitive = false;
+
+    Instance *ins = instance_new(name, doc, img);
+    ins->repr = is_constraint ? bc_repr : bp_repr;
+
+    laure_scope_insert(session->scope, ins);
+}

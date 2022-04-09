@@ -41,11 +41,11 @@
     b > 0;
     a __gte b;
     &all b {
-        b = 1
+        b = 1;
     };
     c __gte 0;
     &exists c {
-        c = 0
+        c = 0;
     };
 }
 

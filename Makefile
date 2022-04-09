@@ -27,6 +27,9 @@ clean:
 	rm -f $(TARGET) *.o $(SOURCES)/*.o *.so lib/*.so lib/*/*.so lib/*/src/*.o
 	find . -name "*.dSYM" -prune -exec rm -rf {} \;
 
+test:
+	./$(TARGET) @/test tests -q "tests_run()" -norepl -signal
+
 help:
 	@cat MAKEHELP
 

@@ -68,6 +68,29 @@ typedef struct apply_result {
     char *error;
 } apply_result_t;
 
+typedef void (*single_proc)(laure_scope_t*, char*, void*);
+typedef bool (*sender_rec)(char*, void*);
+
+typedef enum VPKMode {
+    INTERACTIVE,
+    SENDER,
+    SILENT,
+} vpk_mode_t;
+typedef struct laure_vpk {
+
+    vpk_mode_t mode;
+    bool       do_process;
+    void      *payload;
+
+    char** tracked_vars;
+    int     tracked_vars_len;
+    bool    interactive_by_name;
+
+    single_proc single_var_processor;
+    sender_rec  sender_receiver;
+
+} var_process_kit;
+
 control_ctx *control_new(laure_scope_t* scope, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig);
 qcontext *qcontext_new(laure_expression_set *expset);
 
