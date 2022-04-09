@@ -8,11 +8,11 @@
 qresp laure_predicate_integer_plus(preddata*, control_ctx*);
 qresp laure_predicate_integer_multiply(preddata*, control_ctx*);
 qresp laure_constraint_gt(preddata*, control_ctx*);
+qresp laure_constraint_gte(preddata*, control_ctx*);
 qresp laure_predicate_sqrt(preddata*, control_ctx*);
 qresp laure_predicate_message(preddata*, control_ctx*);
 
 /*
-qresp laure_constraint_gte(preddata*, control_ctx*);
 qresp laure_predicate_repr(preddata*, control_ctx*);
 */
 

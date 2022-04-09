@@ -72,7 +72,7 @@ typedef struct laure_cell {
     uint idx;
 } laure_cell;
 
-#define max_cells 64
+#define max_cells 128
 
 typedef struct laure_scope {
     long *nlink;
@@ -325,6 +325,7 @@ void laure_set_translators();
 var_process_kit *laure_vpk_create(laure_expression_set *expset);
 void laure_vpk_free(var_process_kit*);
 qresp laure_showcast(control_ctx *cctx);
+qresp laure_send(laure_scope_t *scope, var_process_kit *vpk);
 
 void laure_init_name_buffs();
 string laure_get_argn(uint idx);

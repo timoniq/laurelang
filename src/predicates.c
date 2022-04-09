@@ -6,7 +6,7 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
     Instance *var2 = pd_get_arg(pd, 1);
     Instance *sum = pd->resp;
 
-    struct IntImage *var1_im = (struct IntImaikge*)var1->image;
+    struct IntImage *var1_im = (struct IntImage*)var1->image;
     struct IntImage *var2_im = (struct IntImage*)var2->image;
     struct IntImage *sum_im =  (struct IntImage*)sum->image;
 
@@ -83,7 +83,41 @@ qresp laure_constraint_gt(preddata *pd, control_ctx* cctx) {
         int_domain_lt(gt_im->u_data, v);
         return respond(q_true, 0);
     } else {
-        printf("todo 1\n");
+        printf("todo gt indefinite\n");
+        return respond(q_true, 0);
+    }
+}
+
+qresp laure_constraint_gte(preddata *pd, control_ctx* cctx) {
+    Instance *i = pd_get_arg(pd, 0);
+    Instance *gt = pd_get_arg(pd, 1);
+
+    struct IntImage *i_im = (struct IntImage*)i->image;
+    struct IntImage *gt_im = (struct IntImage*)gt->image;
+
+    int i_i = i_im->state == I;
+    int gt_i = gt_im->state == I;
+
+    if (i_i && gt_i) {
+        return bigint_cmp(i_im->i_data, gt_im->i_data) >= 0 ? respond(q_true, 0) : respond(q_false, 0);
+    } else if (!i_i && gt_i) {
+        if (i_im->u_data->rborder.t != INFINITE) {
+            if (bigint_cmp(i_im->u_data->rborder.data, gt_im->i_data) < 0) return respond(q_false, 0);
+        }
+        struct IntValue v;
+        v.t = INCLUDED;
+        v.data = bigint_copy(gt_im->i_data);
+        int_domain_gt(i_im->u_data, v);
+        return respond(q_true, 0);
+    } else if (i_i && !gt_i) {
+        if (!int_check(gt_im, i_im->i_data)) return respond(q_false, 0);
+        struct IntValue v;
+        v.t = INCLUDED;
+        v.data = bigint_copy(i_im->i_data);
+        int_domain_lt(gt_im->u_data, v);
+        return respond(q_true, 0);
+    } else {
+        printf("todo gte indefinite\n");
         return respond(q_true, 0);
     }
 }

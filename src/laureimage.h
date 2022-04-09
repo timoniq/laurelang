@@ -447,18 +447,17 @@ bool is_int(Instance*);
 
 bool int_check(void *img_, bigint *bi);
 
-Instance *laure_cle_add_predicate(
-    laure_session_t *session,
-    string name,
-    qresp (*pred)(preddata*, control_ctx*),
-    int argc,
-    string args_hint,
-    string response_hint,
-    bool is_constraint,
-    string doc
-);
-
 int laure_convert_esc_ch(int c, char *write);
 int laure_convert_ch_esc(int c);
+
+/* API */
+
+Instance *laure_api_add_predicate(
+    laure_session_t *session,
+    string name,
+    qresp (*callable)(preddata*, control_ctx*),
+    uint argc, string arg_hints, string response_hint,
+    bool is_constraint, string doc
+);
 
 #endif

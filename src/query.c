@@ -10,9 +10,6 @@
 #define YIELD_FAIL (void*)0
 #define ANONVAR_NAME "_"
 
-typedef void (*single_proc)(laure_scope_t*, char*, void*);
-typedef bool (*sender_rec)(char*, void*);
-
 #define is_global(stack) stack->glob == stack
 
 #define MAX_ARGS 32
@@ -21,27 +18,7 @@ char *RESPN = NULL;
 char *CONTN = NULL;
 char *ARGN_BUFF[32];
 bool IS_BUFFN_INITTED = 0;
-bool IS_TRANSITIONED = 0;
-
-typedef enum VPKMode {
-    INTERACTIVE,
-    SENDER,
-    SILENT,
-} vpk_mode_t;
-typedef struct laure_vpk {
-
-    vpk_mode_t mode;
-    bool       do_process;
-    void      *payload;
-
-    char** tracked_vars;
-    int     tracked_vars_len;
-    bool    interactive_by_name;
-
-    single_proc single_var_processor;
-    sender_rec  sender_receiver;
-
-} var_process_kit;
+void *LAST_QCTX = NULL;
 
 void laure_upd_scope(ulong link, laure_scope_t *to, laure_scope_t *from) {
     Instance *to_ins = laure_scope_find_by_link(to, link, false);
@@ -58,6 +35,8 @@ void laure_upd_scope(ulong link, laure_scope_t *to, laure_scope_t *from) {
 
 // Start evaluating search tree
 qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
+    LAST_QCTX = cctx->qctx;
+
     laure_expression_t *exp;
     qcontext *qctx = cctx->qctx;
     EXPSET_ITER(expset, exp, {
@@ -65,6 +44,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
         if (
             response.state == q_yield 
             || response.state == q_error 
+            || response.state == q_stop
         ) {
             return response;
         } else if (response.state == q_false) {
@@ -90,13 +70,17 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
         } else nscope = cctx->scope;
         cctx->qctx = cctx->qctx->next;
         cctx->scope = nscope;
-        IS_TRANSITIONED = true;
         qresp resp = laure_start(cctx, cctx->qctx->expset);
         // if (should_free) laure_scope_free(nscope);
         return resp;
     }
-    if (! cctx->silent)
-        laure_showcast(cctx);
+    if (! cctx->silent && cctx->vpk) {
+        if (cctx->vpk->mode == INTERACTIVE) {
+            return laure_showcast(cctx);
+        } else if (cctx->vpk->mode == SENDER) {
+            return laure_send(cctx->scope, cctx->vpk);
+        }
+    }
     return respond(q_yield, YIELD_OK);
 }
 
@@ -143,7 +127,7 @@ void *crop_showcast(string showcast) {
 
 qresp check_interactive(string cmd, string showcast) {
     if (str_eq(cmd, ".")) {
-        return respond(q_stop, "");
+        return respond(q_stop, 0);
     }
     else if (strlen(cmd) == 0) {
         up;
@@ -163,6 +147,34 @@ qresp check_interactive(string cmd, string showcast) {
         cmd = readline(showcast);
         return check_interactive(cmd, showcast);
     }
+}
+
+qresp laure_send(laure_scope_t *scope, var_process_kit *vpk) {
+    #ifdef LAURE_SENDER_USE_JSON_SENDER
+    printf("not implemented json sender\n");
+    exit(-1);
+    #else
+    if (vpk->tracked_vars_len == 0) return RESPOND_YIELD(YIELD_OK);
+    char reprs[1024] = {0};
+    strcpy(reprs, "=");
+    for (int i = 0; i < vpk->tracked_vars_len; i++) {
+        string repr;
+        Instance *tracked = laure_scope_find_by_key(scope, vpk->tracked_vars[i], false);
+        if (!tracked) repr = strdup("UNKNOWN");
+        else {
+            repr = tracked->repr(tracked);
+        }
+        strcat(reprs, repr);
+        free(repr);
+        if (i != vpk->tracked_vars_len - 1) strcat(reprs, ";");
+    }
+    bool result = vpk->sender_receiver(strdup(reprs), vpk->payload);
+    if (result) {
+        return RESPOND_YIELD(YIELD_OK);
+    } else {
+        return respond(q_stop, 0);
+    }
+    #endif
 }
 
 qresp laure_showcast(control_ctx *cctx) {
@@ -229,7 +241,7 @@ qresp laure_showcast(control_ctx *cctx) {
         }
     }
 
-    return respond(q_true, 0);
+    return RESPOND_YIELD(YIELD_OK);
 }
 
 /* ===================
@@ -383,9 +395,6 @@ qresp gen_resp_process(gen_resp gr) {
 gen_resp image_rec_default(void *image, struct img_rec_ctx *ctx) {
     void *d = ctx->var->image;
     ctx->var->image = image;
-    string repr = ctx->var->repr(ctx->var);
-    // printf("-- %s\n", repr);
-    free(repr);
     qresp response = laure_start(ctx->cctx, ctx->expset);
     return ctx->qr_process(response, ctx);
 }
@@ -509,7 +518,7 @@ qresp laure_eval_assert(
             // Expression is sent to image translator
             struct ImageHead head = read_head(to->image);
             if (! head.translator) {
-                RESPOND_ERROR("can't assign %s with `%s`", vname, rexpression->s);
+                RESPOND_ERROR("%s is not assignable. Cannot assign to `%s`", vname, rexpression->s);
             }
             bool result = head.translator->invoke(rexpression, to->image, scope);
             if (!result) return RESPOND_FALSE;
@@ -620,9 +629,12 @@ qresp laure_eval_name(_laure_eval_sub_args) {
 }
 
 gen_resp proc_unify_response(qresp resp, struct img_rec_ctx *ctx) {
-    if (resp.state != q_true) {
+    if (resp.state == q_stop) {
+        gen_resp gr = {0, respond(q_stop, 0)};
+        return gr;
+    } else if (resp.state != q_true) {
         if (resp.state == q_yield) {}
-        else if (resp.error || resp.state == q_stop || ctx->cctx->no_ambig) {
+        else if (resp.error || ctx->cctx->no_ambig) {
             gen_resp gr = {0, respond(q_yield, 0)};
             return gr;
         }
@@ -647,6 +659,9 @@ qresp laure_eval_unify(_laure_eval_sub_args) {
         RESPOND_ERROR("%s is locked", e->s);
     struct img_rec_ctx *ctx = img_rec_ctx_create(to_unif, cctx, expset, proc_unify_response);
     gen_resp gr = image_generate(scope, to_unif->image, image_rec_default, ctx);
+    if (gr.qr.state == q_stop) {
+        return gr.qr;
+    }
     return respond(q_yield, gr.qr.error);
 }
 
@@ -915,6 +930,8 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             resp = pf->c.pred(pd, cctx);
             preddata_free(pd);
 
+            if (resp.state == q_stop) return resp;
+
             if (resp.state == q_false) continue;
 
             if (tfc) {
@@ -1016,8 +1033,10 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             cctx->qctx = qctx;
             cctx->scope = scope;
         }
-        if (resp.state == q_error) {
+        if (resp.state == q_error || resp.state == q_stop) {
             return resp;
+        } else if (resp.state == q_true) {
+            found = true;
         } else if (resp.state == q_yield) {
             if (resp.error == YIELD_OK) found = true;
         }
@@ -1145,37 +1164,45 @@ qresp laure_eval_imply(_laure_eval_sub_args) {
     fact_qctx->next = if_qctx;
 
     laure_scope_t *nscope = laure_scope_create_copy(cctx, scope);
-    nscope->repeat = 2;
+    nscope->repeat += 2;
 
     cctx->qctx = fact_qctx;
     cctx->scope = nscope;
     bool silent = cctx->silent;
     cctx->silent = true;
-
-    bool old = IS_TRANSITIONED;
-    IS_TRANSITIONED = false;
     
     qresp qr = laure_start(cctx, fact_set);
     bool yielded = false;
-    if (qr.state == q_error) return qr;
+    if (qr.state == q_error || qr.state == q_stop) return qr;
     else if (qr.error == YIELD_FAIL) {
-        if (IS_TRANSITIONED) {
+        if (LAST_QCTX == if_qctx) {
             yielded = true;
         }
     } else {
         yielded = true;
     }
 
-    IS_TRANSITIONED = old;
-
     qctx->expset = old_qctx_set;
     cctx->qctx = qctx;
     cctx->scope = scope;
     cctx->silent = silent;
-    laure_scope_free(nscope);
-
-    if (! yielded) return respond(q_true, 0);
-    else return respond(q_yield, qr.error);
+    
+    if (! yielded) {
+        laure_scope_free(nscope);
+        return respond(q_true, 0);
+    } else {
+        /*
+        if (qr.error == YIELD_OK) {
+            laure_scope_iter(nscope, cellptr, {
+                printf("%lu %s %s\n", cellptr->link, cellptr->ptr->name, cellptr->ptr->repr(cellptr->ptr));
+                Instance *r = laure_scope_find_by_link(scope, cellptr->link, false);
+                image_equals(r->image, cellptr->ptr->image);
+            });
+        }
+        */
+       laure_scope_free(nscope);
+        return respond(q_yield, qr.error);
+    }
 }
 
 control_ctx *control_new(laure_scope_t* scope, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig) {
