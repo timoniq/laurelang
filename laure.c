@@ -5,6 +5,8 @@
 #include <errno.h>
 #include <signal.h>
 
+#include <unistd.h>
+
 #define string char*
 #define up printf("\033[A")
 #define down printf("\n")
@@ -119,6 +121,7 @@ args_parsed args_parse(string str) {
     return ap;
 }
 
+void print_header(string header);
 string convert_filepath(string filepath) {
     string new;
     if (str_starts(filepath, "@/")) {
@@ -165,7 +168,7 @@ int laure_process_query(laure_session_t *session, string line) {
                 string path = convert_filepath(args.argv[j]);
                 FILE *fs = fopen(path, "r");
                 if (! fs) {
-                    printf("  %sUnable to open `%s`%s\n", RED_COLOR, path, NO_COLOR);
+                    printf("  %sUnable to open %s%s%s\n", RED_COLOR, BOLD_WHITE, path, NO_COLOR);
                     free(path);
                     free(args.argv);
                     return 1;
@@ -236,6 +239,7 @@ int laure_process_query(laure_session_t *session, string line) {
             break;
         }
         case 7: {
+            // print_header("laurelang interpreter info");
             printf("  laurelang %s\n", VERSION);
             printf("  running `%s`\n", LAURE_INTERPRETER_PATH);
             printf("  bugtracker %s\n", BUGTRACKER_URL);
@@ -389,6 +393,18 @@ void add_filename(string str) {
         while (l->next) {l = l->next;};
         l->next = ptr;
     }
+}
+
+void print_header(string header) {
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    uint side = (w.ws_col - strlen(header)) / 2;
+    char spaces[128];
+    memset(spaces, ' ', side);
+    spaces[side-1] = 0;
+    printf("%s", GREEN_BACK);
+    printf("%s%s%s", spaces, header, spaces);
+    printf("%s\n", NO_COLOR);
 }
 
 int main(int argc, char *argv[]) {

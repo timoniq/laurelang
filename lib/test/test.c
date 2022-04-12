@@ -247,14 +247,14 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         }
 
         if (! payload->passed && payload->got_invalid) {
-            if (mode == full) printf("%s: %s%sfailed (%s)%s\n", predicate->name, spaces, RED_COLOR, GENERATOR_FAULT_VALUE, NO_COLOR);
+            if (mode == full) printf("%s: %s%sfailed%s\n", predicate->name, spaces, RED_COLOR, NO_COLOR);
             char buff[256];
-            snprintf(buff, 256, "[%s] number %d: \n    GOT %s%s%s \n    EXP %s%s%s", GENERATOR_FAULT_VALUE, payload->idx + 1, RED_COLOR, payload->got_invalid, NO_COLOR, GREEN_COLOR, payload->data[payload->idx], NO_COLOR);
+            snprintf(buff, 256, "%sargument idx = %d: \n        got %s%s%s \n        exp %s%s%s", NO_COLOR, payload->idx + 1, RED_COLOR, payload->got_invalid, NO_COLOR, YELLOW_COLOR, payload->data[payload->idx], NO_COLOR);
             comments[i] = strdup( buff );
         } else if (payload->idx != payload->data_cnt) {
-            if (mode == full) printf("%s: %s%sfailed (%s)%s\n", predicate->name, spaces, RED_COLOR, GENERATOR_FAULT_COUNT, NO_COLOR);
+            if (mode == full) printf("%s: %s%sfailed%s\n", predicate->name, spaces, RED_COLOR, NO_COLOR);
             char buff[64];
-            snprintf(buff, 64, "[%s] %d relations expected, %d generated", GENERATOR_FAULT_COUNT, payload->data_cnt, payload->idx);
+            snprintf(buff, 64, "%s%d relations expected, %d generated", NO_COLOR, payload->data_cnt, payload->idx);
             comments[i] = strdup( buff );
         } else if (payload->data_cnt > 0) {
             // all found
@@ -302,8 +302,9 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
 
         for (int i = 0; i < len; i++) {
             if (comments[i]) {
-                printf("%s: %s\n", tests[i]->name, comments[i]);
+                printf("\n%s%s%s: \n    %s%s%s\n", BOLD_WHITE, tests[i]->name, NO_COLOR, RED_COLOR, comments[i], NO_COLOR);
                 free(comments[i]);
+                if (i == len - 1) printf("\n");
             }
         }
 
