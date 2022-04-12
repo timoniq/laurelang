@@ -248,12 +248,15 @@ size_t laure_string_offset_at_pos(const char *buff, size_t buff_len, size_t i);
 #define YELLOW_COLOR "\033[33;1m"
 #define GRAY_COLOR "\033[90;1m"
 #define NO_COLOR "\033[0m"
+#define BOLD_WHITE "\033[37;1m"
+#define GREEN_BACK "\033[48;5;36m"
 #else
 #define RED_COLOR ""
 #define GREEN_COLOR ""
 #define YELLOW_COLOR ""
 #define GRAY_COLOR ""
 #define NO_COLOR ""
+#define BOLD_WHITE ""
 #endif
 #define lastc(s) s[strlen(s)-1]
 #define colored(s) YELLOW_COLOR, s, NO_COLOR

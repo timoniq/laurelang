@@ -51,7 +51,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
             return respond(q_yield, YIELD_FAIL);
         }
     });
-    if (cctx->qctx && cctx->qctx->next && (cctx->scope->idx != 1 || cctx->scope->repeat > 0)) {
+    if ((cctx->qctx && cctx->qctx->next && (cctx->scope->idx != 1)) || cctx->scope->repeat > 0) {
         laure_scope_t *nscope;
         bool should_free = false;
         if (cctx->scope->repeat > 0) {
@@ -68,9 +68,9 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
             });
 
         } else nscope = cctx->scope;
-        cctx->qctx = cctx->qctx->next;
+        cctx->qctx = cctx->qctx ? cctx->qctx->next : NULL;
         cctx->scope = nscope;
-        qresp resp = laure_start(cctx, cctx->qctx->expset);
+        qresp resp = laure_start(cctx, cctx->qctx ? cctx->qctx->expset : NULL);
         // if (should_free) laure_scope_free(nscope);
         return resp;
     }
@@ -314,6 +314,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args);
 qresp laure_eval_callable_decl(_laure_eval_sub_args);
 qresp laure_eval_quant(_laure_eval_sub_args);
 qresp laure_eval_imply(_laure_eval_sub_args);
+qresp laure_eval_choice(_laure_eval_sub_args);
 
 qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set *expset) {
     laure_scope_t *scope = cctx->scope;
@@ -348,6 +349,9 @@ qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set 
         case let_pred:
         case let_constraint: {
             return laure_eval_callable_decl(cctx, e, expset);
+        }
+        case let_choice_2: {
+            return laure_eval_choice(cctx, e, expset);
         }
     }
 }
@@ -1186,7 +1190,7 @@ qresp laure_eval_imply(_laure_eval_sub_args) {
     cctx->qctx = qctx;
     cctx->scope = scope;
     cctx->silent = silent;
-    
+
     if (! yielded) {
         laure_scope_free(nscope);
         return respond(q_true, 0);
@@ -1203,6 +1207,47 @@ qresp laure_eval_imply(_laure_eval_sub_args) {
        laure_scope_free(nscope);
         return respond(q_yield, qr.error);
     }
+}
+
+/* =-------=
+Force choice
+=-------= */
+qresp laure_eval_choice(_laure_eval_sub_args) {
+    assert(e->t == let_choice_2);
+    UNPACK_CCTX(cctx);
+    laure_expression_set *set = e->ba->set;
+    bool found = false;
+    while (set) {
+        laure_expression_set *choice = set->expression->ba->set;
+        laure_scope_t *nscope = laure_scope_create_copy(cctx, scope);
+        nscope->repeat++;
+
+        laure_expression_set *old = qctx->expset;
+
+        qcontext nqctx[1];
+        nqctx->constraint_mode = qctx->constraint_mode;
+        nqctx->cut = qctx->cut;
+        nqctx->expset = choice;
+        nqctx->next = qctx;
+        qctx->expset = expset;
+
+        cctx->qctx = nqctx;
+        cctx->scope = nscope;
+        qresp response = laure_start(cctx, choice);
+        laure_scope_free(nscope);
+
+        if (response.state == q_error)
+            return response;
+        
+        else if (response.state == q_true || (response.state == q_yield && response.error == YIELD_OK))
+            found = true;
+        
+        cctx->scope = scope;
+        cctx->qctx = qctx;
+        qctx->expset = old;
+        set = set->next;
+    }
+    return RESPOND_YIELD(YIELD_OK);
 }
 
 control_ctx *control_new(laure_scope_t* scope, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig) {
