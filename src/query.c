@@ -78,7 +78,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
         if (cctx->vpk->mode == INTERACTIVE) {
             return laure_showcast(cctx);
         } else if (cctx->vpk->mode == SENDER) {
-            return laure_send(cctx->scope, cctx->vpk);
+            return laure_send(cctx);
         }
     }
     return respond(q_yield, YIELD_OK);
@@ -149,7 +149,9 @@ qresp check_interactive(string cmd, string showcast) {
     }
 }
 
-qresp laure_send(laure_scope_t *scope, var_process_kit *vpk) {
+qresp laure_send(control_ctx *cctx) {
+    laure_scope_t *scope = cctx->scope;
+    var_process_kit *vpk = cctx->vpk;
     #ifdef LAURE_SENDER_USE_JSON_SENDER
     printf("not implemented json sender\n");
     exit(-1);
@@ -158,8 +160,11 @@ qresp laure_send(laure_scope_t *scope, var_process_kit *vpk) {
     char reprs[1024] = {0};
     strcpy(reprs, "=");
     for (int i = 0; i < vpk->tracked_vars_len; i++) {
+        ulong link[1];
+        Instance *glob = laure_scope_find_by_key_l(cctx->tmp_answer_scope, vpk->tracked_vars[i], link, false);
+        if (! glob) continue;
         string repr;
-        Instance *tracked = laure_scope_find_by_key(scope, vpk->tracked_vars[i], false);
+        Instance *tracked = laure_scope_find_by_link(scope, *link, false);
         if (!tracked) repr = strdup("UNKNOWN");
         else {
             repr = tracked->repr(tracked);
@@ -399,7 +404,12 @@ qresp gen_resp_process(gen_resp gr) {
 gen_resp image_rec_default(void *image, struct img_rec_ctx *ctx) {
     void *d = ctx->var->image;
     ctx->var->image = image;
+    laure_scope_t *nscope = laure_scope_create_copy(ctx->cctx, ctx->cctx->scope);
+    laure_scope_t *oscope = ctx->cctx->scope;
+    ctx->cctx->scope = nscope;
     qresp response = laure_start(ctx->cctx, ctx->expset);
+    laure_scope_free(nscope);
+    ctx->cctx->scope = oscope;
     return ctx->qr_process(response, ctx);
 }
 
@@ -1155,11 +1165,17 @@ qresp laure_eval_imply(_laure_eval_sub_args) {
 
     // fact_set -> implies_for
 
+    qcontext current[1];
+    current->constraint_mode = qctx->constraint_mode;
+    current->cut = qctx->cut;
+    current->expset = expset;
+    current->next = qctx->next;
+
     qcontext if_qctx[1];
     if_qctx->constraint_mode = qctx->constraint_mode;
     if_qctx->cut = false;
     if_qctx->expset = implies_for;
-    if_qctx->next = NULL;
+    if_qctx->next = current;
 
     qcontext fact_qctx[1];
     fact_qctx->constraint_mode = qctx->constraint_mode;
@@ -1172,8 +1188,8 @@ qresp laure_eval_imply(_laure_eval_sub_args) {
 
     cctx->qctx = fact_qctx;
     cctx->scope = nscope;
-    bool silent = cctx->silent;
-    cctx->silent = true;
+    // bool silent = cctx->silent;
+    // cctx->silent = true;
     
     qresp qr = laure_start(cctx, fact_set);
     bool yielded = false;
@@ -1189,22 +1205,11 @@ qresp laure_eval_imply(_laure_eval_sub_args) {
     qctx->expset = old_qctx_set;
     cctx->qctx = qctx;
     cctx->scope = scope;
-    cctx->silent = silent;
+    // cctx->silent = silent;
 
     if (! yielded) {
-        laure_scope_free(nscope);
         return respond(q_true, 0);
     } else {
-        /*
-        if (qr.error == YIELD_OK) {
-            laure_scope_iter(nscope, cellptr, {
-                printf("%lu %s %s\n", cellptr->link, cellptr->ptr->name, cellptr->ptr->repr(cellptr->ptr));
-                Instance *r = laure_scope_find_by_link(scope, cellptr->link, false);
-                image_equals(r->image, cellptr->ptr->image);
-            });
-        }
-        */
-       laure_scope_free(nscope);
         return respond(q_yield, qr.error);
     }
 }

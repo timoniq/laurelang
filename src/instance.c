@@ -834,7 +834,7 @@ string string_repr(Instance *ins) {
 bool string_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
     assert(exp->t == let_custom);
     struct ArrayImage *strarr = (struct ArrayImage*)img_;
-    if (! str_starts(exp->s, "\"") && lastc(exp->s) == "\"") return false;
+    if (! str_starts(exp->s, "\"") && lastc(exp->s) == '\"') return false;
     int len = (int)laure_string_strlen(exp->s + 1) - 1;
     size_t bufflen = strlen(exp->s + 1) - 1;
     if (strarr->state) {

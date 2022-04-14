@@ -5,10 +5,56 @@
 #include <dlfcn.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
+#include <readline/readline.h>
 
 #ifndef DOC_BUFFER_LEN
 #define DOC_BUFFER_LEN 512
 #endif
+
+#define HEADERSZ 60
+
+short int LAURE_ASK_IGNORE = 0;
+
+void print_errhead(string str) {
+    printf("  %s", RED_COLOR);
+    printf("%s", str);
+    printf("%s\n", NO_COLOR);
+}
+
+void print_header(string header, uint sz) {
+    if (sz == 0) {
+        struct winsize w;
+        ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+        sz = w.ws_col;
+    }
+    uint side = (sz - strlen(header)) / 2;
+    char spaces[128];
+    memset(spaces, ' ', side);
+    spaces[side-1] = 0;
+    printf("%s", RED_COLOR);
+    printf("%s%s%s", spaces, header, spaces);
+    printf("%s\n", NO_COLOR);
+}
+
+void ask_for_halt() {
+    if (LAURE_ASK_IGNORE) return;
+    string line = readline("Should consulting be continued (use yy to ignore asking further)? Y/yy/n: ");
+    short int mode;
+    if (strlen(line) == 0 || str_eq(line, "Y")) mode = 1;
+    else if (str_eq(line, "yy")) mode = 2;
+    else if (str_eq(line, "n")) exit(6);
+    else {
+        free(line);
+        ask_for_halt();
+        return;
+    }
+    free(line);
+    if (mode) {
+        if (mode == 2) LAURE_ASK_IGNORE = true;
+        return;
+    }
+}
 
 apply_result_t respond_apply(apply_status_t status, string e) {
     apply_result_t ar;
@@ -22,7 +68,13 @@ int laure_load_shared(laure_session_t *session, char *path) {
 
     // Shared CLE (C logic environment) extension
     if (!lib) {
-        printf("failed to load shared CLE extension %s\n\\ %s\n", path, dlerror());
+        print_errhead("failed to load shared CLE extension");
+        string error = dlerror();
+        if (strstr(error, "no such file")) {
+            strcpy(error, "Shared object is undefined");
+        }
+        printf("    %s%s%s: \n        %s\n", BOLD_WHITE, path, NO_COLOR, error);
+        ask_for_halt();
         return false;
     }
 
@@ -43,12 +95,16 @@ int laure_load_shared(laure_session_t *session, char *path) {
     
     int (*perform_upload)(laure_session_t*) = dlsym(lib, "on_include");
     if (!perform_upload) {
-        printf("function on_include(laure_session_t*) is undefined in CLE extension %s\n", path);
+        print_errhead("invalid shared cle; cannot load");
+        printf("    function on_include(laure_session_t*) is undefined in CLE extension %s\n", path);
+        ask_for_halt();
         return false;
     }
     int response = perform_upload(session);
     if (response != 0) {
-        printf("cle extension upload resulted with non-zero code, failure");
+        print_errhead("shared cle on_include returned non-zero code");
+        printf("cle extension upload resulted with non-zero code (%d), failure", response);
+        ask_for_halt();
         return false;
     }
     return true;

@@ -36,6 +36,7 @@ const struct laure_flag flags[] = {
     {7, "--library", "Manually set lib_path", true},
     {8, "-D", "Add dyn flag. Format var=value", true},
     {9, "-nomain", "Do not run main predicate", false},
+    {10, "--ignore", "Ignore consultation failures", false}
 };
 
 struct cmd_info {
@@ -121,7 +122,7 @@ args_parsed args_parse(string str) {
     return ap;
 }
 
-void print_header(string header);
+void print_header(string header, uint sz);
 string convert_filepath(string filepath) {
     string new;
     if (str_starts(filepath, "@/")) {
@@ -189,7 +190,7 @@ int laure_process_query(laure_session_t *session, string line) {
             printf("help:\n");
             for (int i = 0; i < sizeof(commands) / sizeof(struct cmd_info); i++) {
                 struct cmd_info cmd = commands[i];
-                printf("  %s - %s\n", cmd.name, cmd.help);
+                printf("  %s%s%s - %s\n", BOLD_WHITE, cmd.name, NO_COLOR, cmd.help);
             }
             break;
         }
@@ -197,7 +198,7 @@ int laure_process_query(laure_session_t *session, string line) {
             printf("flags:\n");
             for (int i = 0; i < sizeof(flags) / sizeof(struct laure_flag); i++) {
                 struct laure_flag flag = flags[i];
-                printf("  %s - %s [%s]\n", flag.name, flag.doc, flag.readword ? "takes arg" : "no args");
+                printf("  %s%s%s - %s [%s]\n", BOLD_WHITE, flag.name, NO_COLOR, flag.doc, flag.readword ? "takes arg" : "no args");
             }
             break;
         }
@@ -240,29 +241,30 @@ int laure_process_query(laure_session_t *session, string line) {
         }
         case 7: {
             // print_header("laurelang interpreter info");
-            printf("  laurelang %s\n", VERSION);
+            printf("  %s%slaurelang %s%s\n", BOLD_DEC, LAURUS_NOBILIS, VERSION, NO_COLOR);
             printf("  running `%s`\n", LAURE_INTERPRETER_PATH);
             printf("  bugtracker %s\n", BUGTRACKER_URL);
-            printf("  build info:\n");
-            printf("    stack build: %s\n", 
+            printf("  %sbuild info%s:\n", BOLD_WHITE, NO_COLOR);
+            printf("    %sstack build%s: %s\n", 
+            BOLD_WHITE, NO_COLOR,
             #ifdef FEATURE_LINKED_SCOPE
             "linked (production)"
             #else
             "stodgy (debug)"
             #endif
             );
-            printf("    lib_path: `%s`\n", lib_path);
-            printf("    compiled at: %s %s\n", __DATE__, __TIME__);
+            printf("    %slib_path%s: `%s`\n", BOLD_WHITE, NO_COLOR, lib_path);
+            printf("    %scompiled at%s: %s %s\n", BOLD_WHITE, NO_COLOR, __DATE__, __TIME__);
             if (LAURE_TIMEOUT != 0)
-                printf("  timeout: %us\n", LAURE_TIMEOUT);
-            else printf("  timeout: no\n");
-            printf("  flags: [ ");
+                printf("  %stimeout%s: %us\n", BOLD_WHITE, NO_COLOR, LAURE_TIMEOUT);
+            else printf("  %stimeout%s: no\n", BOLD_WHITE, NO_COLOR);
+            printf("  %sflags%s: [ ", BOLD_WHITE, NO_COLOR);
             if (FLAG_CLEAN) printf("CLEAN ");
             if (FLAG_NOREPL) printf("NOREPL ");
             if (FLAG_QUERY) printf("QUERY ");
             if (FLAG_SIGNAL) printf("SIGNAL ");
             printf("]\n");
-            printf("  dflags: [ ");
+            printf("  %sdflags%s: [ ", BOLD_WHITE, NO_COLOR);
             for (uint idx = 0; idx < DFLAG_N; idx++) {
                 printf("%s=%s ", DFLAGS[idx][0], DFLAGS[idx][1]);
             }
@@ -368,7 +370,7 @@ int laure_process_query(laure_session_t *session, string line) {
                 code = 2;
                 printf("  %serror%s: %s\n", RED_COLOR, NO_COLOR, response.error);
             } else if (response.state == q_yield) {
-                if (response.error == 0x1) {
+                if (response.error == (char*)0x1) {
                     printf("  true\n");
                 } else if (response.error == 0x0) {
                     code = 2;
@@ -393,18 +395,6 @@ void add_filename(string str) {
         while (l->next) {l = l->next;};
         l->next = ptr;
     }
-}
-
-void print_header(string header) {
-    struct winsize w;
-    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-    uint side = (w.ws_col - strlen(header)) / 2;
-    char spaces[128];
-    memset(spaces, ' ', side);
-    spaces[side-1] = 0;
-    printf("%s", GREEN_BACK);
-    printf("%s%s%s", spaces, header, spaces);
-    printf("%s\n", NO_COLOR);
 }
 
 int main(int argc, char *argv[]) {
@@ -476,6 +466,10 @@ int main(int argc, char *argv[]) {
                 }
                 case 9: {
                     FLAG_NOMAIN = true;
+                    break;
+                }
+                case 10: {
+                    LAURE_ASK_IGNORE = true;
                     break;
                 }
             }}}
