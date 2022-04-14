@@ -161,7 +161,7 @@ void laure_scope_show(laure_scope_t *scope) {
     printf("=== ID: %zi ISTMP: %d ===\n", scope->idx, scope->tmp != 0);
     laure_scope_iter(scope, element, {
         string repr = element->ptr->repr(element->ptr);
-        printf("%lu: %sname=%s%s %svalue=%s%s\n", element->link, GRAY_COLOR, NO_COLOR, element->ptr->name, GRAY_COLOR, NO_COLOR, repr);
+        printf("%lu: %s%s%s %s\n", element->link, BOLD_WHITE, element->ptr->name, NO_COLOR, repr);
         free(repr);
     });
     printf("---\n");
@@ -355,7 +355,7 @@ void laure_scope_show(laure_scope_t *scope) {
     printf("=== ID: %zi COUNT: %u ===\n", scope->idx, scope->count);
     laure_scope_iter(scope, cellptr, {
         string repr = cellptr->ptr->repr(cellptr->ptr);
-        printf("%lu: %sname=%s%s%s value=%s%s\n", cellptr->link, GRAY_COLOR, NO_COLOR, cellptr->ptr->name, GRAY_COLOR, NO_COLOR, repr);
+        printf("%lu: %s%s%s %s\n", cellptr->link, BOLD_WHITE, cellptr->ptr->name, NO_COLOR, repr);
         free(repr);
     });
     printf("---\n");

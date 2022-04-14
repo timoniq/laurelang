@@ -263,7 +263,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         } else {
             switch (response.state) {
                 case q_yield: {
-                    if (response.error == 0x1) {
+                    if (response.error == (char*)0x1) {
                         if (mode == full)
                         printf("%s: %s%spassed%s\n", predicate->name, spaces, GREEN_COLOR, NO_COLOR);
                         tests_passed++;

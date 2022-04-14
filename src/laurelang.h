@@ -250,6 +250,9 @@ size_t laure_string_offset_at_pos(const char *buff, size_t buff_len, size_t i);
 #define NO_COLOR "\033[0m"
 #define BOLD_WHITE "\033[37;1m"
 #define GREEN_BACK "\033[48;5;36m"
+#define RED_BACK "\033[41;1m"
+#define LAURUS_NOBILIS "\033[38;5;113m"
+#define BOLD_DEC "\e[1m"
 #else
 #define RED_COLOR ""
 #define GREEN_COLOR ""
@@ -257,6 +260,9 @@ size_t laure_string_offset_at_pos(const char *buff, size_t buff_len, size_t i);
 #define GRAY_COLOR ""
 #define NO_COLOR ""
 #define BOLD_WHITE ""
+#define RED_BACK ""
+#define LAURUS_NOBILIS ""
+#define BOLD_DEC ""
 #endif
 #define lastc(s) s[strlen(s)-1]
 #define colored(s) YELLOW_COLOR, s, NO_COLOR
@@ -272,6 +278,8 @@ Miscellaneous
 #ifndef PROMPT
 #define PROMPT "| "
 #endif
+
+void print_header(string header, uint sz);
 
 /* =-----------=
    Session
@@ -302,6 +310,7 @@ extern clock_t            LAURE_CLOCK;
 extern char              *LAURE_INTERPRETER_PATH;
 extern char              *LAURE_CURRENT_ADDRESS;
 extern char              *LAURE_DOC_BUFF;
+extern short int          LAURE_ASK_IGNORE;
 
 extern Instance *CHAR_PTR;
 extern struct Translator 
@@ -328,7 +337,7 @@ void laure_set_translators();
 var_process_kit *laure_vpk_create(laure_expression_set *expset);
 void laure_vpk_free(var_process_kit*);
 qresp laure_showcast(control_ctx *cctx);
-qresp laure_send(laure_scope_t *scope, var_process_kit *vpk);
+qresp laure_send(control_ctx *cctx);
 
 void laure_init_name_buffs();
 string laure_get_argn(uint idx);
