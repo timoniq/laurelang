@@ -30,6 +30,9 @@ clean:
 test:
 	./$(TARGET) @/test tests -q "tests_run()" -norepl -signal
 
+install:
+	install $(TARGET) $(PREFIX)/bin
+
 help:
 	@cat MAKEHELP
 

@@ -91,8 +91,7 @@ int natural* = 0...
 
 // between (boundaries secluded)
 : #between(int, int) -> int.
-#between(a, b) -> c when c > a, c < b, !.
-#between(a, b) -> c when c < a, c > b.
+#between(a, b) -> c when c > a, c < b.
 
 // between (boundaries included).
 // `x = 0 .. 4`

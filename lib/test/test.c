@@ -100,6 +100,8 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         }
     }
 
+    string stopkwd = get_dflag("stop_kwd");
+
     if (mode == full) {
         printf("\n(Running test suite v%s)\n", test_suite_version);
         printf("(Collecting tests)\n");
@@ -287,6 +289,12 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         }
         free(payload);
         laure_scope_free(ncctx->tmp_answer_scope);
+        if (stopkwd && strstr(predicate->name + 5, stopkwd)){
+            printf("%sCaught keyword. Press any key to continue%s\n", LAURUS_NOBILIS, NO_COLOR);
+            getchar();
+            up; erase;
+            up; erase;
+        }
     }
 
     len = checked_len;

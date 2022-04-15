@@ -77,6 +77,9 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
     }
     qresp response;
     if (! cctx->silent && cctx->vpk) {
+        #ifdef DEBUG
+        printf("DEBUG: sending data (mode=%s%s%s)\n", BOLD_WHITE, cctx->vpk->mode == INTERACTIVE ? "INTERACTIVE" : (cctx->vpk->mode == SENDER ? "SENDER" : "OTHER"), NO_COLOR);
+        #endif
         if (cctx->vpk->mode == INTERACTIVE) {
             response = laure_showcast(cctx);
         } else if (cctx->vpk->mode == SENDER) {
@@ -331,6 +334,11 @@ qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set 
     var_process_kit *vpk = cctx->vpk;
     qcontext *qctx = cctx->qctx;
 
+    #ifdef DEBUG
+    printf("DEBUG: evaluating expression: ");
+    laure_expression_show(e, 2);
+    #endif
+
     switch (e->t) {
         case let_assert: {
             return laure_eval_assert(cctx, e, expset);
@@ -369,11 +377,9 @@ qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set 
         case let_choice_2: {
             return laure_eval_choice(cctx, e, expset);
         }
-        
         case let_cut: {
             return laure_eval_cut(cctx, e, expset);
         }
-        
     }
 }
 
@@ -898,7 +904,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
         laure_scope_t *prev = laure_scope_create_copy(cctx, init_scope);
         qresp resp;
         bool do_continue = true;
-        bool cut_store = cctx->cut;
+        ulong cut_store = cctx->cut;
 
         if (pf->t == PF_C) {
             // C source predicate
@@ -988,7 +994,6 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             qctx->expset = expset;
             cctx->scope = prev;
             resp = laure_start(cctx, expset);
-            if (cctx->cut) do_continue = false;
             cctx->scope = scope;
             qctx->expset = full;
         } else {
@@ -1067,16 +1072,23 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             cctx->scope = nscope;
             cctx->qctx = nqctx;
             resp = laure_start(cctx, body);
-            if (cctx->cut) do_continue = false;
             qctx->expset = full_expset;
             cctx->qctx = qctx;
             cctx->scope = scope;
         }
         if (resp.state == q_error || resp.state == q_stop) {
             return resp;
-        } else if (cctx->cut || (! do_continue)) {
-            cctx->cut = cut_store;
+        } else if (cctx->cut - 1 <= scope->idx) {
+            found = true;
+            #ifdef DEBUG
+            printf("DEBUG: variation of %s skipped (due to cut: up to scope idx=%ld)\n", predicate_name, cctx->cut);
+            #endif
             break;
+        } else if (cctx->cut != 0 && cctx->cut - 1 > scope->idx) {
+            #ifdef DEBUG
+            printf("DEBUG: stop cutting on predicate %s\n", predicate_name);
+            #endif
+            cctx->cut = 0;
         } else if (resp.state == q_true) {
             found = true;
         } else if (resp.state == q_yield) {
@@ -1281,7 +1293,7 @@ Cutting tree
 qresp laure_eval_cut(_laure_eval_sub_args) {
     assert(e->t == let_cut);
     UNPACK_CCTX(cctx);
-    cctx->cut = true;
+    cctx->cut = scope->idx;
     return respond(q_true, 0);
 }
 
@@ -1295,7 +1307,7 @@ control_ctx *control_new(laure_scope_t* scope, qcontext* qctx, var_process_kit* 
     cctx->data = data;
     cctx->silent = false;
     cctx->no_ambig = no_ambig;
-    cctx->cut = false;
+    cctx->cut = 0;
     return cctx;
 }
 
