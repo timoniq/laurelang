@@ -214,12 +214,12 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
 
         qcontext nqctx[1];
         nqctx->expset = expset;
-        nqctx->cut = false;
         nqctx->next = NULL;
         nqctx->constraint_mode = false;
 
         control_ctx ncctx[1];
         ncctx->data = NULL;
+        ncctx->cut = false;
         ncctx->qctx = nqctx;
         ncctx->scope = cctx->scope;
         ncctx->silent = false;

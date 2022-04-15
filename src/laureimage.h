@@ -201,7 +201,7 @@ typedef struct laure_control_ctx {
     qcontext*       qctx;
     var_process_kit* vpk;
     void*           data;
-    bool          silent, no_ambig;
+    bool          silent, no_ambig, cut;
 } control_ctx;
 
 void laure_add_grabbed_link(control_ctx *cctx, ulong nlink);
