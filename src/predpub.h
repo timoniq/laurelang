@@ -50,7 +50,7 @@ bool int_check(void *img, bigint *bi);
 typedef struct laure_qcontext {
     laure_expression_set *expset;
     struct laure_qcontext *next;
-    bool constraint_mode, cut;
+    bool constraint_mode;
 } qcontext;
 
 struct BuiltinPredHint {

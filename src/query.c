@@ -68,20 +68,24 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
             });
 
         } else nscope = cctx->scope;
+        qcontext *old = cctx->qctx;
         cctx->qctx = cctx->qctx ? cctx->qctx->next : NULL;
         cctx->scope = nscope;
         qresp resp = laure_start(cctx, cctx->qctx ? cctx->qctx->expset : NULL);
         // if (should_free) laure_scope_free(nscope);
         return resp;
     }
+    qresp response;
     if (! cctx->silent && cctx->vpk) {
         if (cctx->vpk->mode == INTERACTIVE) {
-            return laure_showcast(cctx);
+            response = laure_showcast(cctx);
         } else if (cctx->vpk->mode == SENDER) {
-            return laure_send(cctx);
+            response = laure_send(cctx);
         }
+    } else {
+        response = respond(q_yield, YIELD_OK);
     }
-    return respond(q_yield, YIELD_OK);
+    return response;
 }
 
 #define up printf("\033[A") 
@@ -320,6 +324,7 @@ qresp laure_eval_callable_decl(_laure_eval_sub_args);
 qresp laure_eval_quant(_laure_eval_sub_args);
 qresp laure_eval_imply(_laure_eval_sub_args);
 qresp laure_eval_choice(_laure_eval_sub_args);
+qresp laure_eval_cut(_laure_eval_sub_args);
 
 qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set *expset) {
     laure_scope_t *scope = cctx->scope;
@@ -336,18 +341,24 @@ qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set 
         case let_name: {
             return laure_eval_name(cctx, e, expset);
         }
+        #ifndef FORBID_NAME_EVAL
         case let_var: {
             return laure_eval_var(cctx, e, expset);
         }
+        #endif
+        #ifndef FORBID_FORCEUNIFY
         case let_unify: {
             return laure_eval_unify(cctx, e, expset);
         }
+        #endif
         case let_pred_call: {
             return laure_eval_pred_call(cctx, e, expset);
         }
+        #ifndef FORBID_QUANTORS
         case let_quant: {
             return laure_eval_quant(cctx, e, expset);
         }
+        #endif
         case let_imply: {
             return laure_eval_imply(cctx, e, expset);
         }
@@ -358,6 +369,11 @@ qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set 
         case let_choice_2: {
             return laure_eval_choice(cctx, e, expset);
         }
+        
+        case let_cut: {
+            return laure_eval_cut(cctx, e, expset);
+        }
+        
     }
 }
 
@@ -389,6 +405,8 @@ gen_resp qr_process_default(qresp response, struct img_rec_ctx* ctx) {
         || response.state == q_stop)
         && response.state != q_yield
     ) {
+        cont = false;
+    } else if (ctx->cctx->cut) {
         cont = false;
     }
     gen_resp GR = {cont, response};
@@ -644,7 +662,7 @@ qresp laure_eval_name(_laure_eval_sub_args) {
 
 gen_resp proc_unify_response(qresp resp, struct img_rec_ctx *ctx) {
     if (resp.state == q_stop) {
-        gen_resp gr = {0, respond(q_stop, 0)};
+        gen_resp gr = {0, resp};
         return gr;
     } else if (resp.state != q_true) {
         if (resp.state == q_yield) {}
@@ -652,6 +670,9 @@ gen_resp proc_unify_response(qresp resp, struct img_rec_ctx *ctx) {
             gen_resp gr = {0, respond(q_yield, 0)};
             return gr;
         }
+    } else if (ctx->cctx->cut) {
+        gen_resp gr = {0, respond(q_yield, 0)};
+        return gr;
     }
     gen_resp gr = {1, resp};
     return gr;
@@ -876,6 +897,8 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
         predfinal *pf = pred_img->variations->finals[variation_idx];
         laure_scope_t *prev = laure_scope_create_copy(cctx, init_scope);
         qresp resp;
+        bool do_continue = true;
+        bool cut_store = cctx->cut;
 
         if (pf->t == PF_C) {
             // C source predicate
@@ -965,6 +988,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             qctx->expset = expset;
             cctx->scope = prev;
             resp = laure_start(cctx, expset);
+            if (cctx->cut) do_continue = false;
             cctx->scope = scope;
             qctx->expset = full;
         } else {
@@ -1043,12 +1067,16 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             cctx->scope = nscope;
             cctx->qctx = nqctx;
             resp = laure_start(cctx, body);
+            if (cctx->cut) do_continue = false;
             qctx->expset = full_expset;
             cctx->qctx = qctx;
             cctx->scope = scope;
         }
         if (resp.state == q_error || resp.state == q_stop) {
             return resp;
+        } else if (cctx->cut || (! do_continue)) {
+            cctx->cut = cut_store;
+            break;
         } else if (resp.state == q_true) {
             found = true;
         } else if (resp.state == q_yield) {
@@ -1118,7 +1146,6 @@ qresp laure_eval_quant(_laure_eval_sub_args) {
     
     qcontext nqctx[1];
     nqctx->constraint_mode = qctx->constraint_mode;
-    nqctx->cut = false;
     nqctx->expset = set;
     nqctx->next = NULL;
 
@@ -1167,19 +1194,16 @@ qresp laure_eval_imply(_laure_eval_sub_args) {
 
     qcontext current[1];
     current->constraint_mode = qctx->constraint_mode;
-    current->cut = qctx->cut;
     current->expset = expset;
     current->next = qctx->next;
 
     qcontext if_qctx[1];
     if_qctx->constraint_mode = qctx->constraint_mode;
-    if_qctx->cut = false;
     if_qctx->expset = implies_for;
     if_qctx->next = current;
 
     qcontext fact_qctx[1];
     fact_qctx->constraint_mode = qctx->constraint_mode;
-    fact_qctx->cut = false;
     fact_qctx->expset = fact_set;
     fact_qctx->next = if_qctx;
 
@@ -1188,8 +1212,6 @@ qresp laure_eval_imply(_laure_eval_sub_args) {
 
     cctx->qctx = fact_qctx;
     cctx->scope = nscope;
-    // bool silent = cctx->silent;
-    // cctx->silent = true;
     
     qresp qr = laure_start(cctx, fact_set);
     bool yielded = false;
@@ -1205,7 +1227,6 @@ qresp laure_eval_imply(_laure_eval_sub_args) {
     qctx->expset = old_qctx_set;
     cctx->qctx = qctx;
     cctx->scope = scope;
-    // cctx->silent = silent;
 
     if (! yielded) {
         return respond(q_true, 0);
@@ -1231,7 +1252,6 @@ qresp laure_eval_choice(_laure_eval_sub_args) {
 
         qcontext nqctx[1];
         nqctx->constraint_mode = qctx->constraint_mode;
-        nqctx->cut = qctx->cut;
         nqctx->expset = choice;
         nqctx->next = qctx;
         qctx->expset = expset;
@@ -1255,6 +1275,16 @@ qresp laure_eval_choice(_laure_eval_sub_args) {
     return RESPOND_YIELD(YIELD_OK);
 }
 
+/* =-------=
+Cutting tree
+=-------= */
+qresp laure_eval_cut(_laure_eval_sub_args) {
+    assert(e->t == let_cut);
+    UNPACK_CCTX(cctx);
+    cctx->cut = true;
+    return respond(q_true, 0);
+}
+
 control_ctx *control_new(laure_scope_t* scope, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig) {
     control_ctx *cctx = malloc(sizeof(control_ctx));
     cctx->scope = scope;
@@ -1265,6 +1295,7 @@ control_ctx *control_new(laure_scope_t* scope, qcontext* qctx, var_process_kit* 
     cctx->data = data;
     cctx->silent = false;
     cctx->no_ambig = no_ambig;
+    cctx->cut = false;
     return cctx;
 }
 
@@ -1273,7 +1304,6 @@ qcontext *qcontext_new(laure_expression_set *expset) {
     qctx->constraint_mode = false;
     qctx->expset = expset;
     qctx->next = NULL;
-    qctx->cut = false;
     return qctx;
 }
 
