@@ -388,6 +388,7 @@ struct img_rec_ctx {
     control_ctx *cctx;
     laure_expression_set *expset;
     gen_resp (*qr_process)(qresp, struct img_rec_ctx*);
+    uint flag;
 };
 
 struct img_rec_ctx *img_rec_ctx_create(
@@ -401,6 +402,7 @@ struct img_rec_ctx *img_rec_ctx_create(
     ctx->cctx = cctx;
     ctx->expset = expset;
     ctx->qr_process = qr_process;
+    ctx->flag = 0;
     return ctx;
 }
 
@@ -671,7 +673,11 @@ gen_resp proc_unify_response(qresp resp, struct img_rec_ctx *ctx) {
         gen_resp gr = {0, resp};
         return gr;
     } else if (resp.state != q_true) {
-        if (resp.state == q_yield) {}
+        if (resp.state == q_yield) {
+            if (resp.error == YIELD_OK) {
+                ctx->flag = 1;
+            }
+        }
         else if (resp.error || ctx->cctx->no_ambig) {
             gen_resp gr = {0, respond(q_yield, 0)};
             return gr;
@@ -679,6 +685,8 @@ gen_resp proc_unify_response(qresp resp, struct img_rec_ctx *ctx) {
     } else if (ctx->cctx->cut) {
         gen_resp gr = {0, respond(q_yield, 0)};
         return gr;
+    } else if (resp.state == q_true) {
+        ctx->flag = 1;
     }
     gen_resp gr = {1, resp};
     return gr;
@@ -700,6 +708,8 @@ qresp laure_eval_unify(_laure_eval_sub_args) {
         RESPOND_ERROR("%s is locked", e->s);
     struct img_rec_ctx *ctx = img_rec_ctx_create(to_unif, cctx, expset, proc_unify_response);
     gen_resp gr = image_generate(scope, to_unif->image, image_rec_default, ctx);
+    if (! ctx->flag) return respond(q_yield, YIELD_FAIL);
+    free(ctx);
     if (gr.qr.state == q_stop) {
         return gr.qr;
     }
