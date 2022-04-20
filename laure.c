@@ -481,7 +481,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    printf("(laurelang v%s)\n", VERSION);
+    printf("laurelang v%s\n", VERSION);
     LAURE_INTERPRETER_PATH = INTERPRETER_PATH;
 
     string prompt = getenv("LLPROMPT");
@@ -535,12 +535,16 @@ int main(int argc, char *argv[]) {
 
     Instance *main_p = laure_scope_find_by_key(session->scope, "main", true);
     if (main_p && ! FLAG_NOMAIN) {
-        printf("| %smain%s()\n", GREEN_COLOR, NO_COLOR);
+        printf("%s%smain%s()\n", DPROMPT, GREEN_COLOR, NO_COLOR);
         if (!laure_process_query(session, "main()"))
             return 0;
     }
 
     if (FLAG_NOREPL) return 0;
+
+    printf("\n  %sYou are in interactive enviroment.\n", GRAY_COLOR);
+    printf("  Use %s.help%s to see commands\n", LAURUS_NOBILIS, GRAY_COLOR);
+    printf("  and %s.quit%s to quit it.%s\n\n", LAURUS_NOBILIS, GRAY_COLOR, NO_COLOR);
 
     string line;
     while ((line = readline(DPROMPT)) != NULL) {
