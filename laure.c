@@ -228,7 +228,7 @@ int laure_process_query(laure_session_t *session, string line) {
                     if (c == '\n') {
                         printf("\n   ", GRAY_COLOR, NO_COLOR);
                     } else if (c == '`') {
-                        printf("%s", color_set ? NO_COLOR : YELLOW_COLOR);
+                        printf("%s", color_set ? NO_COLOR : LAURUS_NOBILIS);
                         color_set = color_set ? false : true;
                     } else {
                         printf("%c", c);

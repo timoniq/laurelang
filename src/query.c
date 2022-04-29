@@ -18,7 +18,7 @@ char *RESPN = NULL;
 char *CONTN = NULL;
 char *ARGN_BUFF[32];
 bool IS_BUFFN_INITTED = 0;
-void *LAST_QCTX = NULL;
+qcontext *LAST_QCTX = NULL;
 
 void laure_upd_scope(ulong link, laure_scope_t *to, laure_scope_t *from) {
     Instance *to_ins = laure_scope_find_by_link(to, link, false);
@@ -51,6 +51,9 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
             return respond(q_yield, YIELD_FAIL);
         }
     });
+
+    cctx->qctx->flagme = true;
+
     if ((cctx->qctx && cctx->qctx->next && (cctx->scope->idx != 1)) || cctx->scope->repeat > 0) {
         laure_scope_t *nscope;
         bool should_free = false;
@@ -72,6 +75,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
         cctx->qctx = cctx->qctx ? cctx->qctx->next : NULL;
         cctx->scope = nscope;
         qresp resp = laure_start(cctx, cctx->qctx ? cctx->qctx->expset : NULL);
+        LAST_QCTX = old;
         // if (should_free) laure_scope_free(nscope);
         return resp;
     }
@@ -612,10 +616,9 @@ qresp laure_eval_image(
 
             Instance *ins = instance_deepcopy(scope, new_var_name, from);
 
-            /* !impl arrays
             if (nesting) {
                 while (nesting) {
-                    void *img = array_u_new(ins);
+                    void *img = laure_create_array_u(ins);
                     ins = instance_new(strdup("el"), NULL, img);
                     ins->repr = array_repr;
                     nesting--;
@@ -623,7 +626,6 @@ qresp laure_eval_image(
                 ins->name = strdup(new_var_name);
                 ins->repr = array_repr;
             }
-            */
 
            laure_scope_insert(scope, ins);
             return RESPOND_TRUE;
@@ -1199,6 +1201,15 @@ qresp laure_eval_quant(_laure_eval_sub_args) {
     return qr;
 }
 
+bool in_next(qcontext *search, qcontext *from) {
+    qcontext *curr = search;
+    while (curr) {
+        if (curr == from) return true;
+        curr = curr->next;
+    }
+    return false;
+}
+
 /* =-------=
 Implication
 =-------= */
@@ -1228,6 +1239,7 @@ qresp laure_eval_imply(_laure_eval_sub_args) {
     fact_qctx->constraint_mode = qctx->constraint_mode;
     fact_qctx->expset = fact_set;
     fact_qctx->next = if_qctx;
+    fact_qctx->flagme = false;
 
     laure_scope_t *nscope = laure_scope_create_copy(cctx, scope);
     nscope->repeat += 2;
@@ -1239,7 +1251,7 @@ qresp laure_eval_imply(_laure_eval_sub_args) {
     bool yielded = false;
     if (qr.state == q_error || qr.state == q_stop) return qr;
     else if (qr.error == YIELD_FAIL) {
-        if (LAST_QCTX == if_qctx) {
+        if (fact_qctx->flagme) {
             yielded = true;
         }
     } else {
@@ -1326,6 +1338,7 @@ qcontext *qcontext_new(laure_expression_set *expset) {
     qctx->constraint_mode = false;
     qctx->expset = expset;
     qctx->next = NULL;
+    qctx->flagme = false;
     return qctx;
 }
 
