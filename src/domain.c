@@ -5,7 +5,8 @@
 #include <stdio.h>
 
 #ifndef INFINITY_STR
-#define INFINITY_STR "∞"
+// "∞"
+#define INFINITY_STR "inf"
 #endif
 
 Domain *int_domain_new() {
@@ -107,12 +108,12 @@ string int_domain_repr(Domain *dom) {
     switch (dom->t) {
         case DOMAIN: {
             char ls[520];
-            strcpy(ls, "(-");
+            strcpy(ls, "<-");
             strcat(ls, INFINITY_STR);
 
             char rs[520];
             strcpy(rs, INFINITY_STR);
-            strcat(rs, ")");
+            strcat(rs, ">");
 
             IntValue l = dom->lborder;
             IntValue r = dom->rborder;
@@ -124,7 +125,7 @@ string int_domain_repr(Domain *dom) {
                     bigint_write(buff, 512, l.data);
 
                     char buff2[520];
-                    snprintf(buff2, 520, "[%s", buff);
+                    snprintf(buff2, 520, "%s", buff);
                     strcpy(ls, buff2);
                     break;
                 }
@@ -133,7 +134,7 @@ string int_domain_repr(Domain *dom) {
                     bigint_write(buff, 512, l.data);
 
                     char buff2[520];
-                    snprintf(buff2, 520, "(%s", buff);
+                    snprintf(buff2, 520, "<%s", buff);
                     strcpy(ls, buff2);
                     break;
                 }
@@ -147,7 +148,7 @@ string int_domain_repr(Domain *dom) {
                     bigint_write(buff, 512, r.data);
 
                     char buff2[520];
-                    snprintf(buff2, 520, "%s]", buff);
+                    snprintf(buff2, 520, "%s", buff);
                     strcpy(rs, buff2);
                     break;
                 }
@@ -156,7 +157,7 @@ string int_domain_repr(Domain *dom) {
                     bigint_write(buff, 512, r.data);
 
                     char buff2[520];
-                    snprintf(buff2, 520, "%s)", buff);
+                    snprintf(buff2, 520, "%s>", buff);
                     strcpy(rs, buff2);
                     break;
                 }
@@ -165,7 +166,7 @@ string int_domain_repr(Domain *dom) {
             }
 
             char buff[1040];
-            snprintf(buff, 1040, "%s;%s", ls, rs);
+            snprintf(buff, 1040, "%s..%s", ls, rs);
 
             return strdup(buff);
         }

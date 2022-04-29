@@ -429,6 +429,7 @@ string array_repr(Instance *ins) {
                 strcat(buff, ", ");
                 len += 2;
             }
+            idx++;
             linked = linked->next;
         }
         strcat(buff, "]");
