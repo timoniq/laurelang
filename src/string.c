@@ -207,3 +207,94 @@ size_t laure_string_offset_at_pos(const string buff, size_t buff_len, size_t i) 
     }
     return s - buff;
 }
+
+int laure_string_pattern_parse(char s[], pattern_element *pattern[]) {
+
+    if (!pattern[0]) return !(strlen(s));
+
+    while (pattern[0]) {
+        pattern_element *pe = pattern[0];
+
+        if (!strlen(s)) {
+            while (pattern[0]) {
+                if (!pattern[0]->any_count) {
+                    return 0;
+                }
+                pattern++;
+            }
+            return 1;
+        }
+
+        char c = s[0];
+
+        if (pe->any_count) {
+
+            for (int j = 0; j < strlen(s) + 1; j++) {
+
+                if (!pattern[1] && strlen(s + j)) {
+                    if (!pe->any_count) {
+                        goto end;
+                    }
+                }
+
+                if (laure_string_pattern_parse(s + j, pattern + 1)) {
+                    return 1;
+                }
+
+                if (pe->c && s[j] != pe->c) {
+                    s--;
+                    goto end;
+                }
+            }
+        }
+
+        if (pe->c != 0
+            && pe->c != c) {
+            return 0;
+        }
+
+        end:
+        pattern++;
+        s++;
+    }
+
+    return (!strlen(s)) && (!pattern[0]);
+}
+
+bool laure_string_pattern_match(char *s, char *p) {
+
+    int idx = 0;
+    pattern_element *pattern[64];
+    memset(pattern, 0, 64 * sizeof(void*));
+
+	uint unicode_p_strlen = laure_string_strlen(p);
+
+    for (int i = 0; i < unicode_p_strlen; i++) {
+		int c = laure_string_char_at_pos(p, strlen(p), i);
+        switch (c) {
+            case '*': {
+                pattern[idx-1]->any_count = 1;
+                break;
+            }
+            case '.': {
+                pattern[idx] = malloc(sizeof(pattern_element));
+                pattern[idx]->c = 0;
+                pattern[idx]->any_count = 0;
+                idx++;
+                break;
+            }
+            default: {
+                pattern[idx] = malloc(sizeof(pattern_element));
+                pattern[idx]->c = c;
+                pattern[idx]->any_count = 0;
+                idx++;
+                break;
+            }
+        }
+    }
+
+    bool result =  (bool) laure_string_pattern_parse(s, pattern);
+	for (uint i = 0; i < idx; i++)
+		free(pattern[idx]);
+	return result;
+}
