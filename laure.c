@@ -294,7 +294,7 @@ int laure_process_query(laure_session_t *session, string line) {
                         printf("  %s %sis undefined%s\n", name, RED_COLOR, NO_COLOR);
                     } else {
                         instance_lock(to_lock);
-                        printf("  %s %slocked%s\n", name, GREEN_COLOR, NO_COLOR);
+                        printf("  %s%s %slocked%s\n", BOLD_WHITE, name, GREEN_COLOR, NO_COLOR);
                     }
                 }
             }
@@ -311,7 +311,7 @@ int laure_process_query(laure_session_t *session, string line) {
                         printf("  %s %sis undefined%s\n", name, RED_COLOR, NO_COLOR);
                     } else {
                         instance_unlock(to_unlock);
-                        printf("  %s %sunlocked%s\n", name, GREEN_COLOR, NO_COLOR);
+                        printf("  %s%s %sunlocked%s\n", BOLD_WHITE, name, GREEN_COLOR, NO_COLOR);
                     }
                 }
             }

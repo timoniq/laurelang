@@ -14,6 +14,8 @@
 #define GENERATOR_FAULT_VALUE "Value"
 #define GENERATOR_FAULT_COUNT "Count"
 
+#define SKIP_CHAR ';'
+
 struct receiver_payload {
     char **data;
     uint data_cnt;
@@ -54,7 +56,7 @@ bool test_suite_receiver(string repr, struct receiver_payload *payload) {
 bool should_skip(string_linked *skips, string s) {
     if (! skips) return false;
     do {
-        if (str_eq(skips->s, s)) return true;
+        if (laure_string_pattern_match(s, skips->s)) return true;
         skips = skips->next;
     } while (skips);
     return false;
@@ -158,7 +160,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     clock_t t = clock();
 
     string skip_str = get_dflag("skip");
-    string_linked *skips = skip_str ? string_split(skip_str, ',') : NULL;
+    string_linked *skips = skip_str ? string_split(skip_str, SKIP_CHAR) : NULL;
 
     uint checked_len = len;
     uint skipped = 0;
