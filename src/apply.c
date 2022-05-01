@@ -334,13 +334,21 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
 
     laure_expression_t *exp = result.exp;
     laure_expression_set *expset = laure_expression_compose_one(exp);
-    qcontext *qctx = qcontext_new(expset);
+    
+    qcontext qctx[1];
+    qctx->constraint_mode = false;
+    qctx->expset = expset;
+    qctx->next = NULL;
+    qctx->flagme = false;
+
     control_ctx *cctx = control_new(session->scope, qctx, NULL, NULL, true);
     cctx->silent = true;
 
     qresp response = laure_start(cctx, expset);
+
     laure_scope_free(cctx->tmp_answer_scope);
     free(cctx);
+    
     if (response.error) {
         return respond_apply(apply_error, response.error);
     }
