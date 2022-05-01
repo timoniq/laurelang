@@ -456,6 +456,7 @@ string consult_single(laure_session_t *session, string fname, FILE *file) {
         }
     }
 
+    free(readinto);
     fclose(file);
     laure_init_structures(session);
     return NULL;
