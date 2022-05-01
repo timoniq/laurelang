@@ -284,7 +284,7 @@ Miscellaneous
 #endif
 
 #ifndef PROMPT
-#define PROMPT "| "
+#define PROMPT "?- "
 #endif
 
 void print_header(string header, uint sz);

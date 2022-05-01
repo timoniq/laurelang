@@ -4,7 +4,7 @@
 ?prime(2).
 ?prime(n) {
     n > 2; n?;
-    b > 1; b < n;
+    b = between(1, n);
     &all b {
         n / b ->
             fail();

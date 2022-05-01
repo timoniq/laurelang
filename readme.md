@@ -10,6 +10,21 @@ Laurelang stands for Logic, Abstraction and Unification with Readability and Eff
 
 Language aims to become reasonable choice for declarative, logic, constraint programming research, performant for quering and reasoning in big data.
 
+```
+: ?prime(natural).
+
+?prime(1).
+?prime(2).
+?prime(n) {
+    n > 2; n?;
+    b = between(1, n);
+    &all b {
+        n / b ->
+            fail();
+    };
+}
+```
+
 # Getting started
 
 ## Build from source
@@ -29,7 +44,7 @@ Also you may need to run tests with `make test`. Useful settings and tips for in
 [Tutorial and dev notes](/docs/index.md)  
 [Read documentation](https://docs.laurelang.org)
 
-# [Contributing](/CONTRIBUTING.md)
+# [Contributing](/contributing.md)
 # License
 
 Laurelang is [MIT licensed](/LICENSE)  
