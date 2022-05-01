@@ -339,6 +339,8 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
     cctx->silent = true;
 
     qresp response = laure_start(cctx, expset);
+    laure_scope_free(cctx->tmp_answer_scope);
+    free(cctx);
     if (response.error) {
         return respond_apply(apply_error, response.error);
     }
