@@ -52,7 +52,8 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
         }
     });
 
-    cctx->qctx->flagme = true;
+    if (cctx->qctx)
+        cctx->qctx->flagme = true;
 
     if ((cctx->qctx && cctx->qctx->next && (cctx->scope->idx != 1)) || cctx->scope->repeat > 0) {
         laure_scope_t *nscope;
