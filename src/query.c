@@ -332,6 +332,7 @@ qresp laure_eval_quant(_laure_eval_sub_args);
 qresp laure_eval_imply(_laure_eval_sub_args);
 qresp laure_eval_choice(_laure_eval_sub_args);
 qresp laure_eval_cut(_laure_eval_sub_args);
+qresp laure_eval_set(_laure_eval_sub_args);
 
 qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set *expset) {
     laure_scope_t *scope = cctx->scope;
@@ -383,6 +384,12 @@ qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set 
         }
         case let_cut: {
             return laure_eval_cut(cctx, e, expset);
+        }
+        case let_set: {
+            return laure_eval_set(cctx, e, expset);
+        }
+        default: {
+            RESPOND_ERROR("no evaluator for %s in MAIN context available", EXPT_NAMES[e->t]);
         }
     }
 }
@@ -1317,6 +1324,39 @@ qresp laure_eval_cut(_laure_eval_sub_args) {
     UNPACK_CCTX(cctx);
     cctx->cut = scope->idx;
     return respond(q_true, 0);
+}
+
+/* =---------=
+Expression set
+* creates a private scope for evaluation
+=---------= */
+qresp laure_eval_set(_laure_eval_sub_args) {
+    assert(e->t == let_set);
+    UNPACK_CCTX(cctx);
+    if (! e->ba->set) return respond(q_true, NULL);
+
+    laure_scope_t *priv_scope = laure_scope_create_copy(cctx, scope);
+    priv_scope->next = scope;
+    priv_scope->repeat++;
+    laure_expression_set *old = qctx->expset;
+    qctx->expset = qctx->expset->next;
+
+    qcontext nqctx[1];
+    nqctx->constraint_mode = qctx->constraint_mode;
+    nqctx->expset = e->ba->set;
+    nqctx->flagme = false;
+    nqctx->next = qctx;
+
+    cctx->scope = priv_scope;
+    cctx->qctx = nqctx;
+
+    qresp response = laure_start(cctx, cctx->qctx->expset);
+
+    laure_scope_free(priv_scope);
+    qctx->expset = old;
+    cctx->scope = scope;
+    cctx->qctx = qctx;
+    return response;
 }
 
 control_ctx *control_new(laure_scope_t* scope, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig) {

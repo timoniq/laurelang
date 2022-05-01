@@ -412,7 +412,7 @@ laure_parse_many_result laure_parse_many(const string query_, char divisor, laur
                 cur_i++;
             
             // slice from last_i to cur_i
-
+            
             char slice[1024];
             uint slice_len = 0;
 
