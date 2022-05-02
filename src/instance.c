@@ -888,7 +888,7 @@ void laure_set_translators() {
     // ATOM_TRANSLATOR = new_translator(atom_translator);
     MOCK_NAME = strdup( "$mock_name" );
     MOCK_QRESP.state = q_true;
-    MOCK_QRESP.error = 0;
+    MOCK_QRESP.payload = 0;
 }
 
 // Image eq
@@ -1007,10 +1007,10 @@ Instance *instance_deepcopy(laure_scope_t *scope, string name, Instance *from_in
     return instance;
 };
 
-qresp respond(qresp_state s, string e) {
+qresp respond(qresp_state s, string p) {
     qresp qr;
     qr.state = s;
-    qr.error = e;
+    qr.payload = p;
     return qr;
 };
 
@@ -1129,20 +1129,20 @@ predfinal *get_pred_final(struct PredicateImageVariation pv) {
             if (arg->t == let_var) {
                 // |  cast naming |
                 // |   var to var |
-                laure_expression_t *old_name_var = laure_expression_create(let_var, "", false, pf->interior.argn[i], 0, NULL);
+                laure_expression_t *old_name_var = laure_expression_create(let_var, "", false, pf->interior.argn[i], 0, NULL, arg->fullstring);
                 laure_expression_set *set = laure_expression_set_link(NULL, old_name_var);
                 set = laure_expression_set_link(set, arg);
                 laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
-                laure_expression_t *name_expression = laure_expression_create(let_name, "", false, NULL, 0, ba);
+                laure_expression_t *name_expression = laure_expression_create(let_name, "", false, NULL, 0, ba, arg->fullstring);
                 nset = laure_expression_set_link(nset, name_expression);
             } else {
                 // |  cast assert |
                 // | var to value |
-                laure_expression_t *var = laure_expression_create(let_var, "", false, pf->interior.argn[i], 0, NULL);
+                laure_expression_t *var = laure_expression_create(let_var, "", false, pf->interior.argn[i], 0, NULL, arg->fullstring);
                 laure_expression_set *set = laure_expression_set_link(NULL, var);
                 set = laure_expression_set_link(set, arg);
                 laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
-                laure_expression_t *assert_expression = laure_expression_create(let_assert, "", false, NULL, 0, ba);
+                laure_expression_t *assert_expression = laure_expression_create(let_assert, "", false, NULL, 0, ba, arg->fullstring);
                 complicated_nset = laure_expression_set_link_branch(complicated_nset, laure_expression_compose_one(assert_expression));
             }
 
@@ -1157,19 +1157,19 @@ predfinal *get_pred_final(struct PredicateImageVariation pv) {
                 // cast naming
                 // var to var
                 
-                laure_expression_t *old_name_var = laure_expression_create(let_var, "", false, pf->interior.respn, 0, NULL);
+                laure_expression_t *old_name_var = laure_expression_create(let_var, "", false, pf->interior.respn, 0, NULL, exp->fullstring);
                 laure_expression_set *set = laure_expression_set_link(NULL, old_name_var);
                 set = laure_expression_set_link(set, exp);
                 laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
-                laure_expression_t *name_expression = laure_expression_create(let_name, "", false, NULL, 0, ba);
+                laure_expression_t *name_expression = laure_expression_create(let_name, "", false, NULL, 0, ba, exp->fullstring);
                 nset = laure_expression_set_link(nset, name_expression);
                 
             } else {
-                laure_expression_t *var = laure_expression_create(let_var, "", false, pf->interior.respn, 0, NULL);
+                laure_expression_t *var = laure_expression_create(let_var, "", false, pf->interior.respn, 0, NULL, exp->fullstring);
                 laure_expression_set *set = laure_expression_set_link(NULL, var);
                 set = laure_expression_set_link(set, exp);
                 laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
-                laure_expression_t *assert_expression = laure_expression_create(let_assert, "", false, NULL, 0, ba);
+                laure_expression_t *assert_expression = laure_expression_create(let_assert, "", false, NULL, 0, ba, exp->fullstring);
                 complicated_nset = laure_expression_set_link_branch(complicated_nset, laure_expression_compose_one(assert_expression));
             }
         } else {

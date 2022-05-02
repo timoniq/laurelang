@@ -345,7 +345,7 @@ int laure_process_query(laure_session_t *session, string line) {
     laure_parse_many_result res = laure_parse_many(line, ',', NULL);
 
     if (!res.is_ok) {
-        printf("  %ssyntax_error%s %s\n", RED_COLOR, NO_COLOR, res.err);
+        printf("  %serror%s: parser( %s )\n", RED_COLOR, NO_COLOR, res.err);
         code = 2;
     } else {
         #ifdef DEBUG
@@ -368,11 +368,20 @@ int laure_process_query(laure_session_t *session, string line) {
         if (!laure_is_silent(cctx)) {
             if (response.state == q_error) {
                 code = 2;
-                printf("  %serror%s: %s\n", RED_COLOR, NO_COLOR, response.error);
+                if (! LAURE_ACTIVE_ERROR) {
+                    printf("  %serror%s: %s\n", RED_COLOR, NO_COLOR, (string)response.payload);
+                } else {
+                    char buff[512];
+                    laure_error_write(LAURE_ACTIVE_ERROR, buff, 512);
+                    printf("%s\n", buff);
+                    laure_error_free(LAURE_ACTIVE_ERROR);
+                    LAURE_ACTIVE_ERROR = NULL;
+                }
+                // printf("  %serror%s: %s\n", RED_COLOR, NO_COLOR, response.error);
             } else if (response.state == q_yield) {
-                if (response.error == (char*)0x1) {
+                if (response.payload == (char*)0x1) {
                     printf("  true\n");
-                } else if (response.error == 0x0) {
+                } else if (response.payload == 0x0) {
                     code = 2;
                     printf("  false\n");
                 }

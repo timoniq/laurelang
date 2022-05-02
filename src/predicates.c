@@ -201,7 +201,7 @@ qresp laure_predicate_message(preddata *pd, control_ctx *cctx) {
     Instance *ins = pd_get_arg(pd, 0);
     struct ArrayImage *img = (struct ArrayImage*) ins->image;
     if (img->t != ARRAY)
-        RESPOND_ERROR("message's argument must be array, not %s", IMG_NAMES[img->t]);
+        RESPOND_ERROR(type_err, NULL, "message's argument must be array, not %s", IMG_NAMES[img->t]);
     
     if (img->state) {
         array_linked_t *linked = img->i_data.linked;

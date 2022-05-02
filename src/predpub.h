@@ -14,7 +14,7 @@ typedef enum {
 
 typedef struct laure_qresp {
     qresp_state state;
-    char *error;
+    void *payload;
 } qresp;
 
 typedef struct laure_gen_resp {
@@ -26,10 +26,11 @@ qresp respond(qresp_state s, string e);
 
 #define error_max_length 128
 
-#define RESPOND_ERROR(msg, ...) do {\
+#define RESPOND_ERROR(k, exp, msg, ...) do {\
         char _errmsg[error_max_length]; \
         snprintf(_errmsg, error_max_length, msg, __VA_ARGS__); \
-        return respond(q_error, strdup(_errmsg));} while (0)
+        LAURE_ACTIVE_ERROR = laure_error_create(k, strdup(_errmsg), exp); \
+        return respond(q_error, 1);} while (0)
 
 #define RESPOND_TRUE           respond(q_true, NULL)
 #define RESPOND_FALSE          respond(q_false, NULL)

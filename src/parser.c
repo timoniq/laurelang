@@ -16,14 +16,23 @@
 
 string DIGITS = "0123456789";
 string RESTRICTED = "[](). ";
+string ELLIPSIS = NULL;
 
 #ifndef LAURE_SYNTAX_INFIX_PREPOSITION
 #define LAURE_SYNTAX_INFIX_PREPOSITION "of"
 #endif
 
-char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Structure Definition", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Predicate Primitive", "Atom", "[Nope]"};
+char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Structure Definition", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Atom", "[Nope]"};
 
-laure_expression_t *laure_expression_create(laure_expression_type t, string docstring, bool is_header, string s, uint flag, laure_expression_compact_bodyargs *ba) {
+laure_expression_t *laure_expression_create(
+    laure_expression_type t, 
+    string docstring, bool is_header, 
+    string s, uint flag, 
+    laure_expression_compact_bodyargs *ba,
+    string q
+) {
+    if (! ELLIPSIS)
+        ELLIPSIS = strdup("...");
     laure_expression_t *exp = malloc(sizeof(laure_expression_t));
     exp->t = t;
     exp->docstring = docstring;
@@ -31,6 +40,8 @@ laure_expression_t *laure_expression_create(laure_expression_type t, string docs
     exp->s = s;
     exp->flag = flag;
     exp->ba = ba;
+    exp->fullstring = strdup(q);
+    exp->linepos = 0;
     return exp;
 }
 
@@ -519,7 +530,7 @@ laure_parse_result laure_parse(string query) {
     if (str_eq(query, "$")) {
         laure_parse_result lpr;
         lpr.is_ok = true;
-        lpr.exp = laure_expression_create(let_ref, NULL, 0, NULL, 0, NULL);
+        lpr.exp = laure_expression_create(let_ref, NULL, 0, NULL, 0, NULL, query);
         return lpr;
     }
     
@@ -531,7 +542,7 @@ laure_parse_result laure_parse(string query) {
             if (! strlen(query)) {
                 laure_parse_result lpr;
                 lpr.is_ok = true;
-                lpr.exp = laure_expression_create(let_cut, NULL, false, strdup("!"), 0, NULL);
+                lpr.exp = laure_expression_create(let_cut, NULL, false, strdup("!"), 0, NULL, query);
                 return lpr;
             } else {
                 error_result("not supported");
@@ -654,7 +665,7 @@ laure_parse_result laure_parse(string query) {
 
             laure_parse_result lpr;
             lpr.is_ok = true;
-            lpr.exp = laure_expression_create(type, "", false, name, is_primitive, ba);
+            lpr.exp = laure_expression_create(type, "", false, name, is_primitive, ba, query);
 
             return lpr;
         }
@@ -683,7 +694,7 @@ laure_parse_result laure_parse(string query) {
 
             laure_parse_result lpr;
             lpr.is_ok = true;
-            lpr.exp = laure_expression_create(let_array, "", false, strdup("array"), 0, ba);
+            lpr.exp = laure_expression_create(let_array, "", false, strdup("array"), 0, ba, query);
             return lpr;
         }
         case '&': {
@@ -734,7 +745,7 @@ laure_parse_result laure_parse(string query) {
             }
             
             laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, count, false);
-            laure_expression_t *exp = laure_expression_create(let_quant, "", false, vname, quant_t, ba);
+            laure_expression_t *exp = laure_expression_create(let_quant, "", false, vname, quant_t, ba, query);
             laure_parse_result pr;
             pr.is_ok = true;
             pr.exp = exp;
@@ -755,7 +766,7 @@ laure_parse_result laure_parse(string query) {
                     laure_expression_compose_one(left_result.exp),
                     0,
                     false
-                )));
+                ), query));
 
                 string implies_for = query + strlen(_temp) + 3;
                 while(implies_for[0] == ' ') implies_for++;
@@ -783,7 +794,7 @@ laure_parse_result laure_parse(string query) {
                 }
 
                 laure_expression_compact_bodyargs *ba = laure_bodyargs_create(implication_expset, laure_expression_get_count(implication_expset), false);
-                laure_expression_t *exp = laure_expression_create(let_imply, NULL, false, strdup(_temp), 0, ba);
+                laure_expression_t *exp = laure_expression_create(let_imply, NULL, false, strdup(_temp), 0, ba, query);
                 laure_parse_result res;
                 res.is_ok = true;
                 res.exp = exp;
@@ -845,7 +856,7 @@ laure_parse_result laure_parse(string query) {
                 set = laure_expression_set_link(set, right_result.exp);
 
                 laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
-                laure_expression_t *exp = laure_expression_create(type, "", false, query, 0, ba);
+                laure_expression_t *exp = laure_expression_create(type, "", false, query, 0, ba, query);
 
                 lpr.exp = exp;
                 return lpr;
@@ -865,7 +876,7 @@ laure_parse_result laure_parse(string query) {
                 laure_expression_compact_bodyargs *ba =
                     laure_bodyargs_create(set, laure_expression_get_count(set), 0);
                 
-                lpr.exp = laure_expression_create(let_choice_1, "", false, query, 0, ba);
+                lpr.exp = laure_expression_create(let_choice_1, "", false, query, 0, ba, query);
                 return lpr;
             }
 
@@ -878,7 +889,7 @@ laure_parse_result laure_parse(string query) {
                     free(vn);
                     error_result("something to unify should be var");
                 }
-                lpr.exp = laure_expression_create(let_unify, "", false, vn, 0, NULL);
+                lpr.exp = laure_expression_create(let_unify, "", false, vn, 0, NULL, query);
                 return lpr;
             }
 
@@ -894,7 +905,7 @@ laure_parse_result laure_parse(string query) {
                     laure_parse_result lpr;
                     lpr.is_ok = true;
                     laure_expression_set *optzd_expset = laure_expression_compose(lpmr.exps);
-                    lpr.exp = laure_expression_create(let_set, NULL, false, NULL, 0, laure_bodyargs_create(optzd_expset, 0, false));
+                    lpr.exp = laure_expression_create(let_set, NULL, false, NULL, 0, laure_bodyargs_create(optzd_expset, 0, false), query);
                     return lpr;
                 }
             }
@@ -933,7 +944,7 @@ laure_parse_result laure_parse(string query) {
                     set = laure_expression_set_link(set, el2);
 
                     laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
-                    lpr.exp = laure_expression_create(let_decl, "", false, strdup(query), 0, ba);
+                    lpr.exp = laure_expression_create(let_decl, "", false, strdup(query), 0, ba, query);
                     return lpr;
 
                 } else {
@@ -960,7 +971,7 @@ laure_parse_result laure_parse(string query) {
                             // `length of Something`
                             laure_expression_set *set = laure_expression_set_link(NULL, el3);
                             laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 1, 0);
-                            lpr.exp = laure_expression_create(let_pred_call, "", false, el1->s, 0, ba);
+                            lpr.exp = laure_expression_create(let_pred_call, "", false, el1->s, 0, ba, query);
                             return lpr;
                         } else {
                             // predicate call with two arguments
@@ -968,7 +979,8 @@ laure_parse_result laure_parse(string query) {
                             laure_expression_set *set = laure_expression_set_link(NULL, el1);
                             set = laure_expression_set_link(set, el3);
                             laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
-                            lpr.exp = laure_expression_create(let_pred_call, "", false, el2->s, 0, ba);
+                            lpr.exp = laure_expression_create(let_pred_call, "", false, el2->s, 0, ba, query);
+                            lpr.exp->linepos = strlen(temp) + 1;
                             return lpr;
                         }
                     }
@@ -997,7 +1009,7 @@ laure_parse_result laure_parse(string query) {
                     }
 
                     laure_expression_compact_bodyargs *ba = laure_bodyargs_create(args_exps, laure_expression_get_count(args_exps), 0);
-                    lpr.exp = laure_expression_create(let_pred_call, "", false, name, 0, ba);
+                    lpr.exp = laure_expression_create(let_pred_call, "", false, name, 0, ba, query);
                     return lpr;
                 }
 
@@ -1039,6 +1051,7 @@ laure_parse_result laure_parse(string query) {
                         lastc(query) = 0;
                         if (! laure_string_strlen(query)) error_result("empty atomic sets are forbidden");
                         laure_parse_many_result lpmr = laure_parse_many(query, ',', NULL);
+                        query[strlen(query)] = '}';
                         if (! lpmr.is_ok) {
                             error_format("error parsing atomic set: %s", lpmr.err);
                         }
@@ -1051,7 +1064,8 @@ laure_parse_result laure_parse(string query) {
                         lpr.is_ok = true;
                         lpr.exp = laure_expression_create(
                             let_atom, NULL, false, --query, 1, 
-                            laure_bodyargs_create(lpmr.exps, laure_expression_get_count(lpmr.exps), 0)
+                            laure_bodyargs_create(lpmr.exps, laure_expression_get_count(lpmr.exps), 0),
+                            query
                         );
                         return lpr;
                     } else {
@@ -1063,7 +1077,7 @@ laure_parse_result laure_parse(string query) {
                                 query, lpr.exp->t != let_atom ? EXPT_NAMES[lpr.exp->t] : "another atom"
                             );
                         }
-                        lpr.exp = laure_expression_create(let_atom, NULL, false, query, 0, NULL);
+                        lpr.exp = laure_expression_create(let_atom, NULL, false, query, 0, NULL, query);
                         return lpr;
                     }
                 }
@@ -1075,7 +1089,7 @@ laure_parse_result laure_parse(string query) {
                 }
 
                 if (is_fine_name_for_var(dup)) {
-                    lpr.exp = laure_expression_create(let_var, "", false, dup, nesting, NULL);
+                    lpr.exp = laure_expression_create(let_var, "", false, dup, nesting, NULL, query);
                     return lpr;
                 }
 
@@ -1083,7 +1097,7 @@ laure_parse_result laure_parse(string query) {
                 // integer/string/custom image macros
                 laure_parse_result lpr;
                 lpr.is_ok = true;
-                lpr.exp = laure_expression_create(let_custom, "", false, dup, nesting, NULL);
+                lpr.exp = laure_expression_create(let_custom, "", false, dup, nesting, NULL, query);
                 return lpr;
             }
 
@@ -1223,10 +1237,22 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
             printf("atom\n");
             break;
         }
+
+        case let_set: {
+            printindent(indent);
+            printf("set {\n");
+            laure_expression_t *ptr = NULL;
+            EXPSET_ITER(exp->ba->set, ptr, {
+                laure_expression_show(ptr, indent + 2);
+            });
+            printindent(indent);
+            printf("}\n");
+            break;
+        }
     
         default: {
             printindent(indent);
-            printf("unknown (%d)\n", exp->t);
+            printf("%s\n", EXPT_NAMES[exp->t]);
             break;
         }
     }
@@ -1283,18 +1309,18 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
                         laure_expression_get_count(s),
                         false
                     );
-                    laure_expression_t *assert_exp = laure_expression_create(let_assert, "", false, NULL, 0, ba);
+                    laure_expression_t *assert_exp = laure_expression_create(let_assert, "", false, NULL, 0, ba, exp->fullstring);
                     laure_expression_set *choice_set = laure_expression_compose_one(assert_exp);
 
                     laure_expression_compact_bodyargs *ba_ = laure_bodyargs_create(choice_set, 1, false);
 
                     nset = laure_expression_set_link(
-                        nset, laure_expression_create(let_set, "", false, NULL, 0, ba_)
+                        nset, laure_expression_create(let_set, "", false, NULL, 0, ba_, exp->fullstring)
                     );
                 });
 
                 laure_expression_compact_bodyargs *ba = laure_bodyargs_create(nset, laure_expression_get_count(nset), false);
-                laure_expression_t *nexp = laure_expression_create(let_choice_2, "", false, NULL, 0, ba);
+                laure_expression_t *nexp = laure_expression_create(let_choice_2, "", false, NULL, 0, ba, ELLIPSIS);
                 set = laure_expression_set_link(set, nexp);
                 break;
             }
@@ -1315,7 +1341,7 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
                             dtype
                         ), 
                         2, false
-                    )
+                    ), exp->fullstring
                 );
 
                 laure_expression_set *right_branch = laure_expression_compose_one(right);
@@ -1328,7 +1354,7 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
                             right_branch
                         ),
                         2, false
-                    )
+                    ), exp->fullstring
                 );
 
                 set = laure_expression_set_link(set, image_exp);
@@ -1338,7 +1364,7 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
 
             if (left->t == let_pred_call && right->t == let_pred_call) {
                 string vname = laure_scope_generate_unique_name();
-                laure_expression_t *var = laure_expression_create(let_var, left->s, false, vname, 0, NULL);
+                laure_expression_t *var = laure_expression_create(let_var, left->s, false, vname, 0, NULL, exp->fullstring);
                 left->ba->set = laure_expression_set_link(left->ba->set, var);
                 left->ba->has_resp = true;
                 right->ba->set = laure_expression_set_link(right->ba->set, var);
@@ -1374,13 +1400,13 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
                     char buff[16];
                     snprintf(buff, 16, "$%lu", laure_scope_generate_link());
 
-                    laure_expression_t *var = laure_expression_create(let_var, arg_exp->s, false, strdup(buff), 0, NULL);
+                    laure_expression_t *var = laure_expression_create(let_var, arg_exp->s, false, strdup(buff), 0, NULL, exp->fullstring);
 
                     laure_expression_set *assert_set = laure_expression_set_link(NULL, var);
                     assert_set = laure_expression_set_link(assert_set, arg_exp);
 
                     laure_expression_compact_bodyargs *ba = laure_bodyargs_create(assert_set, 2, false);
-                    laure_expression_t *assert_exp = laure_expression_create(let_assert, NULL, false, NULL, 0, ba);
+                    laure_expression_t *assert_exp = laure_expression_create(let_assert, NULL, false, NULL, 0, ba, exp->fullstring);
                     args = laure_expression_set_link(args, var);
                     set = laure_expression_set_link_branch(set, laure_expression_compose_one(assert_exp));
                 }
@@ -1409,7 +1435,7 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
                     ba = laure_bodyargs_create(eset, 1, false);
                 }
 
-                laure_expression_t *e = laure_expression_create(let_set, NULL, false, NULL, 0, ba);
+                laure_expression_t *e = laure_expression_create(let_set, NULL, false, NULL, 0, ba, exp->fullstring);
                 nset = laure_expression_set_link(nset, e);
             });
             set = laure_expression_set_link(
@@ -1417,7 +1443,8 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
                 laure_expression_create(
                     let_choice_2, NULL, 
                     false, NULL, 0, 
-                    laure_bodyargs_create(nset, laure_expression_get_count(nset), false)
+                    laure_bodyargs_create(nset, laure_expression_get_count(nset), false),
+                    exp->fullstring
                 )
             );
             break;

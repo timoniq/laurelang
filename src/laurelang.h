@@ -161,11 +161,11 @@ typedef struct {
 // for all possible expressiong
 typedef struct laure_expression {
     laure_expression_type t;
-    char *docstring;
+    char *docstring, *fullstring;
     bool is_header;
 
     char *s;
-    uint flag; // nesting for let_var
+    uint flag, linepos; // nesting for let_var
     laure_expression_compact_bodyargs *ba;
 } laure_expression_t;
 
@@ -197,7 +197,7 @@ void laure_expression_set_destroy(laure_expression_set *root);
 laure_expression_t *laure_expression_set_get_by_idx(laure_expression_set *root, uint idx);
 laure_expression_compact_bodyargs *laure_bodyargs_create(laure_expression_set *set, uint body_len, bool has_resp);
 void laure_expression_show(laure_expression_t *exp, uint indent);
-laure_expression_t *laure_expression_create(laure_expression_type t, char *docstring, bool is_header, char *s, uint flag, laure_expression_compact_bodyargs *ba);
+laure_expression_t *laure_expression_create(laure_expression_type t, char *docstring, bool is_header, char *s, uint flag, laure_expression_compact_bodyargs *ba, string q);
 laure_expression_compact_bodyargs *laure_bodyargs_create(laure_expression_set *set, uint body_len, bool has_resp);
 laure_expression_set *laure_get_all_vars_in(laure_expression_t *exp, laure_expression_set *linked);
 laure_expression_set *laure_expression_set_link_branch(laure_expression_set *root, laure_expression_set *branch);
@@ -367,5 +367,39 @@ apply_result_t laure_consult_predicate(
 );
 void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope);
 int laure_load_shared(laure_session_t *session, char *path);
+
+/* =--------=
+    Error
+=--------= */
+typedef enum laure_error_kind {
+    syntaxic_err,
+    type_err,
+    too_broad_err,
+    undefined_err,
+    internal_err,
+    access_err,
+    instance_err,
+    signature_err,
+} laure_error_kind;
+
+typedef struct laure_error {
+    laure_error_kind kind;
+    char *msg;
+    laure_expression_t *reason;
+} laure_error;
+
+laure_error *laure_error_create(
+    laure_error_kind k, 
+    char *msg, 
+    laure_expression_t *reason
+);
+void laure_error_free(laure_error *err);
+void laure_error_write(
+    laure_error *err, 
+    string buff, 
+    size_t buff_sz
+);
+
+extern laure_error *LAURE_ACTIVE_ERROR;
 
 #endif

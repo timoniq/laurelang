@@ -6,7 +6,7 @@ LDFLAGS = -L/usr/local/lib -lreadline -lm -g -ldl
 
 .PHONY: all clean
 
-LIB = $(SOURCES)/parser.o $(SOURCES)/string.o $(SOURCES)/instance.o $(SOURCES)/query.o $(SOURCES)/session.o $(SOURCES)/scope.o $(SOURCES)/domain.o $(SOURCES)/bigint.o $(SOURCES)/builtin.o $(SOURCES)/predicates.o  $(SOURCES)/apply.o
+LIB = $(SOURCES)/parser.o $(SOURCES)/string.o $(SOURCES)/instance.o $(SOURCES)/query.o $(SOURCES)/session.o $(SOURCES)/scope.o $(SOURCES)/domain.o $(SOURCES)/bigint.o $(SOURCES)/builtin.o $(SOURCES)/predicates.o  $(SOURCES)/apply.o $(SOURCES)/error.o
 OBJECTS = laure.o $(LIB)
 
 ifeq ($(DEBUG), true)
@@ -50,3 +50,4 @@ src/query.o: src/laurelang.h src/laureimage.h src/query.c
 src/builtin.o: src/laurelang.h src/laureimage.h src/builtin.h src/builtin.c
 src/predicates.o: src/laurelang.h src/laureimage.h src/predicates.h src/predicates.c
 src/apply.o: src/laurelang.h src/apply.c
+src/error.o: src/laurelang.h src/error.c

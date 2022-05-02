@@ -349,13 +349,14 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
     laure_scope_free(cctx->tmp_answer_scope);
     free(cctx);
     
-    if (response.error) {
-        return respond_apply(apply_error, response.error);
+    if (response.payload) {
+        return respond_apply(apply_error, response.payload);
     }
     return respond_apply(apply_ok, NULL);
 }
 
 int laure_init_structures(laure_session_t *session) {
+    return 1;
 }
 
 string consult_single(laure_session_t *session, string fname, FILE *file) {

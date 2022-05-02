@@ -1,11 +1,12 @@
 #include "laurelang.h"
 
-ulong  *LAURE_LINK_ID          = NULL;
-uint    LAURE_TIMEOUT          = 0;
-clock_t LAURE_CLOCK            = 0;
-char *LAURE_INTERPRETER_PATH   = NULL;
-char *LAURE_CURRENT_ADDRESS    = NULL;
-char *LAURE_DOC_BUFF           = NULL;
+ulong  *LAURE_LINK_ID           = NULL;
+uint    LAURE_TIMEOUT           = 0;
+clock_t LAURE_CLOCK             = 0;
+char *LAURE_INTERPRETER_PATH    = NULL;
+char *LAURE_CURRENT_ADDRESS     = NULL;
+char *LAURE_DOC_BUFF            = NULL;
+laure_error *LAURE_ACTIVE_ERROR = NULL;
 
 uint DFLAG_N = 0;
 char DFLAGS[DFLAG_MAX][2][32] = {{0, 0}};

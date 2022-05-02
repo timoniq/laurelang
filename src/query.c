@@ -390,7 +390,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set 
             return laure_eval_set(cctx, e, expset);
         }
         default: {
-            RESPOND_ERROR("no evaluator for %s in MAIN context available", EXPT_NAMES[e->t]);
+            RESPOND_ERROR(internal_err, e, "can't evaluate {%s} in MAIN context", EXPT_NAMES[e->t]);
         }
     }
 }
@@ -421,7 +421,7 @@ struct img_rec_ctx *img_rec_ctx_create(
 gen_resp qr_process_default(qresp response, struct img_rec_ctx* ctx) {
     bool cont = true;
     if (
-        (response.error
+        (response.payload
         || response.state == q_stop)
         && response.state != q_yield
     ) {
@@ -434,7 +434,7 @@ gen_resp qr_process_default(qresp response, struct img_rec_ctx* ctx) {
 }
 
 qresp gen_resp_process(gen_resp gr) {
-    if (gr.qr.error)
+    if (gr.qr.payload)
         return gr.qr;
     return RESPOND_YIELD(YIELD_OK);
 }
@@ -497,7 +497,7 @@ qresp laure_eval_assert(
                 }
 
                 if (to->locked) {
-                    RESPOND_ERROR("%s is locked", to->name);
+                    RESPOND_ERROR(access_err, e, "%s is locked", to->name);
                 }
 
                 struct ImageHead h = read_head(to->image);
@@ -521,6 +521,8 @@ qresp laure_eval_assert(
                     var2 = lvar_ins;
                 } else {
                     RESPOND_ERROR(
+                        access_err,
+                        e,
                         "both %s and %s are locked variables, so no ambiguation may be created", 
                         lvar_ins->name, rvar_ins->name
                     );
@@ -554,7 +556,7 @@ qresp laure_eval_assert(
 
             return RESPOND_TRUE;
         } else {
-            RESPOND_ERROR("both variables %s and %s are undefined and cannot be asserted", lvar->s, rvar->s);
+            RESPOND_ERROR(undefined_err, e, "both variables %s and %s are undefined and cannot be asserted", lvar->s, rvar->s);
         }
     } else if (lvar->t == let_var || rvar->t == let_var) {
         string vname = lvar->t == let_var ? lvar->s : rvar->s;
@@ -562,22 +564,22 @@ qresp laure_eval_assert(
         Instance *to = laure_scope_find_by_key(scope, vname, true);
 
         if (!to)
-            RESPOND_ERROR("variable %s is undefined", vname);
+            RESPOND_ERROR(undefined_err, e, "variable %s", vname);
         
         if (to->locked)
-            RESPOND_ERROR("%s is locked", vname);
+            RESPOND_ERROR(access_err, e, "%s is locked", vname);
         else {
             // Expression is sent to image translator
             struct ImageHead head = read_head(to->image);
             if (! head.translator) {
-                RESPOND_ERROR("%s is not assignable. Cannot assign to `%s`", vname, rexpression->s);
+                RESPOND_ERROR(internal_err, e, "%s is not assignable. Cannot assign to `%s`", vname, rexpression->s);
             }
             bool result = head.translator->invoke(rexpression, to->image, scope);
             if (!result) return RESPOND_FALSE;
             return RESPOND_TRUE;
         }
     } else
-        RESPOND_ERROR("can't assert %s with %s", lvar->s, rvar->s);
+        RESPOND_ERROR(instance_err, e, "can't assert %s with %s", lvar->s, rvar->s);
 }
 
 /* =-------=
@@ -638,10 +640,10 @@ qresp laure_eval_image(
            laure_scope_insert(scope, ins);
             return RESPOND_TRUE;
         } else
-            RESPOND_ERROR("both variables %s and %s are unknown", exp1->s, exp2->s);
+            RESPOND_ERROR(undefined_err, e, "both variables %s and %s are unknown", exp1->s, exp2->s);
         
     } else {
-        RESPOND_ERROR("invalid imaging %s to %s", exp1->s, exp2->s);
+        RESPOND_ERROR(instance_err, e, "invalid imaging %s to %s", EXPT_NAMES[exp1->t], EXPT_NAMES[exp2->t]);
     }
 }
 
@@ -684,11 +686,11 @@ gen_resp proc_unify_response(qresp resp, struct img_rec_ctx *ctx) {
         return gr;
     } else if (resp.state != q_true) {
         if (resp.state == q_yield) {
-            if (resp.error == YIELD_OK) {
+            if (resp.payload == YIELD_OK) {
                 ctx->flag = 1;
             }
         }
-        else if (resp.error || ctx->cctx->no_ambig) {
+        else if (resp.payload || ctx->cctx->no_ambig) {
             gen_resp gr = {0, respond(q_yield, 0)};
             return gr;
         }
@@ -713,9 +715,9 @@ qresp laure_eval_unify(_laure_eval_sub_args) {
     ulong link[1];
     Instance *to_unif = laure_scope_find_by_key_l(scope, e->s, link, false);
     if (! to_unif)
-        RESPOND_ERROR("%s is undefined", e->s);
+        RESPOND_ERROR(undefined_err, e, "variable %s", e->s);
     else if (to_unif->locked)
-        RESPOND_ERROR("%s is locked", e->s);
+        RESPOND_ERROR(access_err, e, "%s is locked", e->s);
     struct img_rec_ctx *ctx = img_rec_ctx_create(to_unif, cctx, expset, proc_unify_response);
     gen_resp gr = image_generate(scope, to_unif->image, image_rec_default, ctx);
     if (! ctx->flag) return respond(q_yield, YIELD_FAIL);
@@ -723,7 +725,7 @@ qresp laure_eval_unify(_laure_eval_sub_args) {
     if (gr.qr.state == q_stop) {
         return gr.qr;
     }
-    return respond(q_yield, gr.qr.error);
+    return respond(q_yield, gr.qr.payload);
 }
 
 /* =-------=
@@ -737,10 +739,10 @@ qresp laure_eval_var(_laure_eval_sub_args) {
 
     string vname = e->s;
     if (e->flag > 0)
-        RESPOND_ERROR("cannot evaluate nesting of %s, use infer op.", vname);
+        RESPOND_ERROR(instance_err, e, "cannot evaluate nesting of %s, use infer op.", vname);
     
     Instance *var = laure_scope_find_by_key(scope, vname, true);
-    if (!var) RESPOND_ERROR("%s is undefined", vname);
+    if (!var) RESPOND_ERROR(undefined_err, e, "variable %s", vname);
 
     vpk->single_var_processor(scope, vname, vpk->payload);
     cctx->silent = true;
@@ -893,16 +895,16 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
     string predicate_name = e->s;
     Instance *predicate_ins = laure_scope_find_by_key(scope, predicate_name, true);
     if (! predicate_ins)
-        RESPOND_ERROR("predicate %s is undefined", predicate_name);
+        RESPOND_ERROR(undefined_err, e, "predicate %s", predicate_name);
     enum ImageT call_t = read_head(predicate_ins->image).t;
     if (! (call_t == PREDICATE_FACT || call_t == CONSTRAINT_FACT))
-        RESPOND_ERROR("%s is neither predicate nor constraint", predicate_name);
+        RESPOND_ERROR(instance_err, e, "%s is neither predicate nor constraint", predicate_name);
     bool is_constraint = (call_t == CONSTRAINT_FACT);
     bool tfc = is_constraint && !qctx->constraint_mode;
 
     struct PredicateImage *pred_img = (struct PredicateImage*) predicate_ins->image;
     if (pred_img->is_primitive)
-        RESPOND_ERROR("primitive (%s) call is prohibited before instantiation; unify", predicate_name);
+        RESPOND_ERROR(too_broad_err, e, "primitive (%s) call is prohibited before instantiation; unify", predicate_name);
     if (is_constraint)
         qctx->constraint_mode = true;
     if (pred_img->variations->finals == NULL) {
@@ -930,7 +932,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             // C source predicate
             if (e->ba->body_len != pf->c.argc && pf->c.argc != -1) {
                 laure_scope_free(init_scope);
-                RESPOND_ERROR("predicate %s got %d args, expected %d", predicate_name, e->ba->body_len, pf->c.argc);
+                RESPOND_ERROR(signature_err, e, "predicate %s got %d args, expected %d", predicate_name, e->ba->body_len, pf->c.argc);
             }
             preddata *pd = preddata_new(prev);
             struct arg_rec_ctx actx[1];
@@ -965,7 +967,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 if (! exp) {
                     Instance *hint = pf->c.resp_hint;
                     if (! hint)
-                        RESPOND_ERROR("specification of %s's response is needed", predicate_name);
+                        RESPOND_ERROR(signature_err, e, "specification of %s's response is needed", predicate_name);
                     pd->resp = instance_deepcopy(prev, MOCK_NAME, hint);
                     pd->resp_link = 0;
                 } else {
@@ -1020,7 +1022,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
 
             if (e->ba->body_len != pf->interior.argc) {
                 laure_scope_free(init_scope);
-                RESPOND_ERROR("predicate %s got %d args, expected %d", predicate_name, e->ba->body_len, pf->interior.argc);
+                RESPOND_ERROR(signature_err, e, "predicate %s got %d args, expected %d", predicate_name, e->ba->body_len, pf->interior.argc);
             }
             laure_scope_t *nscope = laure_scope_new(scope->glob, prev);
 
@@ -1054,7 +1056,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 if (! arg_l) {
                     Instance *hint = pred_img->header.resp;
                     if (! hint)
-                        RESPOND_ERROR("specification of %s's response is needed", predicate_name);
+                        RESPOND_ERROR(signature_err, e, "specification of %s's response is needed", predicate_name);
                     Instance *rins = instance_deepcopy(nscope, laure_get_respn(), hint);
                     laure_scope_insert(nscope, rins);
                     
@@ -1112,7 +1114,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
         } else if (resp.state == q_true) {
             found = true;
         } else if (resp.state == q_yield) {
-            if (resp.error == YIELD_OK) found = true;
+            if (resp.payload == YIELD_OK) found = true;
         }
         // laure_scope_free(prev);
     }
@@ -1145,7 +1147,7 @@ gen_resp qr_process_quant_all(qresp qr, struct img_rec_ctx *ctx) {
     } else {
         if (qr.state == q_yield) {
             gen_resp gr;
-            gr.r = qr.error != YIELD_FAIL;
+            gr.r = qr.payload != YIELD_FAIL;
             if (gr.r)
                 gr.qr = respond(q_true, 0);
             else
@@ -1171,7 +1173,7 @@ qresp laure_eval_quant(_laure_eval_sub_args) {
 
     Instance *ins = laure_scope_find_by_key(scope, vname, false);
     if (! ins)
-        RESPOND_ERROR("%s is undefined", vname);
+        RESPOND_ERROR(undefined_err, e, "variable %s", vname);
     
     bool silent = cctx->silent;
     cctx->silent = true;
@@ -1201,7 +1203,7 @@ qresp laure_eval_quant(_laure_eval_sub_args) {
             break;
         }
         default:
-            RESPOND_ERROR("quantifier (id=%d) is undefined", e->flag);
+            RESPOND_ERROR(undefined_err, e, "quantifier %s (id=%d)", e->s, e->flag);
     }
     cctx->silent = silent;
     cctx->scope = scope;
@@ -1258,7 +1260,7 @@ qresp laure_eval_imply(_laure_eval_sub_args) {
     qresp qr = laure_start(cctx, fact_set);
     bool yielded = false;
     if (qr.state == q_error || qr.state == q_stop) return qr;
-    else if (qr.error == YIELD_FAIL) {
+    else if (qr.payload == YIELD_FAIL) {
         if (fact_qctx->flagme) {
             yielded = true;
         }
@@ -1273,7 +1275,7 @@ qresp laure_eval_imply(_laure_eval_sub_args) {
     if (! yielded) {
         return respond(q_true, 0);
     } else {
-        return respond(q_yield, qr.error);
+        return respond(q_yield, qr.payload);
     }
 }
 
@@ -1306,7 +1308,7 @@ qresp laure_eval_choice(_laure_eval_sub_args) {
         if (response.state == q_error)
             return response;
         
-        else if (response.state == q_true || (response.state == q_yield && response.error == YIELD_OK))
+        else if (response.state == q_true || (response.state == q_yield && response.payload == YIELD_OK))
             found = true;
         
         cctx->scope = scope;
