@@ -138,7 +138,8 @@ string convert_filepath(string filepath) {
 }
 
 void sigint_handler(int _) {
-    printf("\r%sCtrl-C%s: Goodbye\n", LAURUS_NOBILIS, NO_COLOR);
+    erase;
+    printf("%sCtrl-C%s: Goodbye\n", LAURUS_NOBILIS, NO_COLOR);
     exit(0);
 }
 
