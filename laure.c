@@ -4,6 +4,7 @@
 #include <readline/readline.h>
 #include <errno.h>
 #include <signal.h>
+#include <signal.h>
 
 #include <unistd.h>
 
@@ -134,6 +135,11 @@ string convert_filepath(string filepath) {
         new = strdup(filepath);
     }
     return new;
+}
+
+void sigint_handler(int _) {
+    printf("\r%sCtrl-C%s: Goodbye\n", LAURUS_NOBILIS, NO_COLOR);
+    exit(0);
 }
 
 int laure_process_query(laure_session_t *session, string line) {
@@ -407,6 +413,7 @@ void add_filename(string str) {
 }
 
 int main(int argc, char *argv[]) {
+    signal(SIGINT, sigint_handler);
 
     for (int idx = 0; idx < argc; idx++) {
         string str = argv[idx];
