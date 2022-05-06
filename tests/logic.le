@@ -80,6 +80,17 @@
     fail() -> fail();
 }
 
+// 6
+// 7
+// 8
+// 9
+: ?test_intersection(int).
+?test_intersection(x) {
+    x > 5;
+    y < 10;
+    x = y;
+}
+
 : ?nested_help(int, int).
 ?nested_help(1, 4).
 ?nested_help(x, x) when x > 0.

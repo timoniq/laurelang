@@ -509,6 +509,7 @@ qresp laure_eval_assert(
             } else {
                 // choicepoint is created
                 // due to ambiguation
+                // **intersection**
                 Instance *var1;
                 Instance *var2;
                 if (lvar_ins->locked && !rvar_ins->locked) {
@@ -526,6 +527,11 @@ qresp laure_eval_assert(
                         "both %s and %s are locked variables, so no ambiguation may be created", 
                         lvar_ins->name, rvar_ins->name
                     );
+                }
+
+                bool eqr = image_equals(var1->image, var2->image);
+                if (! eqr) {
+                    return RESPOND_FALSE;
                 }
 
                 // context
