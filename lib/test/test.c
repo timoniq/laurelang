@@ -36,7 +36,7 @@ bool test_suite_receiver(string repr, struct receiver_payload *payload) {
     }
     assert(repr[0] == '=');
     repr++;
-    if (strcmp(payload->data[payload->idx], "..") == 0) {
+    if (strcmp(payload->data[payload->idx], "...") == 0) {
         payload->idx++;
         return false;
     }

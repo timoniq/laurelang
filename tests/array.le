@@ -57,6 +57,7 @@
 : ?test_array_each_gen_array(arr) {
     int element = 1;
     element = each(arr);
+    arr?;
 }
 
 // 5

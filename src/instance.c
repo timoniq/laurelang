@@ -516,6 +516,9 @@ gen_resp array_tail_linker_generator(
     array_linker_ctx *ctx
 ) {
     Instance *back_instance = ctx->linked_instance;
+    array_linked_t *back_linked = ctx->tail;
+    uint back_rl = ctx->remaining_length;
+
     void *back = ctx->linked_instance->image;
     ctx->linked_instance->image = im;
     gen_resp GR;
@@ -545,6 +548,45 @@ gen_resp array_tail_linker_generator(
 
     // return to prev state
     back_instance->image = back;
+    ctx->linked_instance = back_instance;
+    ctx->tail = back_linked;
+    ctx->remaining_length = back_rl;
+    return GR;
+}
+
+typedef struct array_det {
+    struct ArrayImage *im;
+    laure_scope_t *scope;
+    REC_TYPE(final_rec);
+    void *final_external_ctx;
+} array_det;
+
+gen_resp array_length_receiver(
+    bigint *bi_len,
+    array_det *ctx
+) {
+    uint length = (uint)bigint_double(bi_len);
+    struct ArrayUData u_data = ctx->im->u_data;
+    struct ArrayIData i_data;
+    i_data.linked = NULL;
+    i_data.length = length;
+    uint i = length;
+
+    while (i) {
+        array_linked_t *linked = malloc(sizeof(array_linked_t));
+        linked->next = i_data.linked;
+        linked->data = instance_deepcopy(ctx->scope, MOCK_NAME, ctx->im->arr_el);
+        i_data.linked = linked;
+        i--;
+    }
+    ctx->im->state = I;
+    ctx->im->i_data = i_data;
+
+    gen_resp GR = image_generate(ctx->scope, ctx->im, ctx->final_rec, ctx->final_external_ctx);
+    
+    ctx->im->state = U;
+    ctx->im->u_data = u_data;
+    
     return GR;
 }
 
@@ -575,7 +617,12 @@ gen_resp array_generate(
         }
         return rec(im, external_ctx);
     } else {
-        printf("U ary\n");
+        array_det ctx[1];
+        ctx->final_rec = rec;
+        ctx->final_external_ctx = external_ctx;
+        ctx->im = im;
+        ctx->scope = scope;
+        return int_domain_generate(im->u_data.length, array_length_receiver, ctx);
     }
 }
 
