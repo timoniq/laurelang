@@ -33,6 +33,65 @@ void laure_upd_scope(ulong link, laure_scope_t *to, laure_scope_t *from) {
         var_process_kit *vpk = cctx->vpk; \
         qcontext *qctx = cctx->qctx;
 
+struct img_rec_ctx {
+    Instance *var;
+    control_ctx *cctx;
+    laure_expression_set *expset;
+    gen_resp (*qr_process)(qresp, struct img_rec_ctx*);
+    uint flag;
+};
+
+struct img_rec_ctx *img_rec_ctx_create(
+    Instance *var, 
+    control_ctx *cctx, 
+    laure_expression_set *expset, 
+    gen_resp (*qr_process)(qresp, struct img_rec_ctx*)
+) {
+    struct img_rec_ctx *ctx = malloc(sizeof(struct img_rec_ctx));
+    ctx->var = var;
+    ctx->cctx = cctx;
+    ctx->expset = expset;
+    ctx->qr_process = qr_process;
+    ctx->flag = 0;
+    return ctx;
+}
+
+gen_resp image_rec_default(void *image, struct img_rec_ctx *ctx) {
+    void *d = ctx->var->image;
+    ctx->var->image = image;
+    laure_scope_t *nscope = laure_scope_create_copy(ctx->cctx, ctx->cctx->scope);
+    laure_scope_t *oscope = ctx->cctx->scope;
+    ctx->cctx->scope = nscope;
+    qresp response = laure_start(ctx->cctx, ctx->expset);
+    laure_scope_free(nscope);
+    ctx->cctx->scope = oscope;
+    return ctx->qr_process(response, ctx);
+}
+
+gen_resp proc_unify_response(qresp resp, struct img_rec_ctx *ctx) {
+    if (resp.state == q_stop) {
+        gen_resp gr = {0, resp};
+        return gr;
+    } else if (resp.state != q_true) {
+        if (resp.state == q_yield) {
+            if (resp.payload == YIELD_OK) {
+                ctx->flag = 1;
+            }
+        }
+        else if (resp.payload || ctx->cctx->no_ambig) {
+            gen_resp gr = {0, respond(q_yield, 0)};
+            return gr;
+        }
+    } else if (ctx->cctx->cut) {
+        gen_resp gr = {0, respond(q_yield, 0)};
+        return gr;
+    } else if (resp.state == q_true) {
+        ctx->flag = 1;
+    }
+    gen_resp gr = {1, resp};
+    return gr;
+}
+
 // Start evaluating search tree
 qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
     LAST_QCTX = cctx->qctx;
@@ -77,6 +136,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
         cctx->scope = nscope;
         qresp resp = laure_start(cctx, cctx->qctx ? cctx->qctx->expset : NULL);
         LAST_QCTX = old;
+        // cctx->qctx = old;
         // if (should_free) laure_scope_free(nscope);
         return resp;
     }
@@ -101,7 +161,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
 #define erase printf("\33[2K\r")
 
 void laure_init_name_buffs() {
-    assert(! IS_BUFFN_INITTED);
+    if (IS_BUFFN_INITTED) return;
     RESPN = strdup("$R");
     CONTN = strdup("$C");
     for (uint idx = 0; idx < MAX_ARGS; idx++) {
@@ -213,7 +273,7 @@ qresp laure_showcast(control_ctx *cctx) {
         glob_ins->image = image_deepcopy(scope->glob, ins->image);
         
         char name[64];
-        strncpy(name, glob_ins->name, 64);
+        strncpy(name, vpk->tracked_vars[i], 64);
 
         if (str_starts(name, "$")) {
             string doc = ins->doc;
@@ -395,29 +455,6 @@ qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set 
     }
 }
 
-struct img_rec_ctx {
-    Instance *var;
-    control_ctx *cctx;
-    laure_expression_set *expset;
-    gen_resp (*qr_process)(qresp, struct img_rec_ctx*);
-    uint flag;
-};
-
-struct img_rec_ctx *img_rec_ctx_create(
-    Instance *var, 
-    control_ctx *cctx, 
-    laure_expression_set *expset, 
-    gen_resp (*qr_process)(qresp, struct img_rec_ctx*)
-) {
-    struct img_rec_ctx *ctx = malloc(sizeof(struct img_rec_ctx));
-    ctx->var = var;
-    ctx->cctx = cctx;
-    ctx->expset = expset;
-    ctx->qr_process = qr_process;
-    ctx->flag = 0;
-    return ctx;
-}
-
 gen_resp qr_process_default(qresp response, struct img_rec_ctx* ctx) {
     bool cont = true;
     if (
@@ -437,18 +474,6 @@ qresp gen_resp_process(gen_resp gr) {
     if (gr.qr.payload)
         return gr.qr;
     return RESPOND_YIELD(YIELD_OK);
-}
-
-gen_resp image_rec_default(void *image, struct img_rec_ctx *ctx) {
-    void *d = ctx->var->image;
-    ctx->var->image = image;
-    laure_scope_t *nscope = laure_scope_create_copy(ctx->cctx, ctx->cctx->scope);
-    laure_scope_t *oscope = ctx->cctx->scope;
-    ctx->cctx->scope = nscope;
-    qresp response = laure_start(ctx->cctx, ctx->expset);
-    laure_scope_free(nscope);
-    ctx->cctx->scope = oscope;
-    return ctx->qr_process(response, ctx);
 }
 
 /* =-------=
@@ -686,30 +711,6 @@ qresp laure_eval_name(_laure_eval_sub_args) {
     }
 }
 
-gen_resp proc_unify_response(qresp resp, struct img_rec_ctx *ctx) {
-    if (resp.state == q_stop) {
-        gen_resp gr = {0, resp};
-        return gr;
-    } else if (resp.state != q_true) {
-        if (resp.state == q_yield) {
-            if (resp.payload == YIELD_OK) {
-                ctx->flag = 1;
-            }
-        }
-        else if (resp.payload || ctx->cctx->no_ambig) {
-            gen_resp gr = {0, respond(q_yield, 0)};
-            return gr;
-        }
-    } else if (ctx->cctx->cut) {
-        gen_resp gr = {0, respond(q_yield, 0)};
-        return gr;
-    } else if (resp.state == q_true) {
-        ctx->flag = 1;
-    }
-    gen_resp gr = {1, resp};
-    return gr;
-}
-
 /* =-------=
 Unify.
 Forces variable unification.
@@ -845,6 +846,20 @@ ARGPROC_RES pred_call_procvar(
                 lin = laure_scope_generate_link();
             }
             recorder(arg, lin, ctx);
+            if (prev_scope->idx == 1) {
+                Instance *glob = laure_scope_find_by_key(cctx->tmp_answer_scope, vname, false);
+                if (! glob) {
+                    Instance *nins = instance_deepcopy(cctx->tmp_answer_scope, vname, arg);
+                    #ifdef SCOPE_LINKED
+                    linked_scope_t *linked = laure_scope_insert(cctx->tmp_answer_scope, nins);
+                    // laure_add_grabbed_link(cctx, linked->link);
+                    *l = linked->link;
+                    #else
+                    laure_cell cell = laure_scope_insert_l(cctx->tmp_answer_scope, nins, lin);
+                    // laure_add_grabbed_link(cctx, cell.link);
+                    #endif
+                }
+            }
             break;
         }
         default: {

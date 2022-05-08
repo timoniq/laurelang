@@ -500,6 +500,85 @@ struct ArrayImage *array_copy(struct ArrayImage *old_img) {
     return image;
 }
 
+typedef struct array_linker_ctx {
+    Instance *linked_instance;
+    array_linked_t *tail;
+    uint remaining_length;
+    struct ArrayImage *general_ary_img;
+    laure_scope_t *scope;
+
+    REC_TYPE(final_rec);
+    void *final_external_ctx;
+} array_linker_ctx;
+
+gen_resp array_tail_linker_generator(
+    void *im,
+    array_linker_ctx *ctx
+) {
+    Instance *back_instance = ctx->linked_instance;
+    void *back = ctx->linked_instance->image;
+    ctx->linked_instance->image = im;
+    gen_resp GR;
+    if (! ctx->remaining_length) {
+        GR = ctx->final_rec(ctx->general_ary_img, ctx->final_external_ctx);
+    } else {
+        uint i = 0;
+        array_linked_t *linked = ctx->tail;
+        bool g = false;
+        while (i < ctx->remaining_length && linked) {
+            Instance *ins = linked->data;
+            if (! instantiated(ins)) {
+                ctx->linked_instance = ins;
+                ctx->tail = linked->next;
+                ctx->remaining_length = ctx->remaining_length - i - 1;
+                GR = image_generate(ctx->scope, ins->image, array_tail_linker_generator, ctx);
+                g = true;
+                break;
+            }
+            linked = linked->next;
+            i++;
+        }
+        if (! g) {
+            GR = ctx->final_rec(ctx->general_ary_img, ctx->final_external_ctx);
+        }
+    }
+
+    // return to prev state
+    back_instance->image = back;
+    return GR;
+}
+
+gen_resp array_generate(
+    laure_scope_t *scope, 
+    struct ArrayImage *im, 
+    REC_TYPE(rec), 
+    void *external_ctx
+) {
+    if (im->state == I) {
+        uint i = 0;
+        array_linked_t *linked = im->i_data.linked;
+        while (i < im->i_data.length && linked) {
+            Instance *ins = linked->data;
+            if (! instantiated(ins)) {
+                array_linker_ctx ctx[1];
+                ctx->final_rec = rec;
+                ctx->final_external_ctx = external_ctx;
+                ctx->linked_instance = ins;
+                ctx->remaining_length = im->i_data.length - i - 1;
+                ctx->tail = linked->next;
+                ctx->general_ary_img = im;
+                ctx->scope = scope;
+                return image_generate(scope, ins->image, array_tail_linker_generator, ctx);
+            }
+            linked = linked->next;
+            i++;
+        }
+        return rec(im, external_ctx);
+    } else {
+        printf("U ary\n");
+    }
+}
+
 /*
    Working with chars
 */
@@ -928,6 +1007,9 @@ gen_resp image_generate(laure_scope_t *scope, void *img, REC_TYPE(rec), void *ex
         case CHAR: {
             return char_generate(scope, (struct CharImage*) img, rec, external_ctx);
         }
+        case ARRAY: {
+            return array_generate(scope, (struct ArrayImage*) img, rec, external_ctx);
+        }
         default: {
             char error[128];
             snprintf(error, 128, "no instantiation implemented for %s", IMG_NAMES[head.t]);
@@ -966,8 +1048,18 @@ bool instantiated(Instance *ins) {
     switch (head.t) {
         case INTEGER:
             return ((struct IntImage*)ins->image)->state == I;
-        case ARRAY:
-            return ((struct ArrayImage*)ins->image)->state == I;
+        case ARRAY: {
+            struct ArrayImage *ary = ((struct ArrayImage*)ins->image);
+            if (ary->state != I) return false;
+            uint i = 0;
+            array_linked_t *linked = ary->i_data.linked;
+            while (i < ary->i_data.length && linked) {
+                if (! instantiated(linked->data)) return false;
+                linked = linked->next;
+                i++;
+            }
+            return true;
+        }
         case ATOM:
             return ((struct AtomImage*)ins->image)->single;
         case CONSTRAINT_FACT:
@@ -1307,27 +1399,6 @@ string constraint_repr(Instance *ins) {
     snprintf(buff, 128, "(#%s(%s)%s)", ins->name, argsbuff, respbuff);
     return strdup(buff);
 }
-
-/*
-void laure_add_grabbed_link(control_ctx *cctx, ulong nlink) {
-    laure_grab_linked *grab = malloc(sizeof(laure_grab_linked));
-    grab->link = nlink;
-    grab->next = NULL;
-    if (! cctx->grabbed) {
-        cctx->grabbed = grab;
-    } else {
-        grab->next = cctx->grabbed;
-        cctx->grabbed = grab;
-    }
-}
-
-void laure_free_grab(laure_grab_linked *grab) {
-    if (! grab) return;
-    if (grab->next)
-        laure_free_grab(grab->next);
-    free(grab);
-}
-*/
 
 /* ==========
 Miscellaneous

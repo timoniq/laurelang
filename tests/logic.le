@@ -169,7 +169,6 @@
     &exists A { A = compass };
 }
 
-ATOMS_FOR_TEST ~ @{atom1, "atom2", 1, X}.
 // @atom1
 // @"atom2"
 // @1

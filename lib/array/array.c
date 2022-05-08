@@ -18,51 +18,66 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
         return respond(q_error, "each: operating array or element must be specified; add hint");
     
     if (!arr_ins->image)
-        arr_ins->image = array_u_new(el_ins);
+        arr_ins->image = laure_create_array_u(el_ins);
     else if (!el_ins->image)
-        el_ins->image = image_deepcopy(cctx->stack, ((struct ArrayImage*)arr_ins->image)->arr_el->image);
+        el_ins->image = image_deepcopy(cctx->scope, ((struct ArrayImage*)arr_ins->image)->arr_el->image);
 
     struct ArrayImage *arr_img = arr_ins->image;
 
     if (instantiated(arr_ins)) {
+
         if (instantiated(el_ins)) {
-            for (int idx = 0; idx < arr_img->i_data.length; idx++) {
-                Instance *el = arr_img->i_data.array[idx];
-                if (! img_equals(el_ins->image, el->image))
+            uint i = 0;
+            array_linked_t *linked = arr_img->i_data.linked;
+
+            while (i < arr_img->i_data.length && linked) {
+                Instance *el = linked->data;
+                if (! image_equals(el_ins->image, el->image))
                     return respond(q_false, NULL);
+                linked = linked->next;
+                i++;
             }
             return respond(q_true, NULL);
-        } else {
-            Instance *el_ins_copy = instance_deepcopy(cctx->stack, el_ins->name, el_ins);
 
+        } else {
+
+            Instance *el_ins_copy = instance_deepcopy(cctx->scope, el_ins->name, el_ins);
             bool found = false;
 
-            for (int idx = 0; idx < arr_img->i_data.length; idx++) {
-                void *img_copy = image_deepcopy(cctx->stack, el_ins_copy->image);
-                Instance *el = arr_img->i_data.array[idx];
+            uint i = 0;
+            array_linked_t *linked = arr_img->i_data.linked;
 
-                if (img_equals(img_copy, el->image)) {
+            while (i < arr_img->i_data.length && linked) {
+                void *img_copy = image_deepcopy(cctx->scope, el_ins_copy->image);
+                Instance *el = linked->data;
 
-                    // choicepoint created
+                if (image_equals(img_copy, el->image)) {
+
                     el_ins->image = img_copy;
 
-                    laure_stack_t *nstack = laure_stack_clone(cctx->stack, true);
-                    control_ctx *ncctx = control_new(nstack, cctx->qctx, cctx->vpk, cctx->data, cctx->no_ambig);
+                    laure_scope_t *nscope = laure_scope_create_copy(cctx, pd->scope);
+                    nscope->repeat++;
 
-                    qresp result = laure_eval(ncctx, ncctx->qctx->expset);
+                    laure_scope_t *old_sc = pd->scope;
+                    qcontext *old_qc = cctx->qctx;
+                    cctx->qctx = cctx->qctx->next;
+                    cctx->scope = nscope;
+                    
+                    qresp result = laure_start(cctx, cctx->qctx ? cctx->qctx->expset : NULL);
+                    if (result.state == q_true || (result.state == q_yield && result.payload == (void*)1)) found = true;
 
-                    if (result.error) return result;
-                    else if (result.state == q_true) found = true;
-
-                    free(ncctx);
-                    laure_stack_free(nstack);
+                    cctx->scope = old_sc;
+                    cctx->qctx = old_qc;
+                    laure_scope_free(nscope);
                 }
+                linked = linked->next;
+                i++;
             }
             return respond(q_yield, (void*)found);
         }
     } else if (instantiated(el_ins)) {
         // every array element is el_ins
-        bool result = img_equals(arr_img->arr_el->image, el_ins->image);
+        bool result = image_equals(arr_img->arr_el->image, el_ins->image);
         return respond(result ? q_true : q_false, 0);
     } else {
         arr_img->arr_el->image = el_ins->image;
@@ -71,6 +86,7 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
     return respond(q_true, 0);
 }
 
+/*
 struct ArrayIdxEGenCtx {
     control_ctx *cctx;
     uint idx; 
@@ -214,25 +230,28 @@ qresp array_predicate_length(preddata *pd, control_ctx *cctx) {
         respond(q_true, 0);
     }
 }
+*/
 
-int package_include(laure_session_t *session) {
-    laure_cle_add_predicate(
+int on_include(laure_session_t *session) {
+    laure_api_add_predicate(
         session, "each", 
         array_predicate_each, 
         1, "ARRAY:_", "_", false, 
         DOC_each
     );
-    laure_cle_add_predicate(
+    /*
+    laure_api_add_predicate(
         session, "by_idx", 
         array_predicate_by_idx, 
         2, "ARRAY:_ idx:int", "_", false, 
         DOC_by_idx
     );
-    laure_cle_add_predicate(
+    laure_api_add_predicate(
         session, "length", 
         array_predicate_length, 
         1, "ARRAY:!", "int", false, 
         DOC_length
     );
+    */
     return 0;
 }
