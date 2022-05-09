@@ -419,7 +419,7 @@ string array_repr(Instance *ins) {
             string repr = el->repr(el);
             if (len + strlen(repr) >= 500) {
                 free(repr);
-                strcat(buff, ", ...");
+                strcat(buff, "...");
                 break;
             }
             strcat(buff, repr);
@@ -854,6 +854,7 @@ bool char_eq(struct CharImage *img1_t, struct CharImage *img2_t) {
                 img2_t->charset = strdup(img1_t->charset);
             }
         }
+        return true;
     } else if (img1_t->state == 2 || img2_t->state == 2) {
         struct CharImage *chset = img1_t->state == 2 ? img1_t : img2_t;
         struct CharImage *single = img1_t->state == 2 ? img2_t : img1_t;
@@ -1069,6 +1070,7 @@ gen_resp image_generate(laure_scope_t *scope, void *img, REC_TYPE(rec), void *ex
 // Image deepcopy
 
 void *image_deepcopy(laure_scope_t *stack, void *img) {
+    if (! img) return NULL;
     laure_image_head head = read_head(img);
     switch (head.t) {
         case INTEGER: {
@@ -1121,6 +1123,7 @@ bool instantiated(Instance *ins) {
 // Image free
 
 void image_free(void *image) {
+    if (! image) return;
     laure_image_head head = read_head(image);
     switch (head.t) {
         case INTEGER: {
