@@ -8,10 +8,6 @@ Consistent guide set for laurelang newcommers:
 
 [Tutorial](./tutorial/index.md)
 
-Notes for contributors:
-
-[Dev notes](./dev/index.md)
-
 Short notes about builtin instances and packages:
 
 [Builtin instances description](./builtin.md)

@@ -698,6 +698,16 @@ laure_parse_result laure_parse(string query) {
             return lpr;
         }
         case '&': {
+            if (query[0] == '{') {
+                // Isolated set (feature #10)
+                laure_parse_result lpr = laure_parse(query);
+                if (! lpr.is_ok) {
+                    return lpr;
+                }
+                lpr.exp->flag = 1;
+                return lpr;
+            }
+
             // Quantified expression
             // 1 - all
             // 2 - exists
@@ -1240,6 +1250,7 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
 
         case let_set: {
             printindent(indent);
+            if (exp->flag) printf("isolated ");
             printf("set {\n");
             laure_expression_t *ptr = NULL;
             EXPSET_ITER(exp->ba->set, ptr, {

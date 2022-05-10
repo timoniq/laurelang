@@ -4,5 +4,6 @@
     "function.le",
     "logic.le",
     "array.le",
-    "string.le"
+    "string.le",
+    "kb_pl.le"
 ).
