@@ -16,16 +16,20 @@
 
 char *RESPN = NULL;
 char *CONTN = NULL;
+char *MARKER_NODELETE = NULL;
 char *ARGN_BUFF[32];
 bool IS_BUFFN_INITTED = 0;
 qcontext *LAST_QCTX = NULL;
 
 void laure_upd_scope(ulong link, laure_scope_t *to, laure_scope_t *from) {
+    // unused
     Instance *to_ins = laure_scope_find_by_link(to, link, false);
     if (! to_ins) return;
     Instance *from_ins = laure_scope_find_by_link(from, link, false);
     if (! from_ins) return;
-    image_equals(to_ins->image, from_ins->image);
+    bool res = image_equals(to_ins->image, from_ins->image);
+    if (! res)
+        printf("Error: cannot backtrack link %lu\n", link);
 }
 
 #define UNPACK_CCTX(cctx) \
@@ -126,7 +130,18 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
             laure_scope_iter(cctx->scope, cellptr, {
                 Instance *sim = laure_scope_find_by_link(nscope, cellptr->link, false);
                 if (sim) {
-                    image_equals(sim->image, cellptr->ptr->image);
+                    bool res = image_equals(sim->image, cellptr->ptr->image);
+                    if (! res)
+                        printf(
+                            "Error: conflict when updating link %lu %s%s%s := %s%s%s\n", 
+                            cellptr->link, 
+                            RED_COLOR,
+                            sim->repr(sim), 
+                            NO_COLOR,
+                            GREEN_COLOR,
+                            cellptr->ptr->repr(cellptr->ptr),
+                            NO_COLOR
+                        );
                 }
             });
 
@@ -141,7 +156,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
         return resp;
     }
     qresp response;
-    if (! cctx->silent && cctx->vpk) {
+    if (! cctx->silent && cctx->vpk && cctx->vpk->do_process) {
         #ifdef DEBUG
         printf("DEBUG: sending data (mode=%s%s%s)\n", BOLD_WHITE, cctx->vpk->mode == INTERACTIVE ? "INTERACTIVE" : (cctx->vpk->mode == SENDER ? "SENDER" : "OTHER"), NO_COLOR);
         #endif
@@ -164,6 +179,7 @@ void laure_init_name_buffs() {
     if (IS_BUFFN_INITTED) return;
     RESPN = strdup("$R");
     CONTN = strdup("$C");
+    MARKER_NODELETE = strdup("$NODELETE");
     for (uint idx = 0; idx < MAX_ARGS; idx++) {
         char name[4];
         snprintf(name, 4, "$%u", idx);
@@ -836,7 +852,10 @@ ARGPROC_RES pred_call_procvar(
                 }
                 if (! new_scope) arg = prev_ins;
             } else {
-                if (create_copy)
+                Instance *existing_same = new_scope ? laure_scope_find_by_link(new_scope, *link, false) : NULL;
+                if (existing_same)
+                    arg = instance_new(argn, MARKER_NODELETE, existing_same->image);
+                else if (create_copy)
                     arg = instance_deepcopy(new_scope, argn, arg);
             }
             ulong lin;
@@ -1359,28 +1378,56 @@ qresp laure_eval_set(_laure_eval_sub_args) {
     UNPACK_CCTX(cctx);
     if (! e->ba->set) return respond(q_true, NULL);
 
-    laure_scope_t *priv_scope = laure_scope_create_copy(cctx, scope);
-    priv_scope->next = scope;
-    priv_scope->repeat++;
     laure_expression_set *old = qctx->expset;
-    qctx->expset = qctx->expset->next;
+    bool back_do_process = cctx->vpk->do_process;
 
-    qcontext nqctx[1];
-    nqctx->constraint_mode = qctx->constraint_mode;
-    nqctx->expset = e->ba->set;
-    nqctx->flagme = false;
-    nqctx->next = qctx;
+    if (e->flag) {
+        // Isolated set (feature #10)
+        laure_scope_t *priv_scope = laure_scope_create_copy(cctx, scope);
+        priv_scope->next = NULL;
 
-    cctx->scope = priv_scope;
-    cctx->qctx = nqctx;
+        qcontext nqctx[1];
+        nqctx->constraint_mode = qctx->constraint_mode;
+        nqctx->expset = e->ba->set;
+        nqctx->next = NULL;
 
-    qresp response = laure_start(cctx, cctx->qctx->expset);
+        vpk->do_process = false;
+        cctx->qctx = nqctx;
 
-    laure_scope_free(priv_scope);
-    qctx->expset = old;
-    cctx->scope = scope;
-    cctx->qctx = qctx;
-    return response;
+        qresp response = laure_start(cctx, nqctx->expset);
+
+        laure_scope_free(priv_scope);
+        cctx->qctx = qctx;
+        vpk->do_process = back_do_process;
+
+        if (response.state == q_yield) {
+            return respond((response.payload == YIELD_OK) ? q_true : q_false, NULL);
+        }
+
+        return response;
+    } else {
+        laure_scope_t *priv_scope = laure_scope_create_copy(cctx, scope);
+        priv_scope->next = scope;
+        priv_scope->repeat++;
+        qctx->expset = qctx->expset->next;
+
+        qcontext nqctx[1];
+        nqctx->constraint_mode = qctx->constraint_mode;
+        nqctx->expset = e->ba->set;
+        nqctx->flagme = false;
+        nqctx->next = qctx;
+
+        cctx->scope = priv_scope;
+        cctx->qctx = nqctx;
+
+        qresp response = laure_start(cctx, cctx->qctx->expset);
+
+        laure_scope_free(priv_scope);
+        qctx->expset = old;
+        cctx->scope = scope;
+        cctx->qctx = qctx;
+        return response;
+    }
 }
 
 control_ctx *control_new(laure_scope_t* scope, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig) {
