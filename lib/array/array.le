@@ -11,7 +11,9 @@
 
 ?no_repeat(arr) {
     i > 0;
-    i < length of arr;
+    len = length of arr;
+    arr?;
+    i < len;
     &all i {
         arr[i] cons arr[i - 1];
     };

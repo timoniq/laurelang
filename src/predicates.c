@@ -84,7 +84,7 @@ qresp laure_constraint_gt(preddata *pd, control_ctx* cctx) {
         return respond(q_true, 0);
     } else {
         printf("todo gt indefinite\n");
-        return respond(q_true, 0);
+        return respond(q_false, 0);
     }
 }
 

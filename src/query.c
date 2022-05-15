@@ -96,6 +96,21 @@ gen_resp proc_unify_response(qresp resp, struct img_rec_ctx *ctx) {
     return gr;
 }
 
+gen_resp qr_process_default(qresp response, struct img_rec_ctx* ctx) {
+    bool cont = true;
+    if (
+        (response.payload
+        || response.state == q_stop)
+        && response.state != q_yield
+    ) {
+        cont = false;
+    } else if (ctx->cctx->cut) {
+        cont = false;
+    }
+    gen_resp GR = {cont, response};
+    return GR;
+}
+
 // Start evaluating search tree
 qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
     LAST_QCTX = cctx->qctx;
@@ -119,6 +134,27 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
         cctx->qctx->flagme = true;
 
     if ((cctx->qctx && cctx->qctx->next && (cctx->scope->idx != 1)) || cctx->scope->repeat > 0) {
+        // check all stuff initted
+        /*
+        if (cctx->qctx && ! cctx->qctx->constraint_mode)
+            laure_scope_iter(cctx->scope, cellptr, {
+                Instance *ins = cellptr->ptr;
+                if (! instantiated(ins)) {
+                    struct img_rec_ctx ctx[1];
+                    ctx->var = ins;
+                    ctx->cctx = cctx;
+                    ctx->expset = NULL;
+                    ctx->qr_process = qr_process_default;
+                    ctx->flag = 0;
+                    qcontext *oqctx = qctx;
+                    gen_resp gr = image_generate(cctx->scope, ins->image, image_rec_default, ctx);
+                    cctx->qctx = oqctx;
+                    // *process qr somehow*
+                    return gr.qr;
+                }
+            });
+        */
+
         laure_scope_t *nscope;
         bool should_free = false;
         if (cctx->scope->repeat > 0) {
@@ -469,21 +505,6 @@ qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set 
             RESPOND_ERROR(internal_err, e, "can't evaluate {%s} in MAIN context", EXPT_NAMES[e->t]);
         }
     }
-}
-
-gen_resp qr_process_default(qresp response, struct img_rec_ctx* ctx) {
-    bool cont = true;
-    if (
-        (response.payload
-        || response.state == q_stop)
-        && response.state != q_yield
-    ) {
-        cont = false;
-    } else if (ctx->cctx->cut) {
-        cont = false;
-    }
-    gen_resp GR = {cont, response};
-    return GR;
 }
 
 qresp gen_resp_process(gen_resp gr) {
@@ -1281,12 +1302,12 @@ qresp laure_eval_imply(_laure_eval_sub_args) {
     current->next = qctx->next;
 
     qcontext if_qctx[1];
-    if_qctx->constraint_mode = qctx->constraint_mode;
+    if_qctx->constraint_mode = true;
     if_qctx->expset = implies_for;
     if_qctx->next = current;
 
     qcontext fact_qctx[1];
-    fact_qctx->constraint_mode = qctx->constraint_mode;
+    fact_qctx->constraint_mode = true;
     fact_qctx->expset = fact_set;
     fact_qctx->next = if_qctx;
     fact_qctx->flagme = false;

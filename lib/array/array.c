@@ -271,15 +271,32 @@ qresp array_predicate_length(preddata *pd, control_ctx *cctx) {
     if (instantiated(arr_ins)) {
         uint real_len = arr_img->i_data.length;
         void *real_len_img = laure_create_integer_i(real_len);
+        if (arr_img->length_lid) {
+            Instance *llen = laure_scope_find_by_link(cctx->scope, arr_img->length_lid, true);
+            if (llen) {
+                if (! image_equals(llen->image, real_len_img)) {
+                    image_free(real_len_img);
+                    return respond(q_false, 0);
+                }
+            }
+        }
         bool result = image_equals(len_img, real_len_img);
         return respond(result ? q_true : q_false, 0);
     } else if (instantiated(len_ins)) {
+        if (arr_img->length_lid) {
+            Instance *llen = laure_scope_find_by_link(cctx->scope, arr_img->length_lid, true);
+            if (llen) {
+                if (! image_equals(llen->image, len_img)) {
+                    return respond(q_false, 0);
+                }
+            }
+        }
         arr_img->u_data.length->t = SINGLE;
         arr_img->u_data.length->lborder.data = len_img->i_data;
         return respond(q_true, 0);
     } else {
         ulong link[1];
-        laure_scope_find_by_key_l(cctx->scope, len_ins->name, link, true);
+        laure_scope_find_by_key_l(pd->scope, len_ins->name, link, true);
         arr_img->length_lid = *link;
         return respond(q_true, 0);
     }

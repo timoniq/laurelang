@@ -345,6 +345,16 @@ bool array_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope)
 
     if (array->state == U) {
         uint length = laure_expression_get_count(exp->ba->set);
+        if (array->length_lid) {
+            Instance *llen = laure_scope_find_by_link(scope, array->length_lid, true);
+            if (llen) {
+                struct IntImage *limg = laure_create_integer_i((int)length);
+                if (! image_equals(llen->image, limg)) {
+                    image_free(limg);
+                    return false;
+                }
+            }
+        }
         
         array_linked_t *first = NULL;
         array_linked_t *linked = NULL;
@@ -566,6 +576,18 @@ gen_resp array_length_receiver(
     array_det *ctx
 ) {
     uint length = (uint)bigint_double(bi_len);
+
+    void *restore_llen, *limg;
+    restore_llen = NULL;
+    limg = NULL;
+    if (ctx->im->length_lid) {
+        Instance *llen = laure_scope_find_by_link(ctx->scope, ctx->im->length_lid, false);
+        if (llen) {
+            restore_llen = llen->image;
+            limg = laure_create_integer_i((int)length);
+            llen->image = limg;
+        }
+    }
     struct ArrayUData u_data = ctx->im->u_data;
     struct ArrayIData i_data;
     i_data.linked = NULL;
@@ -586,6 +608,12 @@ gen_resp array_length_receiver(
     
     ctx->im->state = U;
     ctx->im->u_data = u_data;
+
+    if (limg) {
+        Instance *llen = laure_scope_find_by_link(ctx->scope, ctx->im->length_lid, false);
+        if (llen) llen->image = restore_llen;
+        image_free(limg);
+    }
     
     return GR;
 }
@@ -622,7 +650,10 @@ gen_resp array_generate(
         ctx->final_external_ctx = external_ctx;
         ctx->im = im;
         ctx->scope = scope;
-        return int_domain_generate(im->u_data.length, array_length_receiver, ctx);
+        Domain *len_copy = int_domain_copy(im->u_data.length);
+        gen_resp response = int_domain_generate(len_copy, array_length_receiver, ctx);
+        int_domain_free(len_copy);
+        return response;
     }
 }
 
