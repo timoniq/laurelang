@@ -911,6 +911,8 @@ ARGPROC_RES pred_call_procvar(
             bool result = read_head(arg->image).translator->invoke(exp, arg->image, prev_scope);
 
             if (! result) {
+                image_free(arg->image);
+                free(arg);
                 return ARGPROC_RET_FALSE;
             }
             recorder(arg, laure_scope_generate_link(), ctx);
