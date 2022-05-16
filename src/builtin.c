@@ -16,12 +16,15 @@ string bc_repr(Instance* ins) {
 }
 
 Instance *get_hint(string hint, laure_scope_t *scope) {
+    if (! MOCK_NAME) {
+        MOCK_NAME = strdup("$mock_name");
+    }
     Instance *arg;
     if (str_eq(hint, "!"))
         arg = NULL;
     else if (str_eq(hint, "_"))
         arg = instance_new(MOCK_NAME, NULL, NULL);
-    else arg = laure_scope_find_by_key(scope, hint, true);
+    else arg = laure_scope_find_by_key(scope->glob, hint, true);
     return arg;
 }
 
@@ -161,6 +164,7 @@ Instance *laure_api_add_predicate(
 
             Instance *arg = get_hint(hint_tname, session->scope);
             cimage->hints[j] = hint_new(hint_name, arg);
+
             linked1 = linked1->next;
             j++;
         } while (linked1);

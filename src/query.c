@@ -818,6 +818,7 @@ ARGPROC_RES pred_call_procvar(
 
     string              argn, 
     Instance           *hint_opt, 
+    
     laure_expression_t *exp, 
     RECORDER_T         (recorder), 
     struct arg_rec_ctx *ctx, 
@@ -892,11 +893,9 @@ ARGPROC_RES pred_call_procvar(
                     Instance *nins = instance_deepcopy(cctx->tmp_answer_scope, vname, arg);
                     #ifdef SCOPE_LINKED
                     linked_scope_t *linked = laure_scope_insert(cctx->tmp_answer_scope, nins);
-                    // laure_add_grabbed_link(cctx, linked->link);
                     *l = linked->link;
                     #else
                     laure_cell cell = laure_scope_insert_l(cctx->tmp_answer_scope, nins, lin);
-                    // laure_add_grabbed_link(cctx, cell.link);
                     #endif
                 }
             }
@@ -906,12 +905,12 @@ ARGPROC_RES pred_call_procvar(
             if (! hint_opt)
                 return_str_fmt("cannot resolve meaning of %s; add hint", exp->s);
             Instance *arg = instance_deepcopy(prev_scope, argn, hint_opt);
+            
             if (! arg->image)
                 return_str_fmt("specification of %s is needed", argn);
             bool result = read_head(arg->image).translator->invoke(exp, arg->image, prev_scope);
 
             if (! result) {
-                printf("instance must be freed\n");
                 return ARGPROC_RET_FALSE;
             }
             recorder(arg, laure_scope_generate_link(), ctx);

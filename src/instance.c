@@ -115,24 +115,24 @@ bool int_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
         bool right_secl = false;
         bool right_minus = false;
 
-        if (exp->s[0] == '<') {
+        if (raw[0] == '<') {
             left_secl = true;
-            exp->s++;
+            raw++;
         }
 
-        if (exp->s[0] == '-') {
+        if (raw[0] == '-') {
             left_minus = true;
-            exp->s++;
+            raw++;
         }
 
-        string left = malloc(strlen(exp->s) - strlen(_temp));
-        strncpy(left, exp->s, strlen(exp->s) - strlen(_temp));
+        string left = malloc(strlen(raw) - strlen(_temp));
+        strncpy(left, raw, strlen(raw) - strlen(_temp));
 
         _temp = _temp + 2;
 
         uint right_n = strlen(_temp);
 
-        if (lastc(exp->s) == '>') {
+        if (lastc(raw) == '>') {
             right_secl = true;
             right_n--;
         }
@@ -347,7 +347,7 @@ bool array_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope)
         uint length = laure_expression_get_count(exp->ba->set);
         if (array->length_lid) {
             Instance *llen = laure_scope_find_by_link(scope, array->length_lid, true);
-            if (llen) {
+            if (llen && ! llen->locked) {
                 struct IntImage *limg = laure_create_integer_i((int)length);
                 if (! image_equals(llen->image, limg)) {
                     image_free(limg);
@@ -494,7 +494,7 @@ bool array_eq(struct ArrayImage *img1_t, struct ArrayImage *img2_t) {
         to->state = I;
         return true;
     } else {
-        printf("both arrays are ambiguative, todo\n");
+        // printf("both arrays are ambiguative, todo\n");
         return true;
     }
 }
@@ -582,7 +582,7 @@ gen_resp array_length_receiver(
     limg = NULL;
     if (ctx->im->length_lid) {
         Instance *llen = laure_scope_find_by_link(ctx->scope, ctx->im->length_lid, false);
-        if (llen) {
+        if (llen && ! llen->locked) {
             restore_llen = llen->image;
             limg = laure_create_integer_i((int)length);
             llen->image = limg;
@@ -611,7 +611,7 @@ gen_resp array_length_receiver(
 
     if (limg) {
         Instance *llen = laure_scope_find_by_link(ctx->scope, ctx->im->length_lid, false);
-        if (llen) llen->image = restore_llen;
+        if (llen && ! llen->locked) llen->image = restore_llen;
         image_free(limg);
     }
     

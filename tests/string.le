@@ -20,7 +20,7 @@
     ch = c;
     length of s = 16;
 }
-: ?test_string_unicode(ch) {
+?test_string_unicode(ch) {
     ch = 'δ';
 }
 

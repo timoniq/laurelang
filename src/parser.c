@@ -1232,7 +1232,7 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
 
         case let_custom: {
             printindent(indent);
-            printf("custom %s\n", exp->s);
+            printf("data {%s%s%s}\n", GRAY_COLOR, exp->s, NO_COLOR);
             break;
         }
 

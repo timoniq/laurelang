@@ -402,4 +402,6 @@ void laure_error_write(
 
 extern laure_error *LAURE_ACTIVE_ERROR;
 
+#define SINGLE_DOCMARK (char*)0x2
+
 #endif

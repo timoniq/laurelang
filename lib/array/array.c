@@ -80,8 +80,21 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
         }
     } else if (instantiated(el_ins)) {
         // every array element is el_ins
-        bool result = image_equals(arr_img->arr_el->image, el_ins->image);
-        return respond(result ? q_true : q_false, 0);
+        if (! arr_img->arr_el->locked) {
+            bool result = image_equals(arr_img->arr_el->image, el_ins->image);
+            return respond(result ? q_true : q_false, 0);
+        } else {
+            void *ar_el_img_copy = image_deepcopy(cctx->scope, arr_img->arr_el->image);
+            bool result = image_equals(ar_el_img_copy, el_ins->image);
+            if (! result) {
+                image_free(ar_el_img_copy);
+                return respond(q_false, 0);
+            }
+            Instance *arr_el_new = instance_new(MOCK_NAME, SINGLE_DOCMARK, ar_el_img_copy);
+            arr_el_new->repr = arr_img->arr_el->repr;
+            arr_img->arr_el = arr_el_new;
+            return respond(q_true, 0);
+        }
     } else {
         arr_img->arr_el->image = el_ins->image;
         return respond(q_true, 0);
@@ -273,7 +286,7 @@ qresp array_predicate_length(preddata *pd, control_ctx *cctx) {
         void *real_len_img = laure_create_integer_i(real_len);
         if (arr_img->length_lid) {
             Instance *llen = laure_scope_find_by_link(cctx->scope, arr_img->length_lid, true);
-            if (llen) {
+            if (llen && ! llen->locked) {
                 if (! image_equals(llen->image, real_len_img)) {
                     image_free(real_len_img);
                     return respond(q_false, 0);
@@ -285,7 +298,7 @@ qresp array_predicate_length(preddata *pd, control_ctx *cctx) {
     } else if (instantiated(len_ins)) {
         if (arr_img->length_lid) {
             Instance *llen = laure_scope_find_by_link(cctx->scope, arr_img->length_lid, true);
-            if (llen) {
+            if (llen && ! llen->locked) {
                 if (! image_equals(llen->image, len_img)) {
                     return respond(q_false, 0);
                 }
