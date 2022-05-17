@@ -38,6 +38,18 @@
 // 42
 : ?test_cut(int).
 
+: ?test_infer().
+?test_infer() {
+    int ~ int;
+    int ~ char -> fail();
+    x ~ int;
+    x ~ int[] -> fail();
+    arr ~ char[];
+    arr[] ~ char[][];
+    arr2 ~ arr[];
+    arr2 ~ char[][];
+}
+
 ?test_imply() {
     int x = 10;
     y ~ int;

@@ -674,8 +674,43 @@ qresp laure_eval_image(
 
         if (var1 && var2)  {
             // Check variables derivation
+            void *image_1  = var1->image;
+            void *image_2  = var2->image;
+
+            // Nesting unpack
+            
+            uint nesting_1 =  exp1->flag;
+            uint nesting_2 =  exp2->flag;
+
+            while (nesting_1 || nesting_2) {
+                // unwrap
+                if (nesting_1) {
+                    if (nesting_2)
+                        nesting_2--;
+                    else {
+                        if (read_head(image_2).t != ARRAY) return RESPOND_FALSE;
+                        image_2 = ((struct ArrayImage*) image_2)->arr_el->image;
+                    }
+                    nesting_1--;
+                }
+                if (nesting_2) {
+                    if (nesting_1)
+                        nesting_1--;
+                    else {
+                        if (read_head(image_1).t != ARRAY) return RESPOND_FALSE;
+                        image_1 = ((struct ArrayImage*) image_1)->arr_el->image;
+                    }
+                    nesting_2--;
+                }
+            }
+            while (read_head(image_1).t == ARRAY && read_head(image_2).t == ARRAY) {
+                image_1 = ((struct ArrayImage*) image_1)->arr_el->image;
+                image_2 = ((struct ArrayImage*) image_2)->arr_el->image;
+            }
+            if (nesting_1 != nesting_2) return RESPOND_FALSE;
             if (var1 == var2) return RESPOND_TRUE;
-            return read_head(var1->image).t == read_head(var2->image).t ? RESPOND_TRUE : RESPOND_FALSE;
+            
+            return read_head(image_1).t == read_head(image_2).t ? RESPOND_TRUE : RESPOND_FALSE;
 
         } else if (var1 || var2) {
             Instance *from;

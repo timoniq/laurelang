@@ -10,6 +10,7 @@ nc="\033[0m"
 gray="\033[0;37m"
 yellow="\033[0;33m"
 
+echo
 echo "[\033[0;32mtodo.sh$nc] Searching unfinished tasks..."
 echo
 

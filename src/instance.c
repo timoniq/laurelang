@@ -1426,8 +1426,6 @@ void predicate_addvar(
     pvs_push(set, piv);
 };
 
-//! regroup later
-
 string predicate_repr(Instance *ins) {
     char buff[128];
 

@@ -12,6 +12,7 @@
 ?no_repeat(arr) {
     i > 0;
     len = length of arr;
+    len > 1;
     arr?;
     i < len;
     &all i {
