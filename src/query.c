@@ -11,6 +11,7 @@
 #define ANONVAR_NAME "_"
 
 #define is_global(stack) stack->glob == stack
+#define absorb(a, b) do {if (a > b) { a = a - b; b = 0; } else { b = b - a; a = 0; }; } while (0)
 
 #define MAX_ARGS 32
 
@@ -718,27 +719,22 @@ qresp laure_eval_image(
             uint nesting_1 =  exp1->flag;
             uint nesting_2 =  exp2->flag;
 
+            absorb(nesting_1, nesting_2);
+            assert(! (nesting_1 && nesting_2));
+
             while (nesting_1 || nesting_2) {
-                // unwrap
                 if (nesting_1) {
-                    if (nesting_2)
-                        nesting_2--;
-                    else {
-                        if (read_head(image_2).t != ARRAY) return RESPOND_FALSE;
-                        image_2 = ((struct ArrayImage*) image_2)->arr_el->image;
-                    }
+                    if (read_head(image_2).t != ARRAY) return RESPOND_FALSE;
+                    image_2 = ((struct ArrayImage*) image_2)->arr_el->image;
                     nesting_1--;
                 }
                 if (nesting_2) {
-                    if (nesting_1)
-                        nesting_1--;
-                    else {
-                        if (read_head(image_1).t != ARRAY) return RESPOND_FALSE;
-                        image_1 = ((struct ArrayImage*) image_1)->arr_el->image;
-                    }
+                    if (read_head(image_1).t != ARRAY) return RESPOND_FALSE;
+                    image_1 = ((struct ArrayImage*) image_1)->arr_el->image;
                     nesting_2--;
                 }
             }
+            
             while (read_head(image_1).t == ARRAY && read_head(image_2).t == ARRAY) {
                 image_1 = ((struct ArrayImage*) image_1)->arr_el->image;
                 image_2 = ((struct ArrayImage*) image_2)->arr_el->image;
@@ -752,16 +748,21 @@ qresp laure_eval_image(
             Instance *from;
             string    new_var_name;
             uint nesting;
+            uint secondary_nesting;
 
             if (var1) {
                 from = var1;
                 new_var_name = exp2->s;
                 nesting = exp1->flag;
+                secondary_nesting = exp2->flag;
             } else {
                 from = var2;
                 new_var_name = exp1->s;
                 nesting = exp2->flag;
+                secondary_nesting = exp1->flag;
             }
+
+            absorb(nesting, secondary_nesting);
 
             Instance *ins = instance_deepcopy(scope, new_var_name, from);
 
@@ -776,7 +777,7 @@ qresp laure_eval_image(
                 ins->repr = array_repr;
             }
 
-           laure_scope_insert(scope, ins);
+            laure_scope_insert(scope, ins);
             return RESPOND_TRUE;
         } else
             RESPOND_ERROR(undefined_err, e, "both variables %s and %s are unknown", exp1->s, exp2->s);

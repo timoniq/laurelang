@@ -163,8 +163,8 @@
     x = 4 prim 10;
 }
 
-: ?test_pred_prim_fullsearch().
-?test_pred_prim_fullsearch() {
+: ?test_pred_prim_solve().
+?test_pred_prim_solveh() {
     primitive ~ (?(int) -> int);
     primitive?;
     primitive(-100) = 100;
