@@ -77,6 +77,14 @@ laure_image_head_enh read_enhanced_head(void *img) {
     return head;
 }
 
+// These methods should be implemented for each data type:
+//   translator
+//   eq
+//   repr
+//   deepcopy
+//   free
+//   generate
+
 /*
    Working with integers
 */
@@ -991,7 +999,7 @@ string string_repr(Instance *ins) {
 }
 
 bool string_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
-    assert(exp->t == let_custom);
+    if (exp->t != let_custom) return false;
     struct ArrayImage *strarr = (struct ArrayImage*)img_;
     if (! str_starts(exp->s, "\"") && lastc(exp->s) == '\"') return false;
     int len = (int)laure_string_strlen(exp->s + 1) - 1;
@@ -1032,6 +1040,202 @@ bool string_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope
     }
 }
 
+
+/*
+   Working with atoms
+*/
+
+struct AtomImage *laure_atom_universum_create(multiplicity *mult) {
+    struct AtomImage *img = malloc(sizeof(struct AtomImage));
+    img->t = ATOM;
+    img->single = false;
+    img->mult = mult;
+    img->translator = ATOM_TRANSLATOR;
+    return img;
+}
+
+void write_atom_name(string r, char *write_to) {
+    string s = r;
+    if (s[0] == '@') s++;
+    if (s[0] == '"') s++;
+    size_t len = strlen(s);
+    if (lastc(s) == '"') len--;
+    if (len > ATOM_LEN_MAX) len = ATOM_LEN_MAX;
+    strncpy(write_to, s, len);
+    write_to[len] = 0;
+} 
+
+bool atom_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
+    struct AtomImage *atom = (struct AtomImage*)img_;
+
+    if (exp->t == let_custom || (exp->t == let_atom && (! exp->flag))) {
+        // single name passed
+        char name[ATOM_LEN_MAX];
+        write_atom_name(exp->s, name);
+        if (atom->single) {
+            // compare single atom names
+            return strcmp(atom->atom, name) == 0;
+        } else {
+            // 1. check if name in universum
+            for (uint i = 0; i < atom->mult->amount; i++) {
+                string v = atom->mult->members[i];
+                if (strcmp(v, name) == 0) {
+                    // 2. assign
+                    atom->single = true;
+                    atom->atom = v;
+                    return true;
+                }
+            }
+            return false;
+        }
+    } else if (exp->t == let_atom) {
+        laure_expression_t *ptr = NULL;
+        EXPSET_ITER(exp->ba->set, ptr, {
+            char name[ATOM_LEN_MAX];
+            write_atom_name(ptr->s, name);
+            if (atom->single) {
+                // compare names
+                if (strcmp(name, atom->atom) != 0) return false;
+            } else {
+                // check all names in atom universum
+                for (uint i = 0; i < atom->mult->amount; i++) {
+                    string v = atom->mult->members[i];
+                    if (strcmp(v, name) != 0) {
+                        return false;
+                    }
+                }
+            }
+        });
+        return true;
+    }
+}
+
+bool atom_eq(struct AtomImage *img1_t, struct AtomImage *img2_t) {
+    if (img1_t->single && img2_t->single) {
+        return strcmp(img1_t->atom, img2_t->atom) == 0;
+
+    } else if (img1_t->single || img2_t->single) {
+        string single;
+        struct AtomImage *mult_img;
+        if (img1_t->single) {
+            single = img1_t->atom;
+            mult_img = img2_t;
+        } else {
+            single = img2_t->atom;
+            mult_img = img1_t;
+        }
+
+        for (uint i = 0; i < mult_img->mult->amount; i++) {
+            string name = mult_img->mult->members[i];
+            if (str_eq(name, single)) {
+                // assign
+                mult_img->single = true;
+                multiplicity_free(mult_img->mult);
+                mult_img->atom = name;
+                return true;
+            }
+        }
+        return false;
+    } else if (! img1_t->single && ! img2_t->single) {
+        // intersect
+        multiplicity *mult_new = multiplicity_create();
+        for (uint i = 0; i < img1_t->mult->amount; i++) {
+            string atom_1 = img1_t->mult->members[i];
+            for (uint j = 0; j < img2_t->mult->amount; j++) {
+                string atom_2 = img2_t->mult->members[j];
+                if (strcmp(atom_1, atom_2) == 0) {
+                    multiplicity_insert(mult_new, atom_1);
+                    break;
+                }
+            }
+        }
+        if (! mult_new->amount) {
+            multiplicity_free(mult_new);
+            return false;
+        }
+        multiplicity_free(img1_t->mult);
+        multiplicity_free(img2_t->mult);
+        img1_t->mult = mult_new;
+        img2_t->mult = multiplicity_deepcopy(mult_new);
+        return true;
+    }
+    return false;
+}
+
+string single_atom_repr(struct AtomImage *atom) {
+    assert(atom->single);
+    return atom->atom;
+}
+
+string atom_repr(Instance *ins) {
+    struct AtomImage *atom = ins->image;
+    if (atom->single) {
+        string r = single_atom_repr(atom);
+        string ns = malloc(strlen(r) + 2);
+        ns[0] = '@';
+        strcpy(ns + 1, r);
+        ns[strlen(r) + 2] = 0;
+        return ns;
+    } else {
+        char buff[512];
+        strcpy(buff, "@{");
+        uint used = 2;
+        for (uint i = 0; i < atom->mult->amount; i++) {
+            string n = atom->mult->members[i];
+            if (used + strlen(n) + 3 >= 512) break;
+            strcat(buff, n);
+            used += strlen(n);
+            if (i < atom->mult->amount - 1) {
+                strcat(buff, ", ");
+                used += 2;
+            }
+        }
+        strcat(buff, "}");
+        return strdup(buff);
+    }
+}
+
+struct AtomImage *atom_deepcopy(struct AtomImage *old_img) {
+    struct AtomImage *atom = malloc(sizeof(struct AtomImage));
+    *atom = *old_img;
+    if (! old_img->single) {
+        atom->mult = multiplicity_deepcopy(old_img->mult);
+    }
+    return atom;
+}
+
+void atom_free(struct AtomImage *im) {
+    if (! im->single) {
+        multiplicity_free(im->mult);
+    }
+    free(im);
+}
+
+gen_resp atom_generate(
+    laure_scope_t *scope, 
+    struct AtomImage *im, 
+    REC_TYPE(rec), 
+    void *external_ctx
+) {
+    if (im->single) {
+        return rec(im, external_ctx);
+    } else {
+        multiplicity *temp = im->mult;
+        for (uint i = 0; i < temp->amount; i++) {
+            string name = temp->members[i];
+            im->single = true;
+            im->atom = name;
+            gen_resp GR = rec(im, external_ctx);
+            if (! GR.r) {
+                return GR;
+            }
+        }
+        im->single = false;
+        im->mult = temp;
+        return form_gen_resp(true, respond(q_yield, 1));
+    }
+}
+
 /*
    Global methods
 */
@@ -1043,7 +1247,7 @@ void laure_set_translators() {
     CHAR_TRANSLATOR = new_translator(char_translator);
     ARRAY_TRANSLATOR = new_translator(array_translator);
     STRING_TRANSLATOR = new_translator(string_translator);
-    // ATOM_TRANSLATOR = new_translator(atom_translator);
+    ATOM_TRANSLATOR = new_translator(atom_translator);
     MOCK_NAME = strdup( "$mock_name" );
     MOCK_QRESP.state = q_true;
     MOCK_QRESP.payload = 0;
@@ -1067,6 +1271,9 @@ bool image_equals(void* img1, void* img2) {
         case ARRAY: {
             return array_eq((struct ArrayImage*) img1, (struct ArrayImage*) img2);
         }
+        case ATOM: {
+            return atom_eq((struct AtomImage*) img1, (struct AtomImage*) img2);
+        }
         default:
             return false;
     }
@@ -1088,6 +1295,9 @@ gen_resp image_generate(laure_scope_t *scope, void *img, REC_TYPE(rec), void *ex
         }
         case ARRAY: {
             return array_generate(scope, (struct ArrayImage*) img, rec, external_ctx);
+        }
+        case ATOM: {
+            return atom_generate(scope, (struct AtomImage*) img, rec, external_ctx);
         }
         default: {
             char error[128];
@@ -1112,6 +1322,9 @@ void *image_deepcopy(laure_scope_t *stack, void *img) {
         }
         case ARRAY: {
             return array_copy(img);
+        }
+        case ATOM: {
+            return atom_deepcopy((struct AtomImage*) img);
         }
         case CONSTRAINT_FACT:
         case PREDICATE_FACT: {
@@ -1163,6 +1376,10 @@ void image_free(void *image) {
         }
         case CHAR: {
             char_free((struct CharImage*)image);
+            break;
+        }
+        case ATOM: {
+            atom_free((struct AtomImage*)image);
             break;
         }
         default: break;

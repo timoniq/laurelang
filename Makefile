@@ -30,7 +30,7 @@ clean:
 test:
 	./$(TARGET) @/test tests \
 	-q "tests_run()" \
-	-D skip="test_atom;test_pred_.*;test_nested_2" \
+	-D skip="test_pred_.*;test_nested_2" \
 	-norepl -signal --ignore
 
 auto:

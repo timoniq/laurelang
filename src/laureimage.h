@@ -319,6 +319,8 @@ struct CharImage *laure_create_charset(string charset);
 
 struct ArrayImage *laure_create_array_u(Instance *el_t);
 
+struct AtomImage *laure_atom_universum_create(multiplicity *mult);
+
 struct PredicateImage *predicate_header_new(struct InstanceSet *args, Instance *resp, bool is_constraint);
 
 void *image_deepcopy(laure_scope_t *scope, void *img);
@@ -441,6 +443,10 @@ string atom_repr(Instance*);
 bool image_equals(void*, void*);
 void image_free(void*);
 char convert_escaped_char(char c);
+
+#define ATOM_LEN_MAX 64
+
+void write_atom_name(string r, char *write_to);
 
 // checks for predicates
 bool is_array_of_int(Instance*);

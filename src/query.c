@@ -667,6 +667,34 @@ qresp laure_eval_image(
     laure_expression_t *exp1 = laure_expression_set_get_by_idx(e->ba->set, 0);
     laure_expression_t *exp2 = laure_expression_set_get_by_idx(e->ba->set, 1);
 
+    if (exp2->t == let_atom && exp2->flag == 1) {
+        // Feature: atom universum declaration
+        if (exp1->t != let_var) RESPOND_ERROR(syntaxic_err, e, "left value imaged to atomic set %s should be a variable", exp2->s);
+        Instance *ins = laure_scope_find_by_key(scope, exp1->s, true);
+        if (ins) {
+            if (read_head(ins->image).t != ATOM) return RESPOND_FALSE;
+        }
+        multiplicity *mult = multiplicity_create();
+        laure_expression_t *ptr = NULL;
+        EXPSET_ITER(exp2->ba->set, ptr, {
+            char name[ATOM_LEN_MAX];
+            write_atom_name(ptr->s, name);
+            multiplicity_insert(mult, strdup(name));
+        });
+        struct AtomImage *atom = laure_atom_universum_create(mult);
+        if (! ins) {
+            // create new
+            ins = instance_new(exp1->s, NULL, atom);
+            ins->repr = atom_repr;
+            laure_scope_insert(scope, ins);
+        } else {
+            // atom reassignation (in doubt)
+            image_free(ins->image);
+            ins->image = atom;
+        }
+        return RESPOND_TRUE;
+    }
+
     if (exp1->t == let_var && exp2->t == let_var) {
 
         Instance *var1 = laure_scope_find_by_key(scope, exp1->s, true);
@@ -1438,7 +1466,7 @@ qresp laure_eval_set(_laure_eval_sub_args) {
     laure_expression_set *old = qctx->expset;
     bool back_do_process = cctx->vpk->do_process;
 
-    if (e->flag) {
+    if (e->flag == 1) {
         // Isolated set (feature #10)
         laure_scope_t *priv_scope = laure_scope_create_copy(cctx, scope);
         priv_scope->next = NULL;

@@ -182,8 +182,9 @@
 }
 
 // @atom1
-// @"atom2"
+// @atom2
 // @1
 // @X
+ATOMS_FOR_TEST ~ @{atom1, "atom2", 1, X}
 : ?test_atom_gen(ATOMS_FOR_TEST).
-?test_atom_gen(x).
+?test_atom_gen(x) when x?.
