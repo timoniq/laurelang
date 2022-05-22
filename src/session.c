@@ -27,6 +27,12 @@ string get_dflag(string flagname) {
 }
 
 void add_dflag(string flagname, string value) {
+    for (uint i = 0; i < DFLAG_N; i++) {
+        if (str_eq(DFLAGS[i][0], flagname)) {
+            strcpy(DFLAGS[i][1], value);
+            return;
+        }
+    }
     strcpy(DFLAGS[DFLAG_N][0], flagname);
     strcpy(DFLAGS[DFLAG_N++][1], value);
     if (DFLAG_N >= DFLAG_MAX) {

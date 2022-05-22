@@ -142,6 +142,7 @@ typedef enum {
     let_ref,
     let_cut,
     let_atom,
+    let_command,
     let_nope
 } laure_expression_type;
 

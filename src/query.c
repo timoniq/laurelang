@@ -17,6 +17,7 @@
 char *RESPN = NULL;
 char *CONTN = NULL;
 char *MARKER_NODELETE = NULL;
+char *DUMMY_FLAGV = NULL;
 char *ARGN_BUFF[32];
 bool IS_BUFFN_INITTED = 0;
 qcontext *LAST_QCTX = NULL;
@@ -216,6 +217,7 @@ void laure_init_name_buffs() {
     RESPN = strdup("$R");
     CONTN = strdup("$C");
     MARKER_NODELETE = strdup("$NODELETE");
+    DUMMY_FLAGV = strdup("true");
     for (uint idx = 0; idx < MAX_ARGS; idx++) {
         char name[4];
         snprintf(name, 4, "$%u", idx);
@@ -446,6 +448,7 @@ qresp laure_eval_imply(_laure_eval_sub_args);
 qresp laure_eval_choice(_laure_eval_sub_args);
 qresp laure_eval_cut(_laure_eval_sub_args);
 qresp laure_eval_set(_laure_eval_sub_args);
+qresp laure_eval_command(_laure_eval_sub_args);
 
 qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set *expset) {
     laure_scope_t *scope = cctx->scope;
@@ -501,6 +504,11 @@ qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set 
         case let_set: {
             return laure_eval_set(cctx, e, expset);
         }
+        #ifndef FORBID_COMMAND
+        case let_command: {
+            return laure_eval_command(cctx, e, expset);
+        }
+        #endif
         default: {
             RESPOND_ERROR(internal_err, e, "can't evaluate {%s} in MAIN context", EXPT_NAMES[e->t]);
         }
@@ -1513,6 +1521,22 @@ qresp laure_eval_set(_laure_eval_sub_args) {
         cctx->qctx = qctx;
         return response;
     }
+}
+
+/* =---------=
+Writes dynamic flags
+for advanced tree search
+=---------= */
+qresp laure_eval_command(_laure_eval_sub_args) {
+    assert(e->t == let_command);
+    UNPACK_CCTX(cctx);
+    string v = e->docstring;
+    string n = e->s;
+    if (! v) {
+        v = DUMMY_FLAGV;
+    }
+    add_dflag(n, v);
+    return RESPOND_TRUE;
 }
 
 control_ctx *control_new(laure_scope_t* scope, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig) {

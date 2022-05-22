@@ -22,7 +22,7 @@ string ELLIPSIS = NULL;
 #define LAURE_SYNTAX_INFIX_PREPOSITION "of"
 #endif
 
-char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Structure Definition", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Atom", "[Nope]"};
+char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Structure Definition", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Atom", "Command", "[Nope]"};
 
 laure_expression_t *laure_expression_create(
     laure_expression_type t, 
@@ -545,7 +545,17 @@ laure_parse_result laure_parse(string query) {
                 lpr.exp = laure_expression_create(let_cut, NULL, false, strdup("!"), 0, NULL, query);
                 return lpr;
             } else {
-                error_result("not supported");
+                string setting = string_clean(query);
+                string v = strstr(setting, "=");
+                if (v) {
+                    // particular value
+                    setting[strlen(setting) - strlen(v)] = 0;
+                    v++;
+                }
+                laure_parse_result lpr;
+                lpr.is_ok = true;
+                lpr.exp = laure_expression_create(let_command, v ? strdup(v) : NULL, false, strdup(setting), 0, NULL, query);
+                return lpr;
             }
             break;
         }
