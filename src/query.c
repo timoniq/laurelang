@@ -769,7 +769,7 @@ qresp laure_eval_image(
             if (nesting) {
                 while (nesting) {
                     void *img = laure_create_array_u(ins);
-                    ins = instance_new(strdup("el"), NULL, img);
+                    ins = instance_new(MOCK_NAME, NULL, img);
                     ins->repr = array_repr;
                     nesting--;
                 }
