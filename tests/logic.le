@@ -164,7 +164,7 @@
 }
 
 : ?test_pred_prim_solve().
-?test_pred_prim_solveh() {
+?test_pred_prim_solve() {
     primitive ~ (?(int) -> int);
     primitive?;
     primitive(-100) = 100;
