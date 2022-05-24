@@ -560,10 +560,27 @@ laure_parse_result laure_parse(string query) {
             break;
         }
         case ':': {
-            laure_parse_result result = laure_parse(query);
-            if (result.is_ok) {
-                result.exp->is_header = true;
+            laure_parse_many_result lpmr = laure_parse_many(query, ',', NULL);
+
+            if (! lpmr.is_ok) {
+                laure_parse_result lpr;
+                lpr.is_ok = false;
+                lpr.err = lpmr.err;
+                return lpr;
             }
+
+            laure_expression_set *set = NULL;
+
+            while (lpmr.exps) {
+                laure_expression_t *exp = lpmr.exps->expression;
+                exp->is_header = true;
+                set = laure_expression_set_link(set, exp);
+                lpmr.exps = lpmr.exps->next;
+            }
+
+            laure_parse_result result;
+            result.is_ok = true;
+            result.exp = laure_expression_create(let_set, NULL, true, query, 0, laure_bodyargs_create(set, laure_expression_get_count(set), false), query);
             return result;
         }
         case '?':

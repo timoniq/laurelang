@@ -1490,7 +1490,7 @@ qresp laure_eval_set(_laure_eval_sub_args) {
     if (! e->ba->set) return respond(q_true, NULL);
 
     laure_expression_set *old = qctx->expset;
-    bool back_do_process = cctx->vpk->do_process;
+    bool back_do_process = cctx->vpk ? cctx->vpk->do_process : true;
 
     if (e->flag) {
         // Isolated set (feature #10)
@@ -1512,7 +1512,8 @@ qresp laure_eval_set(_laure_eval_sub_args) {
 
         laure_scope_free(priv_scope);
 
-        vpk->do_process = back_do_process;
+        if (vpk)
+            vpk->do_process = back_do_process;
         cctx->qctx = qctx;
         cctx->scope = scope;
 
@@ -1522,9 +1523,7 @@ qresp laure_eval_set(_laure_eval_sub_args) {
 
         return response;
     } else {
-        laure_scope_t *priv_scope = laure_scope_create_copy(cctx, scope);
-        priv_scope->next = scope;
-        priv_scope->repeat++;
+        // Integrated set
         qctx->expset = qctx->expset->next;
 
         qcontext nqctx[1];
@@ -1533,14 +1532,11 @@ qresp laure_eval_set(_laure_eval_sub_args) {
         nqctx->flagme = false;
         nqctx->next = qctx;
 
-        cctx->scope = priv_scope;
         cctx->qctx = nqctx;
 
         qresp response = laure_start(cctx, cctx->qctx->expset);
 
-        laure_scope_free(priv_scope);
         qctx->expset = old;
-        cctx->scope = scope;
         cctx->qctx = qctx;
         return response;
     }
