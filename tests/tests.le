@@ -6,5 +6,6 @@
     "array.le",
     "string.le",
     "kb_pl.le",
-    "isolated_set.le"
+    "isolated_set.le",
+    "quantors.le"
 ).

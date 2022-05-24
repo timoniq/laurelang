@@ -71,6 +71,7 @@ gen_resp image_rec_default(void *image, struct img_rec_ctx *ctx) {
     qresp response = laure_start(ctx->cctx, ctx->expset);
     laure_scope_free(nscope);
     ctx->cctx->scope = oscope;
+    ctx->var->image = d;
     return ctx->qr_process(response, ctx);
 }
 
@@ -1275,6 +1276,33 @@ gen_resp qr_process_quant_all(qresp qr, struct img_rec_ctx *ctx) {
     }
 }
 
+gen_resp qr_process_quant_exists(qresp qr, struct img_rec_ctx *ctx) {
+    if (qr.state == q_error) {
+        gen_resp gr;
+        gr.r = 0;
+        gr.qr = qr;
+        return gr;
+    } else {
+        if (qr.state == q_yield) {
+            if (qr.payload == YIELD_OK) {
+                gen_resp gr;
+                gr.r = 0;
+                gr.qr = RESPOND_TRUE;
+                return gr;
+            }
+            gen_resp gr;
+            gr.r = 1;
+            gr.qr = RESPOND_FALSE;
+            return gr;
+        } else {
+            gen_resp gr;
+            gr.r = qr.state != q_true;
+            gr.qr = qr;
+            return gr;
+        }
+    }
+}
+
 /* =-------=
 Quantified expression
 =-------= */
@@ -1288,8 +1316,7 @@ qresp laure_eval_quant(_laure_eval_sub_args) {
     if (! ins)
         RESPOND_ERROR(undefined_err, e, "variable %s", vname);
     
-    bool silent = cctx->silent;
-    cctx->silent = true;
+    bool dp = cctx->vpk->do_process;
     
     qcontext nqctx[1];
     nqctx->constraint_mode = qctx->constraint_mode;
@@ -1297,6 +1324,8 @@ qresp laure_eval_quant(_laure_eval_sub_args) {
     nqctx->next = NULL;
 
     cctx->qctx = nqctx;
+
+    vpk->do_process = false;
 
     qresp qr = respond(q_true, 0);
     switch (e->flag) {
@@ -1313,14 +1342,23 @@ qresp laure_eval_quant(_laure_eval_sub_args) {
         }
         case 2: {
             // quantifier <Exists>
+            struct img_rec_ctx ctx[1];
+            ctx->cctx = cctx;
+            ctx->expset = set;
+            ctx->var = ins;
+            ctx->qr_process = qr_process_quant_exists;
+            gen_resp gr = image_generate(scope, ins->image, image_rec_default, ctx);
+            if (gr.qr.state == q_error) qr = gr.qr;
+            else if (gr.r) qr = respond(q_false, 0);
+            else qr = respond(q_true, 0);
             break;
         }
         default:
             RESPOND_ERROR(undefined_err, e, "quantifier %s (id=%d)", e->s, e->flag);
     }
-    cctx->silent = silent;
     cctx->scope = scope;
     cctx->qctx = qctx;
+    vpk->do_process = dp;
     return qr;
 }
 
