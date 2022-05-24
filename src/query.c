@@ -135,28 +135,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
     if (cctx->qctx)
         cctx->qctx->flagme = true;
 
-    if ((cctx->qctx && cctx->qctx->next && (cctx->scope->idx != 1)) || cctx->scope->repeat > 0) {
-        // check all stuff initted
-        /*
-        if (cctx->qctx && ! cctx->qctx->constraint_mode)
-            laure_scope_iter(cctx->scope, cellptr, {
-                Instance *ins = cellptr->ptr;
-                if (! instantiated(ins)) {
-                    struct img_rec_ctx ctx[1];
-                    ctx->var = ins;
-                    ctx->cctx = cctx;
-                    ctx->expset = NULL;
-                    ctx->qr_process = qr_process_default;
-                    ctx->flag = 0;
-                    qcontext *oqctx = qctx;
-                    gen_resp gr = image_generate(cctx->scope, ins->image, image_rec_default, ctx);
-                    cctx->qctx = oqctx;
-                    // *process qr somehow*
-                    return gr.qr;
-                }
-            });
-        */
-
+    if (cctx->qctx && ((cctx->qctx->next && (cctx->scope->idx != 1)) || cctx->scope->repeat > 0)) {
         laure_scope_t *nscope;
         bool should_free = false;
         if (cctx->scope->repeat > 0) {
@@ -861,7 +840,7 @@ qresp laure_eval_var(_laure_eval_sub_args) {
     if (!var) RESPOND_ERROR(undefined_err, e, "variable %s", vname);
 
     vpk->single_var_processor(scope, vname, vpk->payload);
-    cctx->silent = true;
+    // cctx->silent = true;
     return RESPOND_TRUE;
 }
 
@@ -1475,10 +1454,12 @@ qresp laure_eval_set(_laure_eval_sub_args) {
     laure_expression_set *old = qctx->expset;
     bool back_do_process = cctx->vpk->do_process;
 
-    if (e->flag == 1) {
+    if (e->flag) {
         // Isolated set (feature #10)
         laure_scope_t *priv_scope = laure_scope_create_copy(cctx, scope);
         priv_scope->next = NULL;
+        priv_scope->repeat = 0;
+        qctx->expset = qctx->expset->next;
 
         qcontext nqctx[1];
         nqctx->constraint_mode = qctx->constraint_mode;
@@ -1487,12 +1468,15 @@ qresp laure_eval_set(_laure_eval_sub_args) {
 
         vpk->do_process = false;
         cctx->qctx = nqctx;
+        cctx->scope = priv_scope;
 
         qresp response = laure_start(cctx, nqctx->expset);
 
         laure_scope_free(priv_scope);
-        cctx->qctx = qctx;
+
         vpk->do_process = back_do_process;
+        cctx->qctx = qctx;
+        cctx->scope = scope;
 
         if (response.state == q_yield) {
             return respond((response.payload == YIELD_OK) ? q_true : q_false, NULL);

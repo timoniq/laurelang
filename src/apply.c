@@ -265,6 +265,7 @@ apply_result_t laure_consult_predicate(
                 } else {
                     FILE *f = fopen(path_, "r");
                     if (!f) {
+                        printf("%s\n", path_);
                         free(path_);
                         return respond_apply(apply_error, "failed to find file");
                     }
