@@ -1,5 +1,3 @@
-: ?include("../examples/kb_prolog.le").
-
 // "vincent";"mia"
 // "marcellus";"mia"
 // "pumpkin";"honey bunny"
