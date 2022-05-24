@@ -1,4 +1,4 @@
-: ?include("../examples/kb_prolog").
+: ?include("../examples/kb_prolog.le").
 
 // "vincent";"mia"
 // "marcellus";"mia"
