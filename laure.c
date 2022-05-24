@@ -416,6 +416,13 @@ void add_filename(string str) {
 int main(int argc, char *argv[]) {
     signal(SIGINT, sigint_handler);
 
+    if (argc == 2 && str_eq(argv[1], "help")) {
+        printf("This laurelang interpreter version %s%s%s\n", LAURUS_NOBILIS, VERSION, NO_COLOR);
+        printf("Pass knownledge base filenames to consult.\n");
+        printf("Read documentation at %shttps://docs.laurelang.org%s\n", LAURUS_NOBILIS, NO_COLOR);
+        exit(0);
+    }
+
     for (int idx = 0; idx < argc; idx++) {
         string str = argv[idx];
         if (! idx) INTERPRETER_PATH = str;
