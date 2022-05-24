@@ -1,5 +1,5 @@
-: ?test_quantor_all(),
-  ?test_quantor_exists().
+: ?test_quantor_all().
+: ?test_quantor_exists().
 
 ?test_quantor_all() {
     i ~ int;
