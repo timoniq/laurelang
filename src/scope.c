@@ -355,7 +355,10 @@ void laure_scope_show(laure_scope_t *scope) {
     printf("=== ID: %zi COUNT: %u ===\n", scope->idx, scope->count);
     laure_scope_iter(scope, cellptr, {
         string repr = cellptr->ptr->repr(cellptr->ptr);
-        printf("%lu: %s%s%s %s\n", cellptr->link, BOLD_WHITE, cellptr->ptr->name, NO_COLOR, repr);
+        if (! cellptr->ptr->locked)
+            printf("%lu: %s%s%s %s\n", cellptr->link, BOLD_WHITE, cellptr->ptr->name, NO_COLOR, repr);
+        else
+            printf("%lu: %s%s%s%s %s\n", cellptr->link, BOLD_DEC, LAURUS_NOBILIS, cellptr->ptr->name, NO_COLOR, repr);
         free(repr);
     });
     printf("---\n");

@@ -1098,12 +1098,15 @@ bool atom_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) 
                 if (strcmp(name, atom->atom) != 0) return false;
             } else {
                 // check all names in atom universum
+                bool found = false;
                 for (uint i = 0; i < atom->mult->amount; i++) {
                     string v = atom->mult->members[i];
-                    if (strcmp(v, name) != 0) {
-                        return false;
+                    if (strcmp(v, name) == 0) {
+                        found = true;
+                        break;
                     }
                 }
+                if (! found) return false;
             }
         });
         return true;

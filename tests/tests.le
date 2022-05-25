@@ -3,6 +3,7 @@
     "math.le",
     "function.le",
     "logic.le",
+    "atom.le",
     "array.le",
     "string.le",
     "kb_pl.le",
