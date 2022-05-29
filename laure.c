@@ -184,8 +184,11 @@ int laure_process_query(laure_session_t *session, string line) {
 
                 fclose(fs);
                 string full_path = strdup( realpath(path, _PATH) );
-                laure_consult_recursive(session, full_path);
-                printf("  %s%s%s: consulted\n", GREEN_COLOR, args.argv[j], NO_COLOR);
+                bool failed[1];
+                failed[0] = false;
+                laure_consult_recursive(session, full_path, failed);
+                if (! failed[0])
+                    printf("  %s%s%s: consulted\n", GREEN_COLOR, args.argv[j], NO_COLOR);
                 free(path);
             }
             break;
@@ -368,7 +371,7 @@ int laure_process_query(laure_session_t *session, string line) {
 
         qcontext *qctx = qcontext_new(laure_expression_compose(expset));
         var_process_kit *vpk = laure_vpk_create(expset);
-        control_ctx *cctx = control_new(session->scope, qctx, vpk, NULL, false);
+        control_ctx *cctx = control_new(session, session->scope, qctx, vpk, NULL, false);
 
         qresp response = laure_start(cctx, expset);
 
@@ -384,7 +387,6 @@ int laure_process_query(laure_session_t *session, string line) {
                     laure_error_free(LAURE_ACTIVE_ERROR);
                     LAURE_ACTIVE_ERROR = NULL;
                 }
-                // printf("  %serror%s: %s\n", RED_COLOR, NO_COLOR, response.error);
             } else if (response.state == q_yield) {
                 if (response.payload == (char*)0x1) {
                     printf("  true\n");
@@ -526,7 +528,9 @@ int main(int argc, char *argv[]) {
             printf("Can't load standard lib from `%s`\n", lp);
         } else {
             string path = strdup( real_path );
-            laure_consult_recursive(session, path);
+            bool failed[1];
+            failed[0] = false;
+            laure_consult_recursive(session, path, failed);
         }
     }
 
@@ -543,8 +547,13 @@ int main(int argc, char *argv[]) {
         fclose(fs);
 
         string full_path = strdup( realpath(path, _PATH) );
-        laure_consult_recursive(session, full_path);
-        printf("  %s%s%s: consulted\n", GREEN_COLOR, filenames->filename, NO_COLOR);
+        bool failed[1];
+        failed[0] = false;
+        laure_consult_recursive(session, full_path, failed);
+        if (! failed[0])
+            printf("  %s%s%s: consulted\n", GREEN_COLOR, filenames->filename, NO_COLOR);
+        else
+            printf("  %s%s%s: not consulted\n", RED_COLOR, filenames->filename, NO_COLOR);
         free(path);
         filenames = filenames->next;
     }

@@ -1,4 +1,4 @@
-: ?include(
+!use (
     "factorial.le",
     "fibonacci.le",
     "integers.le",

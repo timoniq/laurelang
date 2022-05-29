@@ -1,4 +1,5 @@
-: ?include("@/server").
+!use "@/server".
+
 : ?handler(Event).
 : ?start(int).
 

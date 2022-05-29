@@ -197,6 +197,7 @@ typedef struct laure_grab_linked {
 
 // work with control when generating
 typedef struct laure_control_ctx {
+    laure_session_t *session;
     laure_scope_t  *scope, *tmp_answer_scope;
     qcontext*       qctx;
     var_process_kit* vpk;

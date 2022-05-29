@@ -289,6 +289,7 @@ Miscellaneous
 #endif
 
 void print_header(string header, uint sz);
+void strrev_via_swap(string s);
 
 /* =-----------=
    Session
@@ -358,7 +359,7 @@ string laure_get_contn();
 =-----------= */
 typedef struct apply_result apply_result_t;
 
-void laure_consult_recursive(laure_session_t *session, string path);
+void laure_consult_recursive(laure_session_t *session, string path, int *failed);
 apply_result_t laure_apply(laure_session_t *session, string fact);
 apply_result_t laure_consult_predicate(
     laure_session_t *session, 
@@ -404,5 +405,21 @@ void laure_error_write(
 extern laure_error *LAURE_ACTIVE_ERROR;
 
 #define SINGLE_DOCMARK (char*)0x2
+
+/* =--------=
+WS (weighted search)
+=--------= */
+
+#ifndef DISABLE_WS
+
+typedef struct laure_ws laure_ws;
+typedef unsigned long weight_t;
+typedef float accuracy_t;
+
+laure_ws *laure_ws_create();
+accuracy_t laure_accuracy_count(laure_ws *ws);
+void laure_push_transistion(laure_ws *ws, accuracy_t acc);
+
+#endif
 
 #endif

@@ -1480,6 +1480,14 @@ qresp laure_eval_cut(_laure_eval_sub_args) {
     return respond(q_true, 0);
 }
 
+string get_work_dir_path(string f_addr) {
+    string naddr = strdup(f_addr);
+    strrev_via_swap(naddr);
+    while (naddr[0] != '/') naddr++;
+    strrev_via_swap(naddr);
+    return naddr;
+}
+
 /* =---------=
 Expression set
 * creates a private scope for evaluation
@@ -1542,6 +1550,8 @@ qresp laure_eval_set(_laure_eval_sub_args) {
     }
 }
 
+string string_clean(string s);
+
 /* =---------=
 Writes dynamic flags
 for advanced tree search
@@ -1554,12 +1564,75 @@ qresp laure_eval_command(_laure_eval_sub_args) {
     if (! v) {
         v = DUMMY_FLAGV;
     }
+    if (str_starts(n, "use ") || str_starts(n, "useso ")) {
+        bool use_kwd = str_starts(n, "use ");
+
+        string names;
+        if (use_kwd)
+            names = n + 4;
+        else
+            names = n + 6;
+        if (str_starts(names, "(") && lastc(names) == ')') {
+            names++;
+            lastc(names) = 0;
+        }
+        names = string_clean(names);
+        
+        string_linked *linked = string_split(names, ',');
+        bool failed[1];
+        failed[0] = false;
+
+        while (linked) {
+            string name = linked->s;
+            name = string_clean(name);
+            if (name[0] == '"') name++;
+            if (lastc(name) == '"') lastc(name) = 0;
+
+            string n;
+
+            if (str_starts(name, "/")) {
+                n = strdup(name);
+            } else if (str_starts(name, "@/")) {
+                name++;
+                n = malloc(strlen(lib_path) + strlen(name) + 1);
+                strcpy(n, lib_path);
+                strcat(n, name);
+            } else {
+                string wdir = get_work_dir_path(LAURE_CURRENT_ADDRESS ? LAURE_CURRENT_ADDRESS : "./");
+                n = malloc(strlen(wdir) + strlen(name) + 1);
+                strcpy(n, wdir);
+                strcat(n, name);
+            }
+
+            string path_ = malloc(PATH_MAX);
+            memset(path_, 0, PATH_MAX);
+            realpath(n, path_);
+
+            if (! use_kwd) {
+                bool result = laure_load_shared(cctx->session, path_);
+                free(path_);
+            } else {
+                FILE *f = fopen(path_, "r");
+                if (!f) {
+                    printf("%s\n", path_);
+                    free(path_);
+                    RESPOND_ERROR(undefined_err, e, "failed to find file [%s]", name);
+                }
+                fclose(f);
+                laure_consult_recursive(cctx->session, path_, failed);
+            }
+            linked = linked->next;
+        }
+
+        return failed[0] ? RESPOND_FALSE : RESPOND_TRUE;
+    }
     add_dflag(n, v);
     return RESPOND_TRUE;
 }
 
-control_ctx *control_new(laure_scope_t* scope, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig) {
+control_ctx *control_new(laure_session_t *session, laure_scope_t* scope, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig) {
     control_ctx *cctx = malloc(sizeof(control_ctx));
+    cctx->session = session;
     cctx->scope = scope;
     cctx->tmp_answer_scope = laure_scope_new(scope->glob, scope);
     cctx->tmp_answer_scope->next = 0;

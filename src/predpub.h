@@ -92,7 +92,7 @@ typedef struct laure_vpk {
 
 } var_process_kit;
 
-control_ctx *control_new(laure_scope_t* scope, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig);
+control_ctx *control_new(laure_session_t *session, laure_scope_t* scope, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig);
 qcontext *qcontext_new(laure_expression_set *expset);
 
 apply_result_t laure_consult_predicate(laure_session_t *session, laure_scope_t *scope, laure_expression_t *predicate_exp, char *address);

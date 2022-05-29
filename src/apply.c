@@ -94,16 +94,16 @@ int laure_load_shared(laure_session_t *session, char *path) {
     void (*set_transl)() = dlsym(lib, "laure_set_translators");
     set_transl();
     
-    int (*perform_upload)(laure_session_t*) = dlsym(lib, "on_include");
+    int (*perform_upload)(laure_session_t*) = dlsym(lib, "on_use");
     if (!perform_upload) {
         print_errhead("invalid shared cle; cannot load");
-        printf("    function on_include(laure_session_t*) is undefined in CLE extension %s\n", path);
+        printf("    function on_use(laure_session_t*) is undefined in CLE extension %s\n", path);
         ask_for_halt();
         return false;
     }
     int response = perform_upload(session);
     if (response != 0) {
-        print_errhead("shared cle on_include returned non-zero code");
+        print_errhead("shared cle on_use returned non-zero code");
         printf("cle extension upload resulted with non-zero code (%d), failure", response);
         ask_for_halt();
         return false;
@@ -119,14 +119,6 @@ void strrev_via_swap(string s) {
         s[i] = s[l-i-1];
         s[l-i-1] = b;
     }
-}
-
-string get_work_dir_path(string f_addr) {
-    string naddr = strdup(f_addr);
-    strrev_via_swap(naddr);
-    while (naddr[0] != '/') naddr++;
-    strrev_via_swap(naddr);
-    return naddr;
 }
 
 string get_nested_ins_name(Instance *atom, uint nesting, laure_scope_t *scope) {
@@ -228,55 +220,6 @@ apply_result_t laure_consult_predicate(
     bool is_header = (pred_ins == NULL && predicate_exp->is_header);
 
     if (is_header) {
-        // headers may be include/cle_include functions
-        if (
-            str_eq(predicate_exp->s, "include") 
-            || str_eq(predicate_exp->s, "cle_include")
-        ) {
-            for (int i = 0; i < laure_expression_get_count(predicate_exp->ba->set); i++) {
-                laure_expression_t *arg = laure_expression_set_get_by_idx(predicate_exp->ba->set, i);
-                if (arg->s[0] == '"') arg->s++;
-                if (lastc(arg->s) == '"') lastc(arg->s) = 0;
-
-                string n;
-
-                if (str_starts(arg->s, "/")) {
-                    n = strdup(arg->s);
-                } else if (str_starts(arg->s, "@/")) {
-                    arg->s++;
-                    n = malloc( strlen(lib_path) + strlen(arg->s) + 1 );
-                    strcpy(n, lib_path);
-                    strcat(n, arg->s);
-                } else {
-                    string wdir = get_work_dir_path(address);
-                    n = malloc( strlen(wdir) + strlen(arg->s) + 1 );
-                    strcpy(n, wdir);
-                    strcat(n, arg->s);
-                }
-
-                string path_ = malloc(PATH_MAX);
-                memset(path_, 0, PATH_MAX);
-                realpath(n, path_);
-
-                if (str_eq(predicate_exp->s, "cle_include")) {
-                    bool result = laure_load_shared(session, path_);
-                    free(path_);
-                    return respond_apply((apply_status_t)result, NULL);
-                } else {
-                    FILE *f = fopen(path_, "r");
-                    if (!f) {
-                        printf("%s\n", path_);
-                        free(path_);
-                        return respond_apply(apply_error, "failed to find file");
-                    }
-                    fclose(f);
-                    laure_consult_recursive(session, path_);
-                }
-                free(path_);
-            }
-            return respond_apply(apply_ok, NULL);
-        }
-
         if (is_header && predicate_exp->ba->body_len > 0) {
             return respond_apply(apply_error, "header should not contain body");
         }
@@ -344,7 +287,7 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
     qctx->next = NULL;
     qctx->flagme = false;
 
-    control_ctx *cctx = control_new(session->scope, qctx, NULL, NULL, true);
+    control_ctx *cctx = control_new(session, session->scope, qctx, NULL, NULL, true);
     cctx->silent = true;
 
     qresp response = laure_start(cctx, expset);
@@ -353,7 +296,7 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
     free(cctx);
     
     if (response.state == q_error) {
-        printf("\nError while applying statement:\n  %s%s%s\n    %s\n", RED_COLOR, exp->s, NO_COLOR, response.payload);
+        printf("\nError while applying statement:\n  %s%s%s\n    %s\n", RED_COLOR, exp->s, NO_COLOR, LAURE_ACTIVE_ERROR->msg);
         return respond_apply(apply_error, response.payload);
     }
     return respond_apply(apply_ok, NULL);
@@ -363,13 +306,14 @@ int laure_init_structures(laure_session_t *session) {
     return 1;
 }
 
-string consult_single(laure_session_t *session, string fname, FILE *file) {
+string consult_single(laure_session_t *session, string fname, FILE *file, bool *failed) {
     void **ifp = session->_included_filepaths;
 
     while (ifp[0]) {
         string fp = *ifp;
         if (str_eq(fp, fname)) {
             printf("  %sFile%s %s%s was already consulted, skipping%s\n", RED_COLOR, BOLD_WHITE, fname, RED_COLOR, NO_COLOR);
+            *failed = true;
             return NULL;
         }
         ifp++;
@@ -411,6 +355,7 @@ string consult_single(laure_session_t *session, string fname, FILE *file) {
         if (access(p, F_OK) != 0) {
             printf("%sUnable to find init file %s for package.\n", RED_COLOR, p);
             printf("Package %s is skipped.%s\n", fname, NO_COLOR);
+            *failed = true;
             return NULL;
         }
         
@@ -461,11 +406,13 @@ string consult_single(laure_session_t *session, string fname, FILE *file) {
         } else {
             if (lastc(line) == '.') lastc(line) = 0;
             string line_ = strdup(line);
+            string o = LAURE_CURRENT_ADDRESS;
             LAURE_CURRENT_ADDRESS = fname;
             apply_result_t result = laure_apply(session, line_);
             if (result.status == apply_error) {
                 // printf("Error:\n  %s\n    %s%s%s\n", line_, RED_COLOR, result.error, NO_COLOR);
             }
+            LAURE_CURRENT_ADDRESS = o;
             buff[0] = 0;
         }
     }
@@ -476,9 +423,9 @@ string consult_single(laure_session_t *session, string fname, FILE *file) {
     return NULL;
 }
 
-void laure_consult_recursive(laure_session_t *session, string path) {
+void laure_consult_recursive(laure_session_t *session, string path, int *failed) {
     string next = path;
     while (next) {
-        next =  consult_single(session, next, fopen(next, "r"));
+        next =  consult_single(session, next, fopen(next, "r"), failed);
     }
 }

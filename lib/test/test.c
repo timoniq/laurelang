@@ -334,7 +334,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     return respond(tests_passed == len ? q_true : q_false, NULL);
 }
 
-int on_include(laure_session_t *session) {
+int on_use(laure_session_t *session) {
     laure_api_add_predicate(
         session, "tests_run", 
         test_predicate_run, 

@@ -1,4 +1,4 @@
-: ?include("@/array").
+!use "@/array".
 
 // [1, 2, 3]
 : ?test_array_basic(int[]).

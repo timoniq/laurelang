@@ -316,7 +316,7 @@ qresp array_predicate_length(preddata *pd, control_ctx *cctx) {
 }
 
 
-int on_include(laure_session_t *session) {
+int on_use(laure_session_t *session) {
     laure_api_add_predicate(
         session, "each", 
         array_predicate_each, 

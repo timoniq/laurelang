@@ -17,11 +17,11 @@ int main() {
         else {
             qcontext *qctx = qcontext_new(laure_expression_compose(lpmr.exps));
             var_process_kit *vpk = laure_vpk_create(lpmr.exps);
-            control_ctx *cctx = control_new(session->scope, qctx, vpk, NULL, false);
+            control_ctx *cctx = control_new(session, session->scope, qctx, vpk, NULL, false);
             qresp response = laure_start(cctx, qctx->expset);
             if (response.state == q_error)
-                printf("error: %s\n", response.error);
-            else if (! response.error)
+                printf("error: %s\n", response.payload);
+            else if (! response.payload)
                 printf("false\n");
         }
     }
