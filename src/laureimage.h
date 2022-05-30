@@ -203,7 +203,10 @@ typedef struct laure_control_ctx {
     var_process_kit* vpk;
     void*           data;
     bool          silent, no_ambig;
-    ulong cut; // scope id to cut on
+    ulong cut; // scope id to cut up to
+#ifndef DISABLE_WS
+    laure_ws *ws;
+#endif
 } control_ctx;
 
 void laure_add_grabbed_link(control_ctx *cctx, ulong nlink);

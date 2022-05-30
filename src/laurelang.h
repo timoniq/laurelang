@@ -321,6 +321,7 @@ extern char              *LAURE_INTERPRETER_PATH;
 extern char              *LAURE_CURRENT_ADDRESS;
 extern char              *LAURE_DOC_BUFF;
 extern short int          LAURE_ASK_IGNORE;
+extern bool               LAURE_WS;
 
 extern Instance *CHAR_PTR;
 extern struct Translator 
@@ -416,9 +417,14 @@ typedef struct laure_ws laure_ws;
 typedef unsigned long weight_t;
 typedef float accuracy_t;
 
-laure_ws *laure_ws_create();
+laure_ws *laure_ws_create(laure_ws *next);
+laure_ws *laure_ws_next(laure_ws *ws);
+void laure_ws_free(laure_ws *ws);
 accuracy_t laure_accuracy_count(laure_ws *ws);
+
 void laure_push_transistion(laure_ws *ws, accuracy_t acc);
+size_t laure_count_transistions(laure_ws *ws);
+void laure_restore_transistions(laure_ws *ws, size_t to_sz);
 
 #endif
 

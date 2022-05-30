@@ -5,6 +5,7 @@
 #include <readline/readline.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <math.h>
 
 #define YIELD_OK (void*)1
 #define YIELD_FAIL (void*)0
@@ -12,6 +13,16 @@
 
 #define is_global(stack) stack->glob == stack
 #define absorb(a, b) do {if (a > b) { a = a - b; b = 0; } else { b = b - a; a = 0; }; } while (0)
+#ifndef DISABLE_WS
+#define set_decision_accuracy(A) do { \
+    if (! LAURE_WS) \
+        if (A < 1) return RESPOND_FALSE; \
+    else \
+        laure_push_transistion(cctx->ws, A); \
+    } while (0)
+#else
+#define set_decision_accuracy(A) do {} while (0)
+#endif
 
 #define MAX_ARGS 32
 
@@ -114,12 +125,20 @@ gen_resp qr_process_default(qresp response, struct img_rec_ctx* ctx) {
     return GR;
 }
 
+#define accuracy_frame(acc) acc >= 0.51 ? (acc == 1 ? GREEN_COLOR : YELLOW_COLOR) : RED_COLOR, acc, NO_COLOR
+
 // Start evaluating search tree
 qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
     LAST_QCTX = cctx->qctx;
 
     laure_expression_t *exp;
     qcontext *qctx = cctx->qctx;
+    size_t sz = 0;
+    #ifndef DISABLE_WS
+    if (LAURE_WS) {
+        sz = laure_count_transistions(cctx->ws);
+    }
+    #endif
     EXPSET_ITER(expset, exp, {
         qresp response = laure_eval(cctx, exp, _set->next);
         if (
@@ -129,8 +148,29 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
         ) {
             return response;
         } else if (response.state == q_false) {
+            #ifndef DISABLE_WS
+            if (LAURE_WS) {
+                if (laure_count_transistions(cctx->ws) == sz) {
+                    // decision accuracy was not set
+                    laure_push_transistion(cctx->ws, 0);
+                }
+            } else
+            #endif
             return respond(q_yield, YIELD_FAIL);
+        } else if (response.state == q_true) {
+            #ifndef DISABLE_WS
+            if (LAURE_WS) {
+                if (laure_count_transistions(cctx->ws) == sz) {
+                    // decision accuracy was not set
+                    laure_push_transistion(cctx->ws, 1);
+                }
+            }
+            #endif
         }
+        #ifndef DISABLE_WS
+        if (LAURE_WS)
+            sz = laure_count_transistions(cctx->ws);
+        #endif
     });
 
     if (cctx->qctx)
@@ -167,16 +207,55 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
         qcontext *old = cctx->qctx;
         cctx->qctx = cctx->qctx ? cctx->qctx->next : NULL;
         cctx->scope = nscope;
-        qresp resp = laure_start(cctx, cctx->qctx ? cctx->qctx->expset : NULL);
+        
+        #ifndef DISABLE_WS
+        // --- --- --- ---
+        // Feature: weighted search
+        // https://docs.laurelang.org/wiki/ws
+        // --- --- --- ---
+        laure_ws *current_ws, *ws_next;
+        if (LAURE_WS) {
+            current_ws = cctx->ws;
+            ws_next = laure_ws_next(current_ws);
+            size_t sz = laure_count_transistions(ws_next);
+            
+            accuracy_t a = laure_accuracy_count(current_ws);
+            laure_push_transistion(ws_next, a);
+            cctx->ws = ws_next;
+        }
+        #endif
+
+        qresp resp = laure_start(
+            cctx, 
+            cctx->qctx ? cctx->qctx->expset : NULL
+        );
+
         LAST_QCTX = old;
-        // cctx->qctx = old;
-        // if (should_free) laure_scope_free(nscope);
+
+        #ifndef DISABLE_WS
+        // detach transistions
+        if (LAURE_WS) {
+            laure_restore_transistions(ws_next, sz);
+            cctx->ws = current_ws;
+        }
+        #endif
+
         return resp;
     }
+
     qresp response;
     if (! cctx->silent && cctx->vpk && cctx->vpk->do_process) {
         #ifdef DEBUG
         printf("DEBUG: sending data (mode=%s%s%s)\n", BOLD_WHITE, cctx->vpk->mode == INTERACTIVE ? "INTERACTIVE" : (cctx->vpk->mode == SENDER ? "SENDER" : "OTHER"), NO_COLOR);
+        #endif
+        #ifndef DISABLE_WS
+        if (LAURE_WS) {
+            accuracy_t a = laure_accuracy_count(cctx->ws);
+            float rounded = (float)(roundf(a * 100) / 100);
+            printf("---------------\n");
+            printf("accuracy = %s%.2f%s\n", accuracy_frame(rounded));
+            printf("---------------\n");
+        }
         #endif
         if (cctx->vpk->mode == INTERACTIVE) {
             response = laure_showcast(cctx);
@@ -1201,13 +1280,31 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
 
             qcontext *nqctx = qcontext_new(body);
             laure_expression_set *full_expset = qctx->expset;
+            
+            #ifndef DISABLE_WS
+            laure_ws *old_ws = cctx->ws;
+            #endif
+
             qctx->expset = expset;
             nqctx->next = qctx;
             nqctx->constraint_mode = is_constraint;
 
             cctx->scope = nscope;
             cctx->qctx = nqctx;
+            #ifndef DISABLE_WS
+            if (LAURE_WS)
+                cctx->ws = laure_ws_create(old_ws);
+            #endif
+
             resp = laure_start(cctx, body);
+
+            #ifndef DISABLE_WS
+            if (LAURE_WS) {
+                laure_ws_free(cctx->ws);
+                cctx->ws = old_ws;
+            }
+            #endif
+
             qctx->expset = full_expset;
             cctx->qctx = qctx;
             cctx->scope = scope;
@@ -1616,7 +1713,7 @@ qresp laure_eval_command(_laure_eval_sub_args) {
                 if (!f) {
                     printf("%s\n", path_);
                     free(path_);
-                    RESPOND_ERROR(undefined_err, e, "failed to find file [%s]", name);
+                    RESPOND_ERROR(undefined_err, e, "failed to find file %s", path_);
                 }
                 fclose(f);
                 laure_consult_recursive(cctx->session, path_, failed);
@@ -1642,7 +1739,18 @@ control_ctx *control_new(laure_session_t *session, laure_scope_t* scope, qcontex
     cctx->silent = false;
     cctx->no_ambig = no_ambig;
     cctx->cut = 0;
+#ifndef DISABLE_WS
+    // docs: https://docs.laurelang.org/wiki/ws
+    cctx->ws = laure_ws_create(NULL);
+#endif
     return cctx;
+}
+
+void control_free(control_ctx *cctx) {
+    #ifndef DISABLE_WS
+    laure_ws_free(cctx->ws);
+    #endif
+    free(cctx);
 }
 
 qcontext *qcontext_new(laure_expression_set *expset) {

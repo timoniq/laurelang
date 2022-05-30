@@ -37,7 +37,8 @@ const struct laure_flag flags[] = {
     {7, "--library", "Manually set lib_path", true},
     {8, "-D", "Add dyn flag. Format var=value", true},
     {9, "-nomain", "Do not run main predicate", false},
-    {10, "--ignore", "Ignore consultation failures", false}
+    {10, "--ignore", "Ignore consultation failures", false},
+    {11, "-ws", "Enable weighted search", false}
 };
 
 struct cmd_info {
@@ -59,7 +60,8 @@ const struct cmd_info commands[] = {
     {8, ".ast", -1, "Shows AST of query passed."},
     {9, ".lock", -1, "Locks instances."},
     {10, ".unlock", -1, "Unlocks instances."},
-    {11, ".timeout", 1, "Sets timeout (in seconds)"}
+    {11, ".timeout", 1, "Sets timeout (in seconds)"},
+    {12, ".ws", 0, "Toggle weighted search mode"}
 };
 
 struct filename_linked {
@@ -337,6 +339,20 @@ int laure_process_query(laure_session_t *session, string line) {
             printf("  timeout was set to %us\n", LAURE_TIMEOUT);
             break;
         }
+        case 12: {
+            #ifdef DISABLE_WS
+            printf("WS can't be enabled because of laurelang compilation settings\n");
+            #else
+            if (LAURE_WS) {
+                LAURE_WS = false;
+                printf("  WS disabled.\n");
+            } else {
+                LAURE_WS = true;
+                printf("  WS enabled.\n");
+            }
+            #endif
+            break;
+        }
         default: break;
     }
     // ----------
@@ -413,6 +429,14 @@ void add_filename(string str) {
         while (l->next) {l = l->next;};
         l->next = ptr;
     }
+}
+
+string readline_wrapper() {
+    #ifndef DISABLE_WS
+    if (LAURE_WS) 
+        printf("%sW%s ", RED_COLOR, NO_COLOR);
+    #endif
+    return readline(DPROMPT);
 }
 
 int main(int argc, char *argv[]) {
@@ -498,6 +522,14 @@ int main(int argc, char *argv[]) {
                     LAURE_ASK_IGNORE = true;
                     break;
                 }
+                case 11: {
+                    #ifdef DISABLE_WS
+                    printf("laurelang was compiled with DISABLE_WS flag set. so weighted search cannot be enabled\n");
+                    #else
+                    LAURE_WS = true;
+                    #endif
+                    break;
+                }
             }}}
 
             if (!found)
@@ -580,7 +612,7 @@ int main(int argc, char *argv[]) {
     printf("  and %s.quit%s to quit it.%s\n\n", LAURUS_NOBILIS, GRAY_COLOR, NO_COLOR);
 
     string line;
-    while ((line = readline(DPROMPT)) != NULL) {
+    while ((line = readline_wrapper()) != NULL) {
         if (!strlen(line)) {
             erase;
             up;

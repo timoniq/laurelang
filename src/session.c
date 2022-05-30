@@ -7,6 +7,7 @@ char *LAURE_INTERPRETER_PATH    = NULL;
 char *LAURE_CURRENT_ADDRESS     = NULL;
 char *LAURE_DOC_BUFF            = NULL;
 laure_error *LAURE_ACTIVE_ERROR = NULL;
+bool LAURE_WS                   = false;
 
 uint DFLAG_N = 0;
 char DFLAGS[DFLAG_MAX][2][32] = {{0, 0}};

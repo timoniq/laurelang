@@ -2,7 +2,7 @@ TARGET = laure
 SOURCES = src
 PREFIX = /usr/local
 WS_FLAGS = 
-CFLAGS = -I$(SOURCES) -I/usr/local/include -g $(LIBFLAG) -fPIC -rdynamic ${ADDFLAGS}
+CFLAGS = -I$(SOURCES) -I/usr/local/include -g $(LIBFLAG) -fPIC -rdynamic ${ADDFLAGS} ${WS_FLAGS}
 LDFLAGS = -L/usr/local/lib -lreadline -lm -g -ldl
 
 .PHONY: all clean
