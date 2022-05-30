@@ -157,6 +157,7 @@ int laure_process_query(laure_session_t *session, string line) {
     string startline = strdup(line);
 
     if (line[0] == '.') {
+        if (str_eq(line, ".")) {up; erase; return 1;}
         args_parsed args = args_parse(line);
         bool found = false;
         for (int i = 0; i < sizeof(commands) / sizeof(struct cmd_info); i++) {
@@ -164,7 +165,7 @@ int laure_process_query(laure_session_t *session, string line) {
             if (str_eq(cmd.name, args.argv[0])) {
                 found = true;
                 if (cmd.argc != args.argc - 1 && cmd.argc != -1) {
-                    printf("  Requires %d args (got %d)\n", cmd.argc, args.argc - 1);
+                    printf("  requires %d args (got %d)\n", cmd.argc, args.argc - 1);
                     break;
                 }
     // ----------
@@ -359,7 +360,7 @@ int laure_process_query(laure_session_t *session, string line) {
             }
         }
         if (! found) {
-            printf("  Unknown command %s%s%s, use %s%s%s\n", colored(args.argv[0]), colored(".help"));
+            printf("  unknown command %s%s%s, use %s%s%s\n", colored(args.argv[0]), colored(".help"));
         }
         free(args.argv);
         return 1;

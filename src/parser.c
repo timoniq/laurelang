@@ -16,6 +16,7 @@
 
 string DIGITS = "0123456789";
 string RESTRICTED = "[](). ";
+string NOTSUPER = "-+:><=";
 string ELLIPSIS = NULL;
 
 #ifndef LAURE_SYNTAX_INFIX_PREPOSITION
@@ -95,6 +96,15 @@ bool is_fine_name_for_var(string s) {
         }
     }
     
+    return true;
+}
+
+bool is_super_fine_name_for_var(string s) {
+    if (! is_fine_name_for_var(s)) return false;
+    for (uint i = 0; i < strlen(NOTSUPER); i++) {
+        char c = NOTSUPER[i];
+        if (s[0] == c) return false;
+    }
     return true;
 }
 
@@ -1052,12 +1062,12 @@ laure_parse_result laure_parse(string query) {
 
                 string dup = strdup(query);
 
-                if (dup[0] == '-' && is_fine_name_for_var(dup + 1)) {
+                if (dup[0] == '-' && is_super_fine_name_for_var(dup + 1)) {
                     // negate variable
                     // {x = -y} means {x = y * -1}
                     string var_name = dup + 1;
                     char nquery[256];
-                    snprintf(nquery, 256, "__*(-1, %s)", dup + 1);
+                    snprintf(nquery, 256, "*(-1, %s)", dup + 1);
                     return laure_parse(strdup(nquery));
                 } else if (lastc(dup) == ']' && dup[strlen(dup)-2] != '[') {
                     string vname = read_til(dup, '[');

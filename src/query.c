@@ -214,10 +214,12 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
         // https://docs.laurelang.org/wiki/ws
         // --- --- --- ---
         laure_ws *current_ws, *ws_next;
+        size_t sz_curr;
         if (LAURE_WS) {
             current_ws = cctx->ws;
             ws_next = laure_ws_next(current_ws);
-            size_t sz = laure_count_transistions(ws_next);
+            sz_curr = laure_count_transistions(current_ws);
+            sz = laure_count_transistions(ws_next);
             
             accuracy_t a = laure_accuracy_count(current_ws);
             laure_push_transistion(ws_next, a);
@@ -236,6 +238,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
         // detach transistions
         if (LAURE_WS) {
             laure_restore_transistions(ws_next, sz);
+            laure_restore_transistions(current_ws, sz_curr);
             cctx->ws = current_ws;
         }
         #endif
@@ -251,10 +254,9 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
         #ifndef DISABLE_WS
         if (LAURE_WS) {
             accuracy_t a = laure_accuracy_count(cctx->ws);
-            float rounded = (float)(roundf(a * 100) / 100);
-            printf("---------------\n");
-            printf("accuracy = %s%.2f%s\n", accuracy_frame(rounded));
-            printf("---------------\n");
+            // printf("---------------\n");
+            printf("with optimality = %s%.2f%s\n", accuracy_frame(a));
+            // printf("---------------\n");
         }
         #endif
         if (cctx->vpk->mode == INTERACTIVE) {

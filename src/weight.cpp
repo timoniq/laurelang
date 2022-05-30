@@ -13,7 +13,7 @@ typedef struct laure_ws laure_ws;
 typedef double weight_t;
 typedef float accuracy_t;
 
-double k = 0.000001;
+double k = 0.0001;
 double e = 2.71828;
 
 extern "C" {
@@ -36,7 +36,7 @@ typedef struct laure_ws {
 } laure_ws;
 
 double calculate_antiderivative(laure_ws *ws, size_t i) {
-    return (i * ws->k) - log(pow(e, (i * ws->k)) + 1) - (i * ws->k);
+    return (i * ws->k) - log(pow(e, (i * ws->k)) + 1);
 }
 
 double integrate(laure_ws *ws, size_t from, size_t to) {
@@ -51,7 +51,7 @@ double round_a(double a) {
 
 accuracy_t laure_accuracy_count(
     laure_ws *ws
-) {
+) {    
     weight_t F = integrate(ws, 0, ws->acc->size());
     if (! F) return 1;
     weight_t Fd = 0;
