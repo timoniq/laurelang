@@ -45,6 +45,12 @@ void laure_upd_scope(ulong link, laure_scope_t *to, laure_scope_t *from) {
         printf("Error: cannot backtrack link %lu\n", link);
 }
 
+bool is_weighted_expression(laure_expression_t *exp) {
+    if (exp->t == let_name || exp->t == let_command || exp->t == let_cut || exp->t == let_custom)
+        return false;
+    return true;
+}
+
 #define UNPACK_CCTX(cctx) \
         laure_scope_t *scope = cctx->scope; \
         var_process_kit *vpk = cctx->vpk; \
@@ -149,7 +155,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
             return response;
         } else if (response.state == q_false) {
             #ifndef DISABLE_WS
-            if (LAURE_WS) {
+            if (LAURE_WS && is_weighted_expression(exp)) {
                 if (laure_count_transistions(cctx->ws) == sz) {
                     // decision accuracy was not set
                     laure_push_transistion(cctx->ws, 0);
@@ -159,7 +165,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
             return respond(q_yield, YIELD_FAIL);
         } else if (response.state == q_true) {
             #ifndef DISABLE_WS
-            if (LAURE_WS) {
+            if (LAURE_WS && is_weighted_expression(exp)) {
                 if (laure_count_transistions(cctx->ws) == sz) {
                     // decision accuracy was not set
                     laure_push_transistion(cctx->ws, 1);
@@ -221,7 +227,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
             sz_curr = laure_count_transistions(current_ws);
             sz = laure_count_transistions(ws_next);
             
-            accuracy_t a = laure_accuracy_count(current_ws);
+            optimality_t a = laure_accuracy_count(current_ws);
             laure_push_transistion(ws_next, a);
             cctx->ws = ws_next;
         }
@@ -253,9 +259,17 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
         #endif
         #ifndef DISABLE_WS
         if (LAURE_WS) {
-            accuracy_t a = laure_accuracy_count(cctx->ws);
+            optimality_t a = laure_accuracy_count(cctx->ws);
+            a = laure_ws_soften(a);
+            string opt = get_dflag("minimal");
+            if (opt) {
+                double dopt = atof(opt);
+                if (a < dopt) {
+                    return respond(q_yield, YIELD_OK);
+                }
+            }
             // printf("---------------\n");
-            printf("with optimality = %s%.2f%s\n", accuracy_frame(a));
+            printf("\n%s%% found proof\n%% with optimality %s%f%s%s for:%s\n", GRAY_COLOR, accuracy_frame(a), GRAY_COLOR, NO_COLOR);
             // printf("---------------\n");
         }
         #endif

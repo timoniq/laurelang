@@ -415,16 +415,19 @@ WS (weighted search)
 
 typedef struct laure_ws laure_ws;
 typedef unsigned long weight_t;
-typedef float accuracy_t;
+typedef float optimality_t;
 
 laure_ws *laure_ws_create(laure_ws *next);
 laure_ws *laure_ws_next(laure_ws *ws);
 void laure_ws_free(laure_ws *ws);
-accuracy_t laure_accuracy_count(laure_ws *ws);
+optimality_t laure_accuracy_count(laure_ws *ws);
 
-void laure_push_transistion(laure_ws *ws, accuracy_t acc);
+void laure_push_transistion(laure_ws *ws, optimality_t acc);
 size_t laure_count_transistions(laure_ws *ws);
 void laure_restore_transistions(laure_ws *ws, size_t to_sz);
+
+// math
+optimality_t laure_ws_soften(optimality_t o);
 
 #endif
 
