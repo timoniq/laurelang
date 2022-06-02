@@ -1672,74 +1672,68 @@ for advanced tree search
 qresp laure_eval_command(_laure_eval_sub_args) {
     assert(e->t == let_command);
     UNPACK_CCTX(cctx);
-    string v = e->docstring;
-    string n = e->s;
-    if (! v) {
-        v = DUMMY_FLAGV;
-    }
-    if (str_starts(n, "use ") || str_starts(n, "useso ")) {
-        bool use_kwd = str_starts(n, "use ");
 
-        string names;
-        if (use_kwd)
-            names = n + 4;
-        else
-            names = n + 6;
-        if (str_starts(names, "(") && lastc(names) == ')') {
-            names++;
-            lastc(names) = 0;
-        }
-        names = string_clean(names);
-        
-        string_linked *linked = string_split(names, ',');
-        bool failed[1];
-        failed[0] = false;
-
-        while (linked) {
-            string name = linked->s;
-            name = string_clean(name);
-            if (name[0] == '"') name++;
-            if (lastc(name) == '"') lastc(name) = 0;
-
-            string n;
-
-            if (str_starts(name, "/")) {
-                n = strdup(name);
-            } else if (str_starts(name, "@/")) {
-                name++;
-                n = malloc(strlen(lib_path) + strlen(name) + 1);
-                strcpy(n, lib_path);
-                strcat(n, name);
-            } else {
-                string wdir = get_work_dir_path(LAURE_CURRENT_ADDRESS ? LAURE_CURRENT_ADDRESS : "./");
-                n = malloc(strlen(wdir) + strlen(name) + 1);
-                strcpy(n, wdir);
-                strcat(n, name);
+    switch (e->flag) {
+        case command_setflag: {
+            string v = e->docstring;
+            string n = e->s;
+            if (! v) {
+                v = DUMMY_FLAGV;
             }
+            add_dflag(n, v);
+            return RESPOND_TRUE;
+        }
+        case command_use:
+        case command_useso: {
+            string_linked *linked = string_split(e->s, ',');
+            bool failed[1];
+            failed[0] = false;
 
-            string path_ = malloc(PATH_MAX);
-            memset(path_, 0, PATH_MAX);
-            realpath(n, path_);
+            while (linked) {
+                string name = linked->s;
+                name = string_clean(name);
+                if (name[0] == '"') name++;
+                if (lastc(name) == '"') lastc(name) = 0;
 
-            if (! use_kwd) {
-                bool result = laure_load_shared(cctx->session, path_);
-                free(path_);
-            } else {
-                FILE *f = fopen(path_, "r");
-                if (!f) {
-                    printf("%s\n", path_);
-                    free(path_);
-                    RESPOND_ERROR(undefined_err, e, "failed to find file %s", path_);
+                string n;
+
+                if (str_starts(name, "/")) {
+                    n = strdup(name);
+                } else if (str_starts(name, "@/")) {
+                    name++;
+                    n = malloc(strlen(lib_path) + strlen(name) + 1);
+                    strcpy(n, lib_path);
+                    strcat(n, name);
+                } else {
+                    string wdir = get_work_dir_path(LAURE_CURRENT_ADDRESS ? LAURE_CURRENT_ADDRESS : "./");
+                    n = malloc(strlen(wdir) + strlen(name) + 1);
+                    strcpy(n, wdir);
+                    strcat(n, name);
                 }
-                fclose(f);
-                laure_consult_recursive(cctx->session, path_, failed);
-            }
-            linked = linked->next;
-        }
 
-        return failed[0] ? RESPOND_FALSE : RESPOND_TRUE;
+                string path_ = malloc(PATH_MAX);
+                memset(path_, 0, PATH_MAX);
+                realpath(n, path_);
+
+                if (e->flag == command_useso) {
+                    bool result = laure_load_shared(cctx->session, path_);
+                    free(path_);
+                } else {
+                    FILE *f = fopen(path_, "r");
+                    if (!f) {
+                        printf("%s\n", path_);
+                        free(path_);
+                        RESPOND_ERROR(undefined_err, e, "failed to find file %s", path_);
+                    }
+                    fclose(f);
+                    laure_consult_recursive(cctx->session, path_, failed);
+                }
+                linked = linked->next;
+            }
+
+            return failed[0] ? RESPOND_FALSE : RESPOND_TRUE;
+        }
     }
-    add_dflag(n, v);
     return RESPOND_TRUE;
 }
 

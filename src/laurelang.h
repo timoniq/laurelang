@@ -146,6 +146,12 @@ typedef enum {
     let_nope
 } laure_expression_type;
 
+typedef enum laure_command_type {
+    command_setflag,
+    command_use,
+    command_useso
+} laure_command_type;
+
 struct laure_expression_set_;
 
 typedef struct {

@@ -359,7 +359,7 @@ int laure_process_query(laure_session_t *session, string line) {
             }
         }
         if (! found) {
-            printf("  unknown command %s%s%s, use %s%s%s\n", colored(args.argv[0]), colored(".help"));
+            printf("  unknown command `%s%s%s`, use %s%s%s\n", colored(args.argv[0] + 1), colored(".help"));
         }
         free(args.argv);
         return 1;

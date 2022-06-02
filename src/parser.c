@@ -556,6 +556,35 @@ laure_parse_result laure_parse(string query) {
                 return lpr;
             } else {
                 string setting = string_clean(query);
+
+                if (str_starts(setting, "use ") || str_starts(setting, "useso ")) {
+                    bool use_kwd = str_starts(setting, "use ");
+
+                    string names;
+                    if (use_kwd)
+                        names = setting + 4;
+                    else
+                        names = setting + 6;
+                    if (str_starts(names, "(") && lastc(names) == ')') {
+                        names++;
+                        lastc(names) = 0;
+                    }
+
+                    names = string_clean(names);
+
+                    laure_parse_result lpr;
+                    lpr.is_ok = true;
+                    lpr.exp = laure_expression_create(
+                        let_command,
+                        NULL,
+                        false,
+                        names,
+                        use_kwd ? command_use : command_useso,
+                        NULL,
+                        query
+                    );
+                    return lpr;
+                }
                 string v = strstr(setting, "=");
                 if (v) {
                     // particular value
@@ -1295,6 +1324,27 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
             });
             printindent(indent);
             printf("}\n");
+            break;
+        }
+
+        case let_command: {
+            printindent(indent);
+            printf("command ");
+            switch (exp->flag) {
+                case command_setflag: {
+                    printf("set flag %s to %s", exp->s, exp->docstring ? exp->docstring : "<default>");
+                    break;
+                }
+                case command_use: {
+                    printf("use kdb %s", exp->s);
+                    break;
+                }
+                case command_useso: {
+                    printf("use shared lib %s", exp->s);
+                    break;
+                }
+            }
+            printf("\n");
             break;
         }
     
