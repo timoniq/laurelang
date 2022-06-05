@@ -13,8 +13,8 @@ typedef struct laure_ws laure_ws;
 typedef double weight_t;
 typedef float optimality_t;
 
-double k = 0.00001;
-double align = 0;
+double k = 0.01;
+double align = 10;
 double e = 2.718281828459045;
 
 extern "C" {
@@ -33,7 +33,7 @@ extern "C" {
 typedef struct laure_ws {
     double k = k;
     std::vector<optimality_t> *acc;
-    double (*antiderivative)(laure_ws*, size_t);
+    double (*calc_w)(laure_ws*, size_t);
     laure_ws *next;
 } laure_ws;
 
@@ -43,12 +43,8 @@ void print_transistions(laure_ws *ws) {
         std::ostream_iterator<optimality_t>(std::cout, " "));
 }
 
-double calculate_antiderivative(laure_ws *ws, size_t i) {
-    return (i * ws->k + align) - log(pow(e, (i * ws->k + align)) + 1);
-}
-
-double integrate(laure_ws *ws, size_t from, size_t to) {
-    return ws->antiderivative(ws, to) - ws->antiderivative(ws, from);
+double sigmoid(laure_ws *ws, size_t i) {
+    return 1 / (1 + powf(e, (i + align) * k));
 }
 
 optimality_t round_o(optimality_t o) {
@@ -69,14 +65,18 @@ optimality_t laure_accuracy_count(
     #ifdef DEBUG
     print_transistions(ws);
     #endif
-    weight_t F = integrate(ws, 0, ws->acc->size());
-    if (! F) return 1;
+    weight_t F = 0;
     weight_t Fd = 0;
+
     for (size_t i = 0; i < ws->acc->size(); i++) {
         optimality_t a = round_o(ws->acc->at(i));
-        double w = integrate(ws, i, i + 1);
+        double w = ws->calc_w(ws, i);
+        F += w;
         Fd += w * a;
     }
+
+    if (F == 0) return 1;
+
     optimality_t o = (optimality_t)(Fd / F);
     o = round_o(o);
     #ifdef DEBUG
@@ -90,7 +90,7 @@ laure_ws *laure_ws_create(laure_ws *next) {
 
     laure_ws *ws = (laure_ws*) malloc(sizeof(laure_ws));
     ws->acc  = acc;
-    ws->antiderivative = calculate_antiderivative;
+    ws->calc_w = sigmoid;
     ws->k    = k;
     ws->next = next;
     return ws;

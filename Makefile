@@ -12,6 +12,7 @@ OBJECTS = laure.o $(LIB)
 
 ifeq ($(DEBUG), true)
 	CFLAGS := $(CFLAGS) -DDEBUG=1
+	WS_FLAGS := $(WS_FLAGS) -DDEBUG=1
 else
 endif
 
