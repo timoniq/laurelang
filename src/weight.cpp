@@ -1,13 +1,11 @@
 #ifndef DISABLE_WS
 
+#include "expr.h"
+
 #include <vector>
 #include <math.h>
 #include <iterator>
 #include <iostream>
-
-// weighted search algorithms
-// by Arseny Kriuchkov
-// read paper here: https://docs.laurelang.org/wiki/ws
 
 typedef struct laure_ws laure_ws;
 typedef double weight_t;
@@ -44,7 +42,7 @@ void print_transistions(laure_ws *ws) {
 }
 
 double sigmoid(laure_ws *ws, size_t i) {
-    return 1 / (1 + powf(e, (i + align) * k));
+    return 1e6 / (1 + powf(e, (i + align) * k));
 }
 
 optimality_t round_o(optimality_t o) {

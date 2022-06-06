@@ -11,17 +11,21 @@
 #define YIELD_FAIL (void*)0
 #define ANONVAR_NAME "_"
 
+#ifndef WMIN_NAME
+#define WMIN_NAME "ws_min"
+#endif
+
 #define is_global(stack) stack->glob == stack
 #define absorb(a, b) do {if (a > b) { a = a - b; b = 0; } else { b = b - a; a = 0; }; } while (0)
 #ifndef DISABLE_WS
-#define set_decision_accuracy(A) do { \
+#define further_with_decision_accuracy(A) do { \
     if (! LAURE_WS) \
         if (A < 1) return RESPOND_FALSE; \
     else \
         laure_push_transistion(cctx->ws, A); \
     } while (0)
 #else
-#define set_decision_accuracy(A) do {} while (0)
+#define further_with_decision_accuracy(A) do {return RESPOND_FALSE;} while (0)
 #endif
 
 #define MAX_ARGS 32
@@ -261,16 +265,14 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
         if (LAURE_WS) {
             optimality_t a = laure_accuracy_count(cctx->ws);
             a = laure_ws_soften(a);
-            string opt = get_dflag("minimal");
+            string opt = get_dflag(WMIN_NAME);
             if (opt) {
                 double dopt = atof(opt);
                 if (a < dopt) {
                     return respond(q_yield, YIELD_OK);
                 }
             }
-            // printf("---------------\n");
-            printf("\n%s%% found proof\n%% with optimality %s%f%s%s for:%s\n", GRAY_COLOR, accuracy_frame(a), GRAY_COLOR, NO_COLOR);
-            // printf("---------------\n");
+            printf("\nOptimality = %s%f%s%s%s\n", accuracy_frame(a), GRAY_COLOR, NO_COLOR);
         }
         #endif
         if (cctx->vpk->mode == INTERACTIVE) {
@@ -662,8 +664,6 @@ qresp laure_eval_assert(
                     var1 = lvar_ins;
                     var2 = rvar_ins;
                 } else if (!lvar_ins->locked || !rvar_ins->locked) {
-                    // When both are not locked the smart
-                    // cardinality estimation whould be useful (TODO)
                     var1 = rvar_ins;
                     var2 = lvar_ins;
                 } else {
@@ -737,6 +737,10 @@ qresp laure_eval_assert(
 /* =-------=
 Imaging.
 * Never creates a choicepoint
+* Creates atomic sets:
+  `S ~ @{a, b, c};`
+* Initializes nested instances
+  `I ~ int[]`
 =-------= */
 
 qresp laure_eval_image(
@@ -865,6 +869,9 @@ qresp laure_eval_image(
 /* =-------=
 Naming.
 Renames instance.
+!!! Non backtracable operation, 
+    should only be performed right
+    after private scope initialization.
 =-------= */
 qresp laure_eval_name(_laure_eval_sub_args) {
     assert(e->t == let_name);
@@ -950,6 +957,15 @@ struct arg_rec_ctx {
 };
 
 // Predicate call argument procession
+/* Processes expressions passed as a predicate argument 
+   and passes new instances into predicate argument recorder.
+1) logic variable
+   * bound link if exists
+   * creates new if not
+   * processes anonymous instances
+2) translatable expression
+   * passes translatable expression into a image-specific translator
+*/
 #define ARGPROC_RES string
 #define ARGPROC_RET_FALSE (void*)1
 #define ARGPROC_RES_(R, OK, ERROR, RETFALSE, err) do {string err = NULL; if (R == 0) OK else if (R == ARGPROC_RET_FALSE) {RETFALSE} else {err = (string)R; ERROR;}} while (0)
