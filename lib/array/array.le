@@ -19,3 +19,11 @@
         arr[i] cons arr[i - 1];
     };
 }
+
+: ?append_int(int[], int[]) -> int[].
+?append_int(a, b) -> c when append(a, b) = c.
+
+: ?linked(int, int[]) -> int[].
+
+?linked(head, []) -> [head].
+?linked(head, tail) -> append(tail, [head]).

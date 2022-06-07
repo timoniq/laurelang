@@ -36,6 +36,7 @@ Domain  *int_domain_new       ();
 void     int_domain_gt        (Domain *dom, IntValue v);
 void     int_domain_lt        (Domain *dom, IntValue v);
 bool     int_domain_check     (Domain *dom, bigint* i);
+bool     int_domain_check_int (Domain *dom, int i);
 gen_resp int_domain_generate  (Domain *dom, gen_resp (*receiver)(bigint*, void*), void* context);
 char    *int_domain_repr      (Domain *dom);
 Domain  *int_domain_copy      (Domain *dom);

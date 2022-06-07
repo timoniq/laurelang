@@ -98,4 +98,7 @@ qcontext *qcontext_new(laure_expression_set *expset);
 apply_result_t laure_consult_predicate(laure_session_t *session, laure_scope_t *scope, laure_expression_t *predicate_exp, char *address);
 qresp laure_start(control_ctx *cctx, laure_expression_set *expset);
 
+#define MUST_BE(expr) if (! (expr)) return RESPOND_FALSE
+#define MUST_BE_F(expr, freer) if (! (expr)) {freer; return RESPOND_FALSE;}
+
 #endif

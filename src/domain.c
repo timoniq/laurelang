@@ -104,6 +104,15 @@ bool int_domain_check(Domain *dom, bigint* i) {
     }
 }
 
+bool int_domain_check_int(Domain *domain, int i) {
+    bigint l[1];
+    bigint_init(l);
+    bigint_from_int(l, i);
+    bool result = int_domain_check(domain, l);
+    bigint_free(l);
+    return result;
+}
+
 string int_domain_repr(Domain *dom) {
     switch (dom->t) {
         case DOMAIN: {
