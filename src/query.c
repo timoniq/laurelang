@@ -988,10 +988,12 @@ Instance *prepare_T_instance(laure_scope_t *scope, Instance *resolved, uint nest
     Instance *prepared = laure_unwrap_nestings(resolved, nesting);
     if (! prepared) {
         printf("Unable to unwrap nestings to perform generic preparation\n");
+        return NULL;
     }
     prepared = get_derived_instance(scope, prepared);
     if (! prepared) {
         printf("Unable to find what instance datatype was derived from; notice that atom datatype cannot be used in generic\n");
+        return NULL;
     }
     prepared = instance_shallow_copy(prepared);
     return prepared;
@@ -1004,7 +1006,7 @@ Instance *resolve_generic_T(
 ) {
     if (header.resp && header.resp->t == td_generic) {
         laure_expression_t *rexp = laure_expression_set_get_by_idx(set, header.args->length);
-        if (rexp->t == let_var) {
+        if (rexp && rexp->t == let_var) {
             Instance *resolved = laure_scope_find_by_key(scope, rexp->s, false);
             if (resolved) {
                 #ifdef DEBUG
@@ -1404,7 +1406,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     Instance *hint = NULL;
                     if (pred_img->header.resp) {
                         if (pred_img->header.resp->t == td_generic) {
-                            hint = T;
+                            hint = get_nested_instance(T, pred_img->header.response_nesting, scope);
                         } else {
                             hint = pred_img->header.resp->instance;
                         }

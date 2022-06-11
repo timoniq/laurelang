@@ -1,0 +1,22 @@
+!use "@/array".
+
+: ?inc(int) -> int,
+  ?flatten('T'[][]) -> 'T'[][].
+
+?inc(x) -> x + 1.
+
+?flatten(array) -> flattened {
+    linked(head, tail) = array;
+    flattened = head:append(tail:flatten());
+}
+
+: ?main().
+
+?main() {
+    int x = 1;
+    x:inc() = 2;
+    // methods can be used within nested instances
+    int[] a = [1, 2, 3];
+    b = a:inc();
+    b = [2, 3, 4];
+}

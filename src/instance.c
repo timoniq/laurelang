@@ -1797,7 +1797,7 @@ Instance *laure_unwrap_nestings(Instance *wrapped, uint redundant_nestings) {
     uint n = redundant_nestings;
     Instance *unwrapped = wrapped;
     while (n > 0) {
-        if (read_head(unwrapped->image).t != ARRAY) return false;
+        if (read_head(unwrapped->image).t != ARRAY) return NULL;
         unwrapped = ((struct ArrayImage*)unwrapped->image)->arr_el;
         n--;
     }

@@ -1111,6 +1111,21 @@ laure_parse_result laure_parse(string query) {
                     
                     string name = read_til(query, '(');
 
+                    laure_expression_t *first_linked_argument = NULL;
+                    string ns = read_til(name, NS_SEPARATOR);
+                    if (ns) {
+                        name = name + strlen(ns) + 1;
+                        if (! strlen(name))
+                            error_result("predicate/constraint name cannot be empty");
+                        laure_parse_result lpr_ns = laure_parse(ns);
+                        if (! lpr_ns.is_ok) error_format("failed to parse namespace: %s", lpr_ns.err);
+                        laure_expression_t *ns_exp = lpr_ns.exp;
+                        if (ns_exp->t != let_var)
+                            error_format("namespace must be %s not %s", EXPT_NAMES[let_var], EXPT_NAMES[ns_exp->t]);
+                        first_linked_argument = ns_exp;
+                        query += strlen(ns) + 1;
+                    }
+
                     string generic_before = read_til(name, GENERIC_OPEN);
                     string t_name = NULL;
                     if (generic_before && strlen(generic_before)) {
@@ -1140,6 +1155,17 @@ laure_parse_result laure_parse(string query) {
                             error_result(args_res.err);
                         }
                         args_exps = args_res.exps;
+                    }
+
+                    if (first_linked_argument) {
+                        if (! args_exps) {
+                            args_exps = laure_expression_set_link(NULL, first_linked_argument);
+                        } else {
+                            args_exps = laure_expression_set_link_branch(
+                                laure_expression_set_link(NULL, first_linked_argument),
+                                args_exps
+                            );
+                        }
                     }
 
                     laure_expression_compact_bodyargs *ba = laure_bodyargs_create(args_exps, laure_expression_get_count(args_exps), 0);
@@ -1423,6 +1449,7 @@ laure_expression_set *laure_get_all_vars_in(laure_expression_t *exp, laure_expre
         linked = laure_expression_set_link(linked, exp);
         break;
     }
+    case let_array:
     case let_choice_2:
     case let_assert:
     case let_set:

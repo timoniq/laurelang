@@ -357,6 +357,8 @@ qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
 
             MUST_BE(image_equals(ins->image, ins2->image));
 
+            printf("%s ~~~~ %s\n", ins->repr(ins), ins2->repr(ins2));
+
             length--;
             linked = linked->next;
 
@@ -453,6 +455,7 @@ qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
         to_img->i_data.linked = orig_linked;
         return RESPOND_TRUE;
     }
+    printf("too ambig\n");
     return RESPOND_FALSE;
 }
 

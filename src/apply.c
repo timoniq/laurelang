@@ -136,7 +136,7 @@ Instance *get_nested_instance(Instance *atom, uint nesting, laure_scope_t *scope
     Instance *gins = laure_scope_find_by_key(scope->glob, buff, true);
 
     if (! gins) {
-        Instance *ins = atom;
+        Instance *ins = instance_shallow_copy(atom);
         
         while (nesting) {
             void *img = laure_create_array_u(ins);

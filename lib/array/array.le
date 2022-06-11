@@ -23,7 +23,6 @@
     };
 }
 
-: ?linked(int, int[]) -> int[].
+: ?linked('T', 'T'[]) -> 'T'[].
 
-?linked(head, []) -> [head].
-?linked(head, tail) -> append(tail, [head]).
+?linked(head, tail) -> append([head], tail).
