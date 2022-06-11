@@ -956,6 +956,84 @@ struct arg_rec_ctx {
     laure_scope_t *prev_scope;
 };
 
+Instance *get_array_derived(struct ArrayImage *arr, laure_scope_t *scope) {
+    // going down to primitive
+    uint nesting = 1;
+    Instance *arrel = arr->arr_el;
+    while (read_head(arrel->image).t == ARRAY) {
+        arrel = ((struct ArrayImage*)arrel)->arr_el;
+        nesting++;
+    }
+    return get_nested_instance(arrel, nesting, scope);
+}
+
+Instance *get_derived_instance(laure_scope_t *scope, Instance *resolved_instance) {
+    void *image = resolved_instance->image;
+    laure_image_head head = read_head(image);
+    if (head.translator->identificator == INT_TRANSLATOR->identificator) {
+        return laure_scope_find_by_key(scope->glob, "int", false);
+    } else if (head.translator->identificator == CHAR_TRANSLATOR->identificator) {
+        return laure_scope_find_by_key(scope->glob, "char", false);
+    } else if (head.translator->identificator == ARRAY_TRANSLATOR->identificator) {
+        return get_array_derived(resolved_instance->image, scope);
+    } else if (head.translator->identificator == ATOM_TRANSLATOR->identificator) {
+        return NULL;
+    } else if (head.translator->identificator == STRING_TRANSLATOR->identificator) {
+        return laure_scope_find_by_key(scope->glob, "string", false);
+    }
+    printf("fixme %s\n", resolved_instance->repr(resolved_instance));
+    return NULL;
+}
+
+Instance *prepare_T_instance(laure_scope_t *scope, Instance *resolved, uint nesting) {
+    Instance *prepared = laure_unwrap_nestings(resolved, nesting);
+    if (! prepared) {
+        printf("Unable to unwrap nestings to perform generic preparation\n");
+    }
+    prepared = get_derived_instance(scope, prepared);
+    if (! prepared) {
+        printf("Unable to find what instance datatype was derived from; notice that atom datatype cannot be used in generic\n");
+    }
+    prepared = instance_shallow_copy(prepared);
+    return prepared;
+}
+
+Instance *resolve_generic_T(
+    struct PredicateHeaderImage header,
+    laure_expression_set *set,
+    laure_scope_t *scope
+) {
+    if (header.resp && header.resp->t == td_generic) {
+        laure_expression_t *rexp = laure_expression_set_get_by_idx(set, header.args->length);
+        if (rexp->t == let_var) {
+            Instance *resolved = laure_scope_find_by_key(scope, rexp->s, false);
+            if (resolved) {
+                #ifdef DEBUG
+                printf("DEBUG: T resolved by response\n");
+                #endif
+                uint nesting = header.response_nesting;
+                return prepare_T_instance(scope, resolved, nesting);
+            }
+        }
+    }
+    for (uint i = 0; i < header.args->length; i++) {
+        if (header.args->data[i].t == td_generic) {
+            laure_expression_t *exp = laure_expression_set_get_by_idx(set, i);
+            if (exp->t == let_var) {
+                Instance *resolved = laure_scope_find_by_key(scope, exp->s, false);
+                if (resolved) {
+                    uint nesting = header.nestings[i];
+                    #ifdef DEBUG
+                    printf("DEBUG: T resolved by argument %u\n", i);
+                    #endif
+                    return prepare_T_instance(scope, resolved, nesting);
+                }
+            }
+        }
+    }
+    return NULL;
+}
+
 // Predicate call argument procession
 /* Processes expressions passed as a predicate argument 
    and passes new instances into predicate argument recorder.
@@ -980,12 +1058,15 @@ ARGPROC_RES pred_call_procvar(
     laure_scope_t      *new_scope, 
 
     string              argn, 
-    Instance           *hint_opt, 
+    laure_typedecl     *hint_opt, 
     
     laure_expression_t *exp, 
     RECORDER_T         (recorder), 
     struct arg_rec_ctx *ctx, 
-    bool                create_copy 
+    bool                create_copy,
+
+    Instance *T,
+    uint nesting
 ) {
     switch (exp->t) {
         case let_var: {
@@ -1002,7 +1083,14 @@ ARGPROC_RES pred_call_procvar(
                 return_str_fmt("%s is locked", arg->name);
             } else if (! arg) {
                 if (hint_opt) {
-                    arg = instance_deepcopy(prev_scope, argn, hint_opt);
+                    Instance *hint;
+                    if (hint_opt->t == td_generic) {
+                        assert(T);
+                        hint = get_nested_instance(T, nesting, prev_scope);
+                    } else {
+                        hint = hint_opt->instance;
+                    }
+                    arg = instance_deepcopy(prev_scope, argn, hint);
                 } else {
                     return_str_fmt("specification of %s is needed", vname);
                 }
@@ -1067,7 +1155,14 @@ ARGPROC_RES pred_call_procvar(
         default: {
             if (! hint_opt)
                 return_str_fmt("cannot resolve meaning of %s; add hint", exp->s);
-            Instance *arg = instance_deepcopy(prev_scope, argn, hint_opt);
+            Instance *hint;
+            if (hint_opt->t == td_generic) {
+                assert(T);
+                hint = get_nested_instance(T, nesting, prev_scope);;
+            } else {
+                hint = hint_opt->instance;
+            }
+            Instance *arg = instance_deepcopy(prev_scope, argn, hint);
             
             if (! arg->image)
                 return_str_fmt("specification of %s is needed", argn);
@@ -1169,13 +1264,19 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 actx->idx_pd = idx;
                 laure_expression_t *argexp = arg_l->expression;
 
+                laure_typedecl decl[1];
+                if (pf->c.hints[idx]) {
+                    decl->t = td_instance;
+                    decl->instance = pf->c.hints[idx]->hint;
+                }
+
                 ARGPROC_RES res = pred_call_procvar(
                     pf, cctx,
-                    prev, NULL, 
+                    prev, NULL,
                     argexp->s, 
-                    pf->c.hints[idx]->hint, 
+                    pf->c.hints[idx] ? decl : NULL, 
                     argexp, cpred_arg_recorder, 
-                    actx, false);
+                    actx, false, NULL, 0);
 
                 ARGPROC_RES_(
                     res, 
@@ -1197,13 +1298,20 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     pd->resp_link = 0;
                 } else {
                     actx->idx_pd = 0;
+
+                    laure_typedecl decl[1];
+                    if (pf->c.resp_hint) {
+                        decl->t = td_instance;
+                        decl->instance = pf->c.resp_hint;
+                    }
+
                     ARGPROC_RES res = pred_call_procvar(
                         pf, cctx, 
                         prev, NULL,
                         exp->s,
-                        pf->c.resp_hint,
+                        pf->c.resp_hint ? decl : NULL,
                         exp, cpred_resp_recorder,
-                        actx, false);
+                        actx, false, NULL, 0);
                     
                     ARGPROC_RES_(
                         res, 
@@ -1254,6 +1362,12 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             struct arg_rec_ctx actx[1];
             actx->new_scope = nscope;
 
+            Instance *T = NULL;
+            if (! laure_typeset_all_instances(pred_img->header.args)) {
+                T = resolve_generic_T(pred_img->header, e->ba->set, scope);
+                if (! T) RESPOND_ERROR(signature_err, e, "unable to resolve generic datatype%s; add explicit cast or add hint to resolve", "");
+            }
+
             laure_expression_set *arg_l = e->ba->set;
             for (uint idx = 0; idx < e->ba->body_len; idx++) {
                 actx->idx_pd = idx;
@@ -1263,9 +1377,9 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     pf, cctx,
                     prev, nscope, 
                     laure_get_argn(idx), 
-                    pred_img->header.args->data[idx], 
+                    &pred_img->header.args->data[idx], 
                     argexp, dompred_arg_recorder, 
-                    actx, true);
+                    actx, true, T, pred_img->header.nestings[idx]);
 
                 ARGPROC_RES_(
                     res, 
@@ -1279,7 +1393,14 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
 
             if (pf->interior.respn) {
                 if (! arg_l) {
-                    Instance *hint = pred_img->header.resp;
+                    Instance *hint = NULL;
+                    if (pred_img->header.resp) {
+                        if (pred_img->header.resp->t == td_generic) {
+                            hint = T;
+                        } else {
+                            hint = pred_img->header.resp->instance;
+                        }
+                    }
                     if (! hint)
                         RESPOND_ERROR(signature_err, e, "specification of %s's response is needed", predicate_name);
                     Instance *rins = instance_deepcopy(nscope, laure_get_respn(), hint);
@@ -1295,7 +1416,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                         laure_get_respn(),
                         pred_img->header.resp,
                         exp, dompred_arg_recorder,
-                        actx, true);
+                        actx, true, T, pred_img->header.response_nesting);
                     
                     ARGPROC_RES_(
                         res,
@@ -1305,6 +1426,8 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                         err);
                 }
             }
+
+            if (T) free(T);
             
             laure_expression_set *body = pf->interior.body;
             body = laure_expression_compose(body);

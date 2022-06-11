@@ -140,7 +140,8 @@ typedef struct laure_expression {
     bool is_header;
 
     char *s;
-    uint flag, linepos; // nesting for let_var
+    struct laure_expression *link;
+    uint flag, linepos; // nesting for let_var, cursor position for error handling
     laure_expression_compact_bodyargs *ba;
 } laure_expression_t;
 

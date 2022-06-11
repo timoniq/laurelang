@@ -24,6 +24,7 @@ typedef enum {
     let_cut,
     let_atom,
     let_command,
+    let_singlq,
     let_nope
 } laure_expression_type;
 

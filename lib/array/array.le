@@ -1,7 +1,10 @@
 !useso "array.so".
 
-: ?each_int(int[]) -> int.
-?each_int(arr) -> element when each(arr) = element.
+: ?'T'[]:by_idx('T'[], int) -> 'T',
+  ?'T'[]:append('T'[], 'T'[]) -> 'T'[].
+
+?'T'[]:by_idx(arr, idx) -> __by_idx(arr, idx).
+?'T'[]:append(arr, tail) -> __append(arr, tail).
 
 // Predicate states that there are no nearby standing equal elements in array
 : ?no_repeat(int[]).
@@ -19,9 +22,6 @@
         arr[i] cons arr[i - 1];
     };
 }
-
-: ?append_int(int[], int[]) -> int[].
-?append_int(a, b) -> c when append(a, b) = c.
 
 : ?linked(int, int[]) -> int[].
 

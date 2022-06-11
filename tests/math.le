@@ -43,10 +43,6 @@
     &all b {
         b = 1;
     };
-    c __gte 0;
-    &exists c {
-        c = 0;
-    };
 }
 
 ?test_math_multiply() {

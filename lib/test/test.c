@@ -182,7 +182,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
 
         int argc = 0;
         char **data = 0;
-        if (predicate->doc && pred_im->header.args->len > 0) {
+        if (predicate->doc && pred_im->header.args->length > 0) {
             argc = 1;
             for (int j = 0; j < strlen(predicate->doc); j++) {
                 if (predicate->doc[j] == '\n') argc++;
@@ -200,11 +200,11 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         char query[256] = {0};
         strcpy(query, predicate->name);
         strcat(query, "(");
-        for (int j = 0; j < pred_im->header.args->len; j++) {
+        for (int j = 0; j < pred_im->header.args->length; j++) {
             char argn[64];
             snprintf(argn, 64, "%s_ARG%d", predicate->name, j);
             strcat(query, argn);
-            if (j != pred_im->header.args->len - 1) strcat(query, ",");
+            if (j != pred_im->header.args->length - 1) strcat(query, ",");
         }
         strcat(query, ")");
         

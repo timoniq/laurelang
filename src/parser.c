@@ -23,7 +23,9 @@ string ELLIPSIS = NULL;
 #define LAURE_SYNTAX_INFIX_PREPOSITION "of"
 #endif
 
-char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Structure Definition", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Atom", "Command", "[Nope]"};
+#define NS_SEPARATOR ':'
+
+char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Structure Definition", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Atom", "Command", "Generic DT/Char", "[Nope]"};
 
 laure_expression_t *laure_expression_create(
     laure_expression_type t, 
@@ -43,6 +45,7 @@ laure_expression_t *laure_expression_create(
     exp->ba = ba;
     exp->fullstring = strdup(q);
     exp->linepos = 0;
+    exp->link = NULL;
     return exp;
 }
 
@@ -548,6 +551,25 @@ laure_parse_result laure_parse(string query) {
     query++;
 
     switch (det) {
+        case '\'': {
+            string dup = strdup(query);
+
+            uint nesting = 0;
+            while (strlen(dup) > 2 && str_eq(dup + strlen(dup) - 2, "[]")) {
+                nesting++;
+                dup[strlen(dup) - 2] = 0;
+            }
+
+            if (lastc(dup) != '\'')
+                error_result("invalid generic or char; add `'`");
+            string s = read_til(dup, '\'');
+            if (! strlen(s))
+                error_result("generic name or char value cannot be empty");
+            laure_parse_result lpr;
+            lpr.is_ok = true;
+            lpr.exp = laure_expression_create(let_singlq, NULL, false, s, nesting,  NULL, --query);
+            return lpr;
+        }
         case '!': {
             if (! strlen(query)) {
                 laure_parse_result lpr;
@@ -670,6 +692,21 @@ laure_parse_result laure_parse(string query) {
                 error_result("format is invalid :(");
             }
 
+            // parse name
+            laure_expression_t *linked_namespace = NULL;
+            string ns = read_til(name, NS_SEPARATOR);
+            if (ns) {
+                name = name + strlen(ns) + 1;
+                if (! strlen(name))
+                    error_result("predicate/constraint name cannot be empty");
+                laure_parse_result lpr_ns = laure_parse(ns);
+                if (! lpr_ns.is_ok) error_format("failed to parse namespace: %s", lpr_ns.err);
+                laure_expression_t *ns_exp = lpr_ns.exp;
+                if (ns_exp->t != let_var && ns_exp->t != let_singlq)
+                    error_format("namespace must be %s or 'X' (single quoted), not %s", EXPT_NAMES[let_var], EXPT_NAMES[let_singlq], EXPT_NAMES[ns_exp->t]);
+                linked_namespace = ns_exp;
+            }
+
             // parse body, args and resp
             laure_expression_set *set = NULL;
             uint body_len = 0;
@@ -732,10 +769,12 @@ laure_parse_result laure_parse(string query) {
             laure_parse_result lpr;
             lpr.is_ok = true;
             lpr.exp = laure_expression_create(type, "", false, name, is_primitive, ba, query);
+            lpr.exp->link = linked_namespace;
 
             return lpr;
         }
         case '$': {
+            // structure
             error_result("not implemented");
         }
         case '[': {

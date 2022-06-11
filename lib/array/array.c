@@ -315,10 +315,32 @@ qresp array_predicate_length(preddata *pd, control_ctx *cctx) {
     }
 }
 
+bool append_resolve(Instance *to, Instance *with, Instance *res) {
+    struct ArrayImage *img = NULL;
+    Instance *T = NULL;
+    if (to->image)
+        img = to->image;
+    else if (with->image)
+        img = with->image;
+    else if (res->image)
+        img = res->image;
+    else
+        return false;
+    T = img->arr_el;
+    if (! to->image) to->image = laure_create_array_u(T);
+    if (! with->image) with->image = laure_create_array_u(T);
+    if (! res->image) res->image = laure_create_char_u(T);
+    return true;
+}
+
 qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
     Instance *to = pd_get_arg(pd, 0);
     Instance *with = pd_get_arg(pd, 1);
     Instance *res = pd->resp;
+
+    if (! append_resolve(to, with, res))
+        return respond(q_error, "cannot resolve; add hints");
+
     if (instantiated(to) && instantiated(with) && instantiated(res)) {
         MUST_BE(LENGTH(to->image) + LENGTH(with->image) == LENGTH(res->image));
         struct ArrayImage *res_img = (struct ArrayImage*) res->image;
@@ -443,7 +465,7 @@ int on_use(laure_session_t *session) {
     );
     
     laure_api_add_predicate(
-        session, "by_idx", 
+        session, "__by_idx", 
         array_predicate_by_idx, 
         2, "ARRAY:_ idx:int", "_", false, 
         DOC_by_idx
@@ -456,9 +478,9 @@ int on_use(laure_session_t *session) {
         DOC_length
     );
     laure_api_add_predicate(
-        session, "append",
+        session, "__append",
         array_predicate_append,
-        2, "ARRAY:_ ARRAY:_", "ARRAY:_", false,
+        2, "ARRAY:_ ARRAY:_", "_", false,
         NULL
     );
     return 0;

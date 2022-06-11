@@ -724,21 +724,36 @@ int laure_convert_esc_ch(int c, char *write) {
 }
 
 bool char_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
-    if (exp->t != let_custom) return false;
-    struct CharImage *img = (struct CharImage*)img_;
-    if (! ((exp->s[0] == '\'' && lastc(exp->s) == '\'') || (exp->s[0] == '\"' && lastc(exp->s) == '\"'))) return false;
+    if (exp->t != let_custom && exp->t != let_singlq) return false;
 
-    if (strlen(exp->s) - 2 >= 127)
+    struct CharImage *img = (struct CharImage*)img_;
+    
+    if (exp->t == let_custom) {
+        if (! ((exp->s[0] == '\'' && lastc(exp->s) == '\'') || (exp->s[0] == '\"' && lastc(exp->s) == '\"'))) return false;
+    } else if (exp->t == let_singlq) {
+        if (exp->flag > 0) return false;
+    }
+
+    if (strlen(exp->s) - (exp->t == let_custom ? 2 : 0) >= 127)
         return false;
     
     char buff[128];
     uint l = 0;
 
-    for (uint idx = 0; idx < laure_string_strlen(exp->s) - 2; idx++) {
-        int c = laure_string_char_at_pos(exp->s + 1, strlen(exp->s) - 2, idx);
+    uint align_left, align_right;
+    if (exp->t == let_custom) {
+        align_left = 1;
+        align_right = 2;
+    } else {
+        align_left = 0;
+        align_right = 0;
+    }
+
+    for (uint idx = 0; idx < laure_string_strlen(exp->s) - align_right; idx++) {
+        int c = laure_string_char_at_pos(exp->s + align_left, strlen(exp->s) - align_right, idx);
         if (c == '\\') {
             c = laure_convert_ch_esc(
-                laure_string_char_at_pos(exp->s + 1, strlen(exp->s) - 2, ++idx)
+                laure_string_char_at_pos(exp->s + align_left, strlen(exp->s) - align_right, ++idx)
             );
         }
         l += laure_string_put_char(buff + l, c);
@@ -1246,11 +1261,11 @@ gen_resp atom_generate(
 // Set up translators
 
 void laure_set_translators() {
-    INT_TRANSLATOR = new_translator(int_translator);
-    CHAR_TRANSLATOR = new_translator(char_translator);
-    ARRAY_TRANSLATOR = new_translator(array_translator);
-    STRING_TRANSLATOR = new_translator(string_translator);
-    ATOM_TRANSLATOR = new_translator(atom_translator);
+    INT_TRANSLATOR = new_translator('i', int_translator);
+    CHAR_TRANSLATOR = new_translator('c', char_translator);
+    ARRAY_TRANSLATOR = new_translator('a', array_translator);
+    STRING_TRANSLATOR = new_translator('s', string_translator);
+    ATOM_TRANSLATOR = new_translator('@', atom_translator);
     MOCK_NAME = strdup( "$mock_name" );
     MOCK_QRESP.state = q_true;
     MOCK_QRESP.payload = 0;
@@ -1400,6 +1415,13 @@ Instance *instance_deepcopy(laure_scope_t *scope, string name, Instance *from_in
     return instance;
 };
 
+Instance *instance_shallow_copy(Instance *from_instance) {
+    if (! from_instance) return NULL;
+    Instance *instance = malloc(sizeof(Instance));
+    *instance = *from_instance;
+    return instance;
+}
+
 qresp respond(qresp_state s, string p) {
     qresp qr;
     qr.state = s;
@@ -1407,9 +1429,10 @@ qresp respond(qresp_state s, string p) {
     return qr;
 };
 
-struct Translator *new_translator(bool (*invoke)(string, void*, laure_scope_t*)) {
+struct Translator *new_translator(char identificator, bool (*invoke)(string, void*, laure_scope_t*)) {
     struct Translator *tr = malloc(sizeof(struct Translator));
     tr->invoke = invoke;
+    tr->identificator = identificator;
     return tr;
 };
 
@@ -1609,11 +1632,57 @@ void instance_set_push(struct InstanceSet* ins_set, Instance *ins) {
     ins_set->data = set;
 };
 
+/* ============
+Data type declaration set
+============ */
+
+laure_typeset *laure_typeset_new() {
+    laure_typeset *typeset = malloc(sizeof(laure_typeset));
+    typeset->data = NULL;
+    typeset->length = 0;
+    return typeset;
+}
+
+void laure_typeset_push_instance(laure_typeset *ts, Instance *instance) {
+    ts->length++;
+    ts->data = realloc(ts->data, sizeof(laure_typedecl) * ts->length);
+    ts->data[ts->length - 1].t = td_instance;
+    ts->data[ts->length - 1].instance = instance;
+}
+
+void laure_typeset_push_decl(laure_typeset *ts, string generic_name) {
+    ts->length++;
+    ts->data = realloc(ts->data, sizeof(laure_typedecl) * ts->length);
+    ts->data[ts->length - 1].t = td_generic;
+    ts->data[ts->length - 1].instance = generic_name;
+}
+
+bool laure_typeset_all_instances(laure_typeset *ts) {
+    for (uint i = 0; i < ts->length; i++) {
+        if (ts->data[i].t != td_instance) return false;
+    }
+    return true;
+}
+
+laure_typedecl *laure_typedecl_instance_create(Instance *instance) {
+    laure_typedecl *td = malloc(sizeof(laure_typedecl));
+    td->t = td_instance;
+    td->instance = instance;
+    return td;
+}
+
+laure_typedecl *laure_typedecl_generic_create(string generic_name) {
+    laure_typedecl *td = malloc(sizeof(laure_typedecl));
+    td->t = td_generic;
+    td->generic = generic_name;
+    return td;
+}
+
 /* =================
 Working with 
 predicate variations 
 ================= */
-struct PredicateImage *predicate_header_new(struct InstanceSet *args, Instance *resp, bool is_constraint) {
+struct PredicateImage *predicate_header_new(laure_typeset *args, laure_typedecl *resp, bool is_constraint) {
     struct PredicateImage *img = malloc(sizeof(struct PredicateImage));
 
     img->t = !is_constraint ? PREDICATE_FACT : CONSTRAINT_FACT;
@@ -1654,16 +1723,45 @@ string predicate_repr(Instance *ins) {
 
     struct PredicateImage *img = (struct PredicateImage*)ins->image;
 
-    for (int i = 0; i < img->header.args->len; i++) {
-        string argn = img->header.args->data[i]->name;
+    for (int i = 0; i < img->header.args->length; i++) {
+        laure_typedecl td = img->header.args->data[i];
+        string argn;
+
+        if (td.t == td_instance) {
+            argn = img->header.args->data[i].instance->name;
+        } else if (td.t == td_generic) {
+            argn = img->header.args->data[i].generic;
+        }
         if (i != 0) {
             strcat(argsbuff, ", ");
             strcat(argsbuff, argn);
         } else strcpy(argsbuff, argn);
+        
+        if (td.t == td_generic) {
+            uint n = img->header.nestings[i];
+            while (n > 0) {
+                strcat(argsbuff, "[]");
+                n--;
+            }
+        }
     }
 
     if (img->header.resp != NULL) {
-        snprintf(respbuff, 64, " -> %s", img->header.resp->name);
+        string rs;
+        if (img->header.resp->t == td_instance) {
+            rs = img->header.resp->instance->name;
+        } else {
+            rs = img->header.resp->generic;
+        }
+        snprintf(respbuff, 64, " -> %s", rs);
+        if (img->header.resp->t == td_generic) {
+            uint n = img->header.response_nesting;
+            //! todo add overflow protection
+            while (n > 0) {
+                strcat(respbuff, "[]");
+                n--;
+            }
+        }
     } else
         respbuff[0] = 0;
 
@@ -1675,28 +1773,9 @@ string predicate_repr(Instance *ins) {
 }
 
 string constraint_repr(Instance *ins) {
-    char buff[128];
-
-    char argsbuff[64];
-    char respbuff[64];
-
-    struct PredicateImage *img = (struct PredicateImage*)ins->image;
-
-    for (int i = 0; i < img->header.args->len; i++) {
-        string argn = img->header.args->data[i]->name;
-        if (i != 0) {
-            strcat(argsbuff, ", ");
-            strcat(argsbuff, argn);
-        } else strcpy(argsbuff, argn);
-    }
-
-    if (img->header.resp != NULL)
-        snprintf(respbuff, 64, " -> %s", img->header.resp->name);
-    else
-        respbuff[0] = 0;
-    
-    snprintf(buff, 128, "(#%s(%s)%s)", ins->name, argsbuff, respbuff);
-    return strdup(buff);
+    string r = predicate_repr(ins);
+    r[0] = '#';
+    return r;
 }
 
 /* ==========
@@ -1712,4 +1791,15 @@ void instance_unlock(Instance *ins) {
 
 string instance_get_doc(Instance *ins) {
     return ins->doc ? (strlen(ins->doc) ? ins->doc : NULL) : NULL;
+}
+
+Instance *laure_unwrap_nestings(Instance *wrapped, uint redundant_nestings) {
+    uint n = redundant_nestings;
+    Instance *unwrapped = wrapped;
+    while (n > 0) {
+        if (read_head(unwrapped->image).t != ARRAY) return false;
+        unwrapped = ((struct ArrayImage*)unwrapped->image)->arr_el;
+        n--;
+    }
+    return unwrapped;
 }

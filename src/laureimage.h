@@ -54,6 +54,32 @@ typedef struct {
     void **members;
 } multiplicity;
 
+typedef enum laure_typedecl_t {
+    td_instance,
+    td_generic,
+} laure_typedecl_t;
+
+typedef struct laure_typedecl {
+    laure_typedecl_t t;
+    union {
+        Instance *instance;
+        string generic;
+    };
+} laure_typedecl;
+
+typedef struct laure_typeset {
+    uint length;
+    laure_typedecl *data;
+} laure_typeset;
+
+laure_typeset *laure_typeset_new();
+void laure_typeset_push_instance(laure_typeset *ts, Instance *instance);
+void laure_typeset_push_decl(laure_typeset *ts, string generic_name);
+bool laure_typeset_all_instances(laure_typeset *ts);
+
+laure_typedecl *laure_typedecl_instance_create(Instance *instance);
+laure_typedecl *laure_typedecl_generic_create(string generic_name);
+
 #define MULTIPLICITY_CAPACITY 8
 
 multiplicity *multiplicity_create();
@@ -249,9 +275,9 @@ struct PredicateImageVariationSet {
 };
 
 struct PredicateHeaderImage {
-    struct InstanceSet *args;
+    laure_typeset *args;
     uint *nestings;
-    Instance* resp;
+    laure_typedecl* resp;
     uint response_nesting;
 };
 
@@ -325,7 +351,7 @@ struct ArrayImage *laure_create_array_u(Instance *el_t);
 
 struct AtomImage *laure_atom_universum_create(multiplicity *mult);
 
-struct PredicateImage *predicate_header_new(struct InstanceSet *args, Instance *resp, bool is_constraint);
+struct PredicateImage *predicate_header_new(laure_typeset *args, laure_typedecl *resp, bool is_constraint);
 
 void *image_deepcopy(laure_scope_t *scope, void *img);
 
@@ -364,11 +390,12 @@ bool atom_translator(laure_expression_t*, void*, laure_scope_t*);
 // translator (a tool to work with macro_string to image conversions)
 
 struct Translator {
+    char identificator;
     // needed to cast macro string to image
     bool (*invoke)(laure_expression_t*, void*, laure_scope_t*); // (exp, image, scope)
 };
 
-struct Translator *new_translator(bool (*invoke)(string, void*, laure_scope_t*));
+struct Translator *new_translator(char identificator, bool (*invoke)(string, void*, laure_scope_t*));
 
 struct predicate_arg {
     int index;
@@ -394,7 +421,7 @@ size_t image_get_size_deep(void *image);
 // Create instance
 Instance *instance_new(string name, string doc, void *image);
 Instance *instance_deepcopy(laure_scope_t*, string name, Instance *from_instance);
-Instance *instance_shallow_copy(string name, Instance *from_instance);
+Instance *instance_shallow_copy(Instance *from_instance);
 Instance *instance_deepcopy_with_image(laure_scope_t*, string name, Instance *from_instance, void *image);
 size_t instance_get_size_deep(Instance *instance);
 string instance_repr(Instance*);
@@ -460,6 +487,9 @@ bool int_check(void *img_, bigint *bi);
 
 int laure_convert_esc_ch(int c, char *write);
 int laure_convert_ch_esc(int c);
+
+Instance *get_nested_instance(Instance *atom, uint nesting, laure_scope_t *scope);
+Instance *laure_unwrap_nestings(Instance *wrapped, uint redundant_nestings);
 
 /* API */
 
