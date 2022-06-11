@@ -981,7 +981,6 @@ Instance *get_derived_instance(laure_scope_t *scope, Instance *resolved_instance
     } else if (head.translator->identificator == STRING_TRANSLATOR->identificator) {
         return laure_scope_find_by_key(scope->glob, "string", false);
     }
-    printf("fixme %s\n", resolved_instance->repr(resolved_instance));
     return NULL;
 }
 
@@ -1364,8 +1363,17 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
 
             Instance *T = NULL;
             if (! laure_typeset_all_instances(pred_img->header.args)) {
-                T = resolve_generic_T(pred_img->header, e->ba->set, scope);
-                if (! T) RESPOND_ERROR(signature_err, e, "unable to resolve generic datatype%s; add explicit cast or add hint to resolve", "");
+                if (e->docstring && strlen(e->docstring)) {
+                    // generic was set up manually
+                    T = laure_scope_find_by_key(scope->glob, e->docstring, true);
+                    if (T) T = instance_shallow_copy(T);
+                    else
+                        RESPOND_ERROR(undefined_err, e, "instance %s is undefined, can't resolve the generic type", e->docstring);
+                }
+                if (! T) {
+                    T = resolve_generic_T(pred_img->header, e->ba->set, scope);
+                    if (! T) RESPOND_ERROR(signature_err, e, "unable to resolve generic datatype%s; add explicit cast or add hint to resolve", "");
+                }
             }
 
             laure_expression_set *arg_l = e->ba->set;

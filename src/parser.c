@@ -24,6 +24,8 @@ string ELLIPSIS = NULL;
 #endif
 
 #define NS_SEPARATOR ':'
+#define GENERIC_OPEN '<'
+#define GENERIC_CLOSE '>'
 
 char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Structure Definition", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Atom", "Command", "Generic DT/Char", "[Nope]"};
 
@@ -1108,6 +1110,23 @@ laure_parse_result laure_parse(string query) {
                     }
                     
                     string name = read_til(query, '(');
+
+                    string generic_before = read_til(name, GENERIC_OPEN);
+                    string t_name = NULL;
+                    if (generic_before && strlen(generic_before)) {
+                        string generic = name + strlen(generic_before) + 1;
+                        if (lastc(generic) == GENERIC_CLOSE) {
+                            char type_name[64];
+                            uint l = strlen(generic) - 1;
+                            if (l > 63) l = 63;
+                            strncpy(type_name, generic, l);
+                            type_name[l] = 0;
+                            t_name = strdup(type_name);
+                            name = strdup(generic_before);
+                            query += strlen(generic) + 1;
+                        }
+                    }
+
                     query = query + strlen(name) + 1;
                     string args = read_til(query, ')');
 
@@ -1124,7 +1143,7 @@ laure_parse_result laure_parse(string query) {
                     }
 
                     laure_expression_compact_bodyargs *ba = laure_bodyargs_create(args_exps, laure_expression_get_count(args_exps), 0);
-                    lpr.exp = laure_expression_create(let_pred_call, "", false, name, 0, ba, query);
+                    lpr.exp = laure_expression_create(let_pred_call, t_name ? t_name : "", false, name, 0, ba, query);
                     return lpr;
                 }
 

@@ -160,15 +160,12 @@
 
 : ?test_array_append(int[]).
 
-: ?append_int(int[], int[]) -> int[].
-?append_int(arr, tail) -> append(arr, tail).
-
-?test_array_append(x) when append_int([1,2], [3,4,5]) = x.
-?test_array_append(x) when append_int([], []) = x.
+?test_array_append(x) when append<int>([1,2], [3,4,5]) = x.
+?test_array_append(x) when append<int>([], []) = x.
 ?test_array_append(x) {
-    append_int([1,2], [3]) = [1] -> fail();
-    append_int(x, [2,3]) = [1,2,3];
+    append<int>([1,2], [3]) = [1] -> fail();
+    append<int>(x, [2,3]) = [1,2,3];
 }
 ?test_array_append(x) {
-    append_int([1, 2], x) = [1, 2, 3];
+    append<int>([1, 2], x) = [1, 2, 3];
 }
