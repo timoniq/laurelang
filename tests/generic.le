@@ -1,0 +1,32 @@
+: ?generic1('T', 'T'[]).
+?generic1(a, b) {
+    each of b = a;
+}
+
+// 1
+: ?test_generic_1(int).
+?test_generic_1(x) {
+    char[] arr = ['a', 'b', 'c'];
+    generic1(x, arr);
+}
+?test_generic_1(x) {
+    generic1(x, [1]);
+}
+
+// empty constraint
+: #generic2('T', 'T'[]).
+#generic2(_, _).
+
+// 10
+: ?test_generic_t_check(int).
+?test_generic_t_check(x) {
+    generic2(x, 1);
+    x = 2;
+}
+?test_generic_t_check(x) {
+    generic2(x, [1,2]);
+    x = 10;
+}
+?test_generic_t_check(x) {
+    generic2(x, ['a', 'b']);
+}

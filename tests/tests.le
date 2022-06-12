@@ -8,5 +8,6 @@
     "string.le",
     "kb_pl.le",
     "isolated_set.le",
-    "quantors.le"
+    "quantors.le",
+    "generic.le"
 ).
