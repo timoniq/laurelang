@@ -1,17 +1,9 @@
 # Welcome to laurelang
 
-All the information about installation, building and troubleshooting notes:
+All the information about installation, building and troubleshooting:
 
 [Installation guides](./installation.md)
 
-Consistent guide set for laurelang newcommers:
+Consistent guide for laurelang newcommers:
 
-[Tutorial](./tutorial/index.md)
-
-Short notes about builtin instances and packages:
-
-[Builtin instances description](./builtin.md)
-
-Guides of how to write laurelang extensions (WIP):
-
-[CLE documentation](./cle/index.md)
+[Tutorial](./tutor.md)

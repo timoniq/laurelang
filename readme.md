@@ -4,7 +4,7 @@ A pure logical, compact language.
 
 Work in progress.
 
-# What this language is for?
+# Description
 
 Laurelang stands for Logic, Abstraction and Unification with Readability and Efficience.
 
@@ -37,12 +37,12 @@ cd laurelang
 make auto
 ```
 
-Also you may need to run tests with `make test`. Useful settings and tips for installation [may be found here](/docs/installation.md).
+Auto-builder will also run test suite.
 
 # Documentation
 
-[Tutorial and dev notes](/docs/index.md)  
 [Read documentation](https://docs.laurelang.org)
+[Current updates and notes](/docs/index.md)  
 
 # [Contributing](/contributing.md)
 # License

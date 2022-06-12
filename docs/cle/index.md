@@ -1,1 +1,0 @@
-# C logic environment documentation
