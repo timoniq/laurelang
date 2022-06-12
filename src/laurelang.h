@@ -73,7 +73,7 @@ typedef struct laure_cell {
     uint idx;
 } laure_cell;
 
-#define max_cells 128
+#define max_cells 256
 
 typedef struct laure_scope {
     long *nlink;

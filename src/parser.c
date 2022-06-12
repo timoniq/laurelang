@@ -781,10 +781,28 @@ laure_parse_result laure_parse(string query) {
             error_result("not implemented");
         }
         case '[': {
+            if (strstr(query, "=") || strstr(query, "~")) goto gotodefault;
             if (lastc(query) != ']') {
                 error_result("invalid array");
             }
+
             lastc(query) = 0;
+            string head = read_til(query, '|');
+
+            if (head) {
+                string tail = query + strlen(head) + 1;
+                char q[128];
+                if (strlen(head) && strlen(tail)) 
+                    snprintf(q, 128, "append([%s], %s)", head, tail);
+                else if (strlen(head)) {
+                    snprintf(q, 128, "[%s]", head);
+                } else if (strlen(tail)) {
+                    snprintf(q, 128, "%s", tail);
+                } else {
+                    strcpy(q, "[]");
+                }
+                return laure_parse(q);
+            }
 
             laure_expression_set *set;
 
@@ -870,6 +888,7 @@ laure_parse_result laure_parse(string query) {
             return pr;
         }
         default: {
+            gotodefault:
             query--;
 
             string _temp = read_til(query, '-');

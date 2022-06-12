@@ -402,7 +402,7 @@ laure_cell laure_scope_insert_l(
 ) {
     if (! scope) return NONE_CELL;
     if (scope->count == max_cells - 1) {
-        printf("limit of %d elements in scope exceeded.\n");
+        printf("limit of %d elements in scope exceeded.\n", max_cells);
         exit(0);
     }
     laure_cell cell;

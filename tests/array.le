@@ -169,3 +169,26 @@
 ?test_array_append(x) {
     append<int>([1, 2], x) = [1, 2, 3];
 }
+
+// [1, 2, 3, 4, 5]
+: ?test_array_flatten(int[]).
+?test_array_flatten(arr2) {
+    int[][] arr = [[1,2], [], [3,4,5]];
+    arr2 = flatten(arr);
+}
+
+// []
+// [1, 2]
+// [1, 2, 3]
+// [1, 1, 2, 3]
+// [1, 2, 1, 2, 3]
+// [3, 4]
+: ?test_array_head_tail(int[]).
+?test_array_head_tail([|]).
+?test_array_head_tail([1,2|]).
+?test_array_head_tail([|[1,2,3]]).
+?test_array_head_tail([1|[1,2,3]]).
+?test_array_head_tail([1,2|[1,2,3]]).
+?test_array_head_tail(x) {
+    [1, 2, 3, 4] = [1, 2|x];
+}

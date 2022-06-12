@@ -25,4 +25,7 @@
 
 : ?linked('T', 'T'[]) -> 'T'[].
 
-?linked(head, tail) -> append([head], tail).
+?linked(head, tail) -> arr {
+    arr[0] = head;
+    append([head], tail) = arr;
+}
