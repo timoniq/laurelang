@@ -13,6 +13,7 @@
 #endif
 
 #define HEADERSZ 60
+#define GENERIC_T "T"
 
 short int LAURE_ASK_IGNORE = 0;
 char     *NESTED_DOC_AUTOGEN = NULL;
@@ -176,6 +177,7 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
         uint nesting = aexp->flag;
         
         if (aexp->t == let_singlq) {
+            if (! str_eq(aexp->s, GENERIC_T)) return NULL;
             // generic
             laure_typeset_push_decl(args_set, aexp->s);
         } else {

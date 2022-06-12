@@ -529,6 +529,7 @@ laure_parse_many_result laure_parse_many(const string query_, char divisor, laur
 laure_parse_result laure_parse(string query) {
 
     query = string_clean(query);
+    string originate = query;
 
     size_t len = laure_string_strlen(query);
 
@@ -705,7 +706,7 @@ laure_parse_result laure_parse(string query) {
                 if (! lpr_ns.is_ok) error_format("failed to parse namespace: %s", lpr_ns.err);
                 laure_expression_t *ns_exp = lpr_ns.exp;
                 if (ns_exp->t != let_var && ns_exp->t != let_singlq)
-                    error_format("namespace must be %s or 'X' (single quoted), not %s", EXPT_NAMES[let_var], EXPT_NAMES[let_singlq], EXPT_NAMES[ns_exp->t]);
+                    error_format("namespace must be %s or 'T' (single quoted), not %s", EXPT_NAMES[let_var], EXPT_NAMES[let_singlq], EXPT_NAMES[ns_exp->t]);
                 linked_namespace = ns_exp;
             }
 
@@ -1169,7 +1170,7 @@ laure_parse_result laure_parse(string query) {
                     }
 
                     laure_expression_compact_bodyargs *ba = laure_bodyargs_create(args_exps, laure_expression_get_count(args_exps), 0);
-                    lpr.exp = laure_expression_create(let_pred_call, t_name ? t_name : "", false, name, 0, ba, query);
+                    lpr.exp = laure_expression_create(let_pred_call, t_name ? t_name : "", false, name, 0, ba, originate);
                     return lpr;
                 }
 
