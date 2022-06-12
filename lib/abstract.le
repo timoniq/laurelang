@@ -1,0 +1,7 @@
+// Abstract nesting of type
+: #abstract_nesting('T') -> 'T'[].
+#abstract_primitive(_) -> _.
+
+// Abstract primitive of type
+: #abstract_primitive('T'[]) -> 'T'.
+#abstract_primitive(_) -> _.
