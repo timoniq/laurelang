@@ -4,7 +4,7 @@ A pure logical, compact language.
 
 Work in progress.
 
-# Description
+# Usage
 
 Laurelang stands for Logic, Abstraction and Unification with Readability and Efficience.
 
@@ -41,8 +41,8 @@ Auto-builder will also run test suite.
 
 # Documentation
 
-[Read documentation](https://docs.laurelang.org)
-[Current updates and notes](/docs/index.md)  
+[Read documentation](https://docs.laurelang.org)  
+[Current updates and notes](/docs/index.md)
 
 # [Contributing](/contributing.md)
 # License
