@@ -1039,6 +1039,8 @@ Instance *resolve_generic_T(
    * processes anonymous instances
 2) translatable expression
    * passes translatable expression into a image-specific translator
+If recorder is null, then only type check should be performed 
+and temp instance must be deleted in place.
 */
 #define ARGPROC_RES string
 #define ARGPROC_RET_FALSE (void*)1
@@ -1122,9 +1124,9 @@ ARGPROC_RES pred_call_procvar(
                 if (! new_scope) arg = prev_ins;
             } else {
                 Instance *existing_same = new_scope ? laure_scope_find_by_link(new_scope, *link, false) : NULL;
-                if (existing_same)
+                if (existing_same && recorder)
                     arg = instance_new(argn, MARKER_NODELETE, existing_same->image);
-                else if (create_copy)
+                else if (create_copy && recorder)
                     arg = instance_deepcopy(new_scope, argn, arg);
             }
             ulong lin;
@@ -1133,7 +1135,9 @@ ARGPROC_RES pred_call_procvar(
             else {
                 lin = laure_scope_generate_link();
             }
-            recorder(arg, lin, ctx);
+            if (recorder)
+                recorder(arg, lin, ctx);
+            
             if (prev_scope->idx == 1) {
                 Instance *glob = laure_scope_find_by_key(cctx->tmp_answer_scope, vname, false);
                 if (! glob) {
@@ -1169,7 +1173,12 @@ ARGPROC_RES pred_call_procvar(
                 free(arg);
                 return ARGPROC_RET_FALSE;
             }
-            recorder(arg, laure_scope_generate_link(), ctx);
+            if (recorder)
+                recorder(arg, laure_scope_generate_link(), ctx);
+            else {
+                image_free(arg->image);
+                free(arg);
+            }
             break;
         }
     }
@@ -1378,12 +1387,17 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 actx->idx_pd = idx;
                 laure_expression_t *argexp = arg_l->expression;
 
+                RECORDER_T(rec) = NULL;
+                if (! str_eq(pf->interior.argn[idx], "_")) {
+                    rec = dompred_arg_recorder;
+                }
+
                 ARGPROC_RES res = pred_call_procvar(
                     pf, cctx,
                     prev, nscope, 
                     laure_get_argn(idx), 
                     &pred_img->header.args->data[idx], 
-                    argexp, dompred_arg_recorder, 
+                    argexp, rec, 
                     actx, true, T, pred_img->header.nestings[idx]);
 
                 ARGPROC_RES_(
@@ -1408,19 +1422,25 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     }
                     if (! hint)
                         RESPOND_ERROR(signature_err, e, "specification of %s's response is needed", predicate_name);
-                    Instance *rins = instance_deepcopy(nscope, laure_get_respn(), hint);
-                    laure_scope_insert(nscope, rins);
+                    if (! str_eq(pf->interior.respn, "_")) {
+                        Instance *rins = instance_deepcopy(nscope, laure_get_respn(), hint);
+                        laure_scope_insert(nscope, rins);
+                    }
                     
                 } else {
                     actx->idx_pd = 0;
                     laure_expression_t *exp = arg_l->expression;
+
+                    RECORDER_T(rec) = NULL;
+                    if (! str_eq(pf->interior.respn, "_"))
+                        rec = dompred_arg_recorder;
 
                     ARGPROC_RES res = pred_call_procvar(
                         pf, cctx,
                         prev, nscope,
                         laure_get_respn(),
                         pred_img->header.resp,
-                        exp, dompred_arg_recorder,
+                        exp, rec,
                         actx, true, T, pred_img->header.response_nesting);
                     
                     ARGPROC_RES_(

@@ -8,6 +8,7 @@ struct Translator *INT_TRANSLATOR,
 
 string MOCK_NAME;
 qresp  MOCK_QRESP;
+string DEFAULT_ANONVAR = NULL;
 char* IMG_NAMES[] = {"Integer", "Char", "Array", "Atom", "Predicate", "Constraint", "Structure", "", "[External]"};
 
 #define REC_TYPE(rec) gen_resp (*rec)(void*, void*)
@@ -1269,6 +1270,7 @@ void laure_set_translators() {
     MOCK_NAME = strdup( "$mock_name" );
     MOCK_QRESP.state = q_true;
     MOCK_QRESP.payload = 0;
+    DEFAULT_ANONVAR = strdup( "_" );
 }
 
 // Image eq
@@ -1536,6 +1538,12 @@ predfinal *get_pred_final(struct PredicateImageVariation pv) {
         for (int i = 0; i < args_len; i++) {
             laure_expression_t *arg = laure_expression_set_get_by_idx(exp_set, pos);
 
+            if (str_eq(arg->s, "_")) {
+                pf->interior.argn[i] = DEFAULT_ANONVAR;
+                pos++;
+                continue;
+            }
+
             // changing arg names
             char argn[32];
 
@@ -1569,7 +1577,12 @@ predfinal *get_pred_final(struct PredicateImageVariation pv) {
             pf->interior.respn = strdup("$R");
             laure_expression_t *exp = laure_expression_set_get_by_idx(exp_set, pos);
 
-            if (exp->t == let_var) {
+            if (str_eq(exp->s, "_")) {
+                free(pf->interior.respn);
+                pf->interior.respn = DEFAULT_ANONVAR;
+            }
+
+            else if (exp->t == let_var) {
                 // cast naming
                 // var to var
                 
