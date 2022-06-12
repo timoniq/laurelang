@@ -131,7 +131,7 @@
 }
 
 : ?cut_help(int) -> int.
-?cut_help(x) -> 5 when x > 10, x cons 18, x > 12 -> !.
+?cut_help(x) -> 5 when x > 10, x never 18, x > 12 -> !.
 ?cut_help(x) -> 42.
 
 ?test_cut(x) {

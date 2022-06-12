@@ -130,7 +130,7 @@ Predicate which always succeeds and cannot be backtracked.
 Other predicate variations won't be runned.
 
 ```laurelang
-?pred(x) -> 5 when x > 10, x cons 18, !.
+?pred(x) -> 5 when x > 10, x never 18, !.
 ?pred(x) -> 42.
 
 y = pred(15) -> y = 5;
@@ -145,13 +145,13 @@ Constraints are used to operate on domains, so arguments of constraints are usua
 
 There is no overload for builtin constraint operations in laurelang, so thay have default meaning for each datatype. Lets get acquainted with meaning for gt constraint: for integer the meaning is obvious, for array: array in the left side is greater by length than array in the right side, for structure: all structure elements are greater than same elements in another structure, for others it is undefined.
 
-## Predicate `cons(a, b)`
+## Predicate `never(a, b)`
 
-Standard library predicate cons is partial logic contraint predicate implemented through implication. This predicate says that `a` could never be equal to `b`. So domain `(-inf;inf)` to instantiated integer `4` will result in failure, because domain `a` can be instantiated to integer `4`.
+Standard library predicate `never` is partial logic contraint predicate implemented through implication. This predicate says that `a` could never be equal to `b`. So domain `(-inf;inf)` to instantiated integer `4` will result in failure, because domain `a` can be instantiated to integer `4`.
 
 ```
-<1..5> cons 4 -> fail();
-<1..5> cons 5;
+<1..5> never 4 -> fail();
+<1..5> never 5;
 ```
 ## Example
 
@@ -162,7 +162,7 @@ We may declare constraint sets in our database, we use heading-symbol `#` for th
 ```laurelang
 # my_constraint(A, B, C) {
     A > B;
-    A cons C;
+    A never C;
 }
 ```
 

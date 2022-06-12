@@ -19,7 +19,7 @@
     arr?;
     i < len;
     &all i {
-        arr[i] cons arr[i - 1];
+        arr[i] never arr[i - 1];
     };
 }
 

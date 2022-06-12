@@ -80,8 +80,8 @@ int natural* = 0...
 : ?fail().
 
 // Simple constraint
-: #cons(int, int).
-#cons(a, b) {
+: #never('T', 'T').
+#never(a, b) {
     a = b -> fail();
 }
 
@@ -98,3 +98,5 @@ int natural* = 0...
 // `5 = 0 .. 4 -> fail()`
 : #..(int, int) -> int.
 #..(a, b) -> c when c >eq a, c <eq b.
+
+cons ~ never.

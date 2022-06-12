@@ -1774,7 +1774,7 @@ string predicate_repr(Instance *ins) {
 
 string constraint_repr(Instance *ins) {
     string r = predicate_repr(ins);
-    r[0] = '#';
+    r[1] = '#';
     return r;
 }
 

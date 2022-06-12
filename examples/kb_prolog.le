@@ -9,7 +9,7 @@
 ?jealous(X, Y) {
     loves(X, Z);
     loves(Y, Z);
-    X cons Y;
+    X never Y;
 }
 
 : ?mutual(string, string).

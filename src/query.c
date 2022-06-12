@@ -258,9 +258,8 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
 
     qresp response;
     if (! cctx->silent && cctx->vpk && cctx->vpk->do_process) {
-        #ifdef DEBUG
-        printf("DEBUG: sending data (mode=%s%s%s)\n", BOLD_WHITE, cctx->vpk->mode == INTERACTIVE ? "INTERACTIVE" : (cctx->vpk->mode == SENDER ? "SENDER" : "OTHER"), NO_COLOR);
-        #endif
+        debug("sending data (mode=%s%s%s)\n", BOLD_WHITE, cctx->vpk->mode == INTERACTIVE ? "INTERACTIVE" : (cctx->vpk->mode == SENDER ? "SENDER" : "OTHER"), NO_COLOR);
+
         #ifndef DISABLE_WS
         if (LAURE_WS) {
             optimality_t a = laure_accuracy_count(cctx->ws);
@@ -533,10 +532,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set 
     var_process_kit *vpk = cctx->vpk;
     qcontext *qctx = cctx->qctx;
 
-    #ifdef DEBUG
-    printf("DEBUG: evaluating expression: ");
-    laure_expression_show(e, 2);
-    #endif
+    debug("evaluating expression %s\n", EXPT_NAMES[e->t]);
 
     switch (e->t) {
         case let_assert: {
@@ -970,6 +966,9 @@ Instance *get_array_derived(struct ArrayImage *arr, laure_scope_t *scope) {
 Instance *get_derived_instance(laure_scope_t *scope, Instance *resolved_instance) {
     void *image = resolved_instance->image;
     laure_image_head head = read_head(image);
+    if (! head.translator) {
+        return resolved_instance;
+    }
     if (head.translator->identificator == INT_TRANSLATOR->identificator) {
         return laure_scope_find_by_key(scope->glob, "int", false);
     } else if (head.translator->identificator == CHAR_TRANSLATOR->identificator) {
@@ -1009,9 +1008,7 @@ Instance *resolve_generic_T(
         if (rexp && rexp->t == let_var) {
             Instance *resolved = laure_scope_find_by_key(scope, rexp->s, false);
             if (resolved) {
-                #ifdef DEBUG
-                printf("DEBUG: T resolved by response\n");
-                #endif
+                debug("T resolved by response\n");
                 uint nesting = header.response_nesting;
                 return prepare_T_instance(scope, resolved, nesting);
             }
@@ -1024,9 +1021,7 @@ Instance *resolve_generic_T(
                 Instance *resolved = laure_scope_find_by_key(scope, exp->s, false);
                 if (resolved) {
                     uint nesting = header.nestings[i];
-                    #ifdef DEBUG
-                    printf("DEBUG: T resolved by argument %u\n", i);
-                    #endif
+                    debug("T resolved by argument %u\n", i);
                     return prepare_T_instance(scope, resolved, nesting);
                 }
             }
@@ -1478,14 +1473,10 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             return resp;
         } else if (cctx->cut - 1 <= scope->idx) {
             found = true;
-            #ifdef DEBUG
-            printf("DEBUG: variation of %s skipped (due to cut: up to scope idx=%ld)\n", predicate_name, cctx->cut);
-            #endif
+            debug("variation of %s skipped (due to cut: up to scope idx=%ld)\n", predicate_name, cctx->cut);
             break;
         } else if (cctx->cut != 0 && cctx->cut - 1 > scope->idx) {
-            #ifdef DEBUG
-            printf("DEBUG: stop cutting on predicate %s\n", predicate_name);
-            #endif
+            debug("stop cutting on predicate %s\n", predicate_name);
             cctx->cut = 0;
         } else if (resp.state == q_true) {
             found = true;

@@ -266,6 +266,12 @@ Miscellaneous
 void print_header(string header, uint sz);
 void strrev_via_swap(string s);
 
+#ifdef DEBUG
+#define debug(m, ...) do {debug(""); printf(m, __VA_ARGS__);} while (0)
+#else
+#define debug(_, ...) ;
+#endif
+
 /* =-----------=
    Session
 =-----------= */
