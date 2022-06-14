@@ -15,6 +15,8 @@
 #define WMIN_NAME "ws_min"
 #endif
 
+#define RECURSIVE_AUTONAME "_"
+
 #define is_global(stack) stack->glob == stack
 #define absorb(a, b) do {if (a > b) { a = a - b; b = 0; } else { b = b - a; a = 0; }; } while (0)
 #ifndef DISABLE_WS
@@ -957,7 +959,7 @@ Instance *get_array_derived(struct ArrayImage *arr, laure_scope_t *scope) {
     uint nesting = 1;
     Instance *arrel = arr->arr_el;
     while (read_head(arrel->image).t == ARRAY) {
-        arrel = ((struct ArrayImage*)arrel)->arr_el;
+        arrel = ((struct ArrayImage*)arrel->image)->arr_el;
         nesting++;
     }
     return get_nested_instance(arrel, nesting, scope);
@@ -1008,9 +1010,11 @@ Instance *resolve_generic_T(
         if (rexp && rexp->t == let_var) {
             Instance *resolved = laure_scope_find_by_key(scope, rexp->s, false);
             if (resolved) {
-                debug("T resolved by response\n");
                 uint nesting = header.response_nesting;
-                return prepare_T_instance(scope, resolved, nesting);
+                debug("T resolved by response\n");
+                Instance *final =  prepare_T_instance(scope, resolved, nesting);
+                debug("Resolved instance: %s\n", final->repr(final));
+                return final;
             }
         }
     }
@@ -1022,7 +1026,9 @@ Instance *resolve_generic_T(
                 if (resolved) {
                     uint nesting = header.nestings[i];
                     debug("T resolved by argument %u\n", i);
-                    return prepare_T_instance(scope, resolved, nesting);
+                    Instance *final = prepare_T_instance(scope, resolved, nesting);
+                    debug("Resolved instance: %s\n", final->repr(final));
+                    return final;
                 }
             }
         }
@@ -1218,6 +1224,11 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
     assert(e->t == let_pred_call);
     UNPACK_CCTX(cctx);
     string predicate_name = e->s;
+    if (str_eq(e->s, RECURSIVE_AUTONAME)) {
+        if (! scope->owner) 
+            RESPOND_ERROR(syntaxic_err, e, "autoname can only be used inside other predicates%s", "");
+        predicate_name = scope->owner;
+    }
     Instance *predicate_ins = laure_scope_find_by_key(scope, predicate_name, true);
     if (! predicate_ins)
         RESPOND_ERROR(undefined_err, e, "predicate %s", predicate_name);
@@ -1363,6 +1374,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 RESPOND_ERROR(signature_err, e, "predicate %s got %d args, expected %d", predicate_name, e->ba->body_len, pf->interior.argc);
             }
             laure_scope_t *nscope = laure_scope_new(scope->glob, prev);
+            nscope->owner = predicate_ins->name;
 
             struct arg_rec_ctx actx[1];
             actx->new_scope = nscope;
@@ -1371,8 +1383,12 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             if (! laure_typeset_all_instances(pred_img->header.args)) {
                 if (e->docstring && strlen(e->docstring)) {
                     // generic was set up manually
+                    uint nesting = e->flag;
                     T = laure_scope_find_by_key(scope->glob, e->docstring, true);
-                    if (T) T = instance_shallow_copy(T);
+                    if (T) {
+                        T = get_nested_instance(T, nesting, scope->glob);
+                        T = instance_shallow_copy(T);
+                    }
                     else
                         RESPOND_ERROR(undefined_err, e, "instance %s is undefined, can't resolve the generic type", e->docstring);
                 }

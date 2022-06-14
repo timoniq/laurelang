@@ -42,6 +42,7 @@ typedef struct linked_scope {
     Instance *ptr;
     ulong link;
     struct linked_scope *next;
+    string owner;
 } linked_scope_t;
 
 typedef struct laure_scope {
@@ -80,6 +81,7 @@ typedef struct laure_scope {
     uint idx, repeat, count;
     laure_cell cells[max_cells];
     struct laure_scope *glob, *next;
+    string owner;
 } laure_scope_t;
 
 #define laure_scope_iter(scope, to_ptr, body) do { \
@@ -115,6 +117,7 @@ string laure_scope_generate_unique_name();
 laure_scope_t *laure_scope_create_global();
 laure_scope_t *laure_scope_new(laure_scope_t *global, laure_scope_t *next);
 void laure_scope_free(laure_scope_t *scope);
+string laure_scope_get_owner(laure_scope_t *scope);
 
 /* =-----------=
     Parser
@@ -267,9 +270,9 @@ void print_header(string header, uint sz);
 void strrev_via_swap(string s);
 
 #ifdef DEBUG
-#define debug(m, ...) do {debug(""); printf(m, __VA_ARGS__);} while (0)
+#define debug(...) do { printf("DEBUG: "); printf(__VA_ARGS__); } while (0)
 #else
-#define debug(_, ...) ;
+#define debug(...) {}
 #endif
 
 /* =-----------=

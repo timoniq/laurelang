@@ -396,6 +396,15 @@ string string_clean(string s) {
     return s;
 }
 
+uint pop_nestings(string s) {
+    uint nesting = 0;
+    while (strlen(s) > 2 && str_eq(s + strlen(s) - 2, "[]")) {
+        nesting++;
+        s[strlen(s) - 2] = 0;
+    }
+    return nesting;
+}
+
 laure_parse_many_result laure_parse_many(const string query_, char divisor, laure_expression_set *linked_opt) {
     string s = string_clean( strdup(query_) );
 
@@ -1148,8 +1157,10 @@ laure_parse_result laure_parse(string query) {
 
                     string generic_before = read_til(name, GENERIC_OPEN);
                     string t_name = NULL;
+                    uint t_nest = 0;
                     if (generic_before && strlen(generic_before)) {
                         string generic = name + strlen(generic_before) + 1;
+
                         if (lastc(generic) == GENERIC_CLOSE) {
                             char type_name[64];
                             uint l = strlen(generic) - 1;
@@ -1157,6 +1168,7 @@ laure_parse_result laure_parse(string query) {
                             strncpy(type_name, generic, l);
                             type_name[l] = 0;
                             t_name = strdup(type_name);
+                            t_nest = pop_nestings(t_name);
                             name = strdup(generic_before);
                             query += strlen(generic) + 1;
                         }
@@ -1189,7 +1201,7 @@ laure_parse_result laure_parse(string query) {
                     }
 
                     laure_expression_compact_bodyargs *ba = laure_bodyargs_create(args_exps, laure_expression_get_count(args_exps), 0);
-                    lpr.exp = laure_expression_create(let_pred_call, t_name ? t_name : "", false, name, 0, ba, originate);
+                    lpr.exp = laure_expression_create(let_pred_call, t_name ? t_name : "", false, name, t_nest, ba, originate);
                     return lpr;
                 }
 

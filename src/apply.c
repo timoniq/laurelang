@@ -141,7 +141,7 @@ Instance *get_nested_instance(Instance *atom, uint nesting, laure_scope_t *scope
         
         while (nesting) {
             void *img = laure_create_array_u(ins);
-            ins = instance_new(strdup("el"), NESTED_DOC_AUTOGEN, img);
+            ins = instance_new(MOCK_NAME, NESTED_DOC_AUTOGEN, img);
             ins->repr = array_repr;
             nesting--;
         }

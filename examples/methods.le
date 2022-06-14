@@ -6,7 +6,6 @@
 ?inc(x) -> x + 1.
 
 ?flatten([]) -> [].
-?flatten([x]) -> x.
 
 ?flatten(array) -> flattened {
     linked(head, tail) = array;

@@ -152,6 +152,7 @@ laure_scope_t *laure_scope_create_copy(control_ctx *cctx, laure_scope_t *scope) 
     nscope->tmp = scope;
     nscope->nlink = scope->nlink;
     nscope->next = scope->next;
+    nscope->owner = scope->owner;
     // grab_linked_iter(cctx, add_grab, scope, nscope);
     return nscope;
 }
@@ -183,6 +184,7 @@ laure_scope_t *laure_scope_create_global() {
     scope->tmp = NULL;
     scope->glob = scope;
     scope->next = NULL;
+    scope->owner = NULL;
     return scope;
 }
 
@@ -195,6 +197,7 @@ laure_scope_t *laure_scope_new(laure_scope_t *global, laure_scope_t *next) {
     scope->tmp = NULL;
     scope->repeat = 0;
     scope->next = next;
+    scope->owner = NULL;
     return scope;
 }
 
@@ -342,6 +345,7 @@ laure_scope_t *laure_scope_create_copy(control_ctx *cctx, laure_scope_t *scope) 
     nscope->idx = scope->idx;
     nscope->nlink = scope->nlink;
     nscope->repeat = scope->repeat;
+    nscope->owner = scope->owner;
     for (uint idx = 0; idx < scope->count; idx++) {
         nscope->cells[idx].idx = idx;
         nscope->cells[idx].link = scope->cells[idx].link;
@@ -390,6 +394,7 @@ laure_scope_t *laure_scope_new(laure_scope_t *global, laure_scope_t *next) {
     scope->next = next;
     scope->nlink = global->nlink;
     scope->repeat = scope->repeat;
+    scope->owner = NULL;
     return scope;
 }
 
@@ -436,4 +441,8 @@ string laure_scope_generate_unique_name() {
     char buff[16];
     snprintf(buff, 16, "$%lu", link);
     return strdup( buff );
+}
+
+string laure_scope_get_owner(laure_scope_t *scope) {
+    return scope->owner;
 }
