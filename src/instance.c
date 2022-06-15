@@ -945,6 +945,8 @@ struct CharImage *char_deepcopy(struct CharImage *old_img) {
     return image;
 }
 
+#define DEFAULT_CHAR '?'
+
 gen_resp char_generate(
     laure_scope_t *scope, 
     struct CharImage *im, 
@@ -953,9 +955,8 @@ gen_resp char_generate(
 ) {
     switch (im->state) {
         case 0: {
-            return form_gen_resp(false, 
-                respond(q_error, "trying to unify on unknown charset; too ambiguative")
-            );
+            im->state = I;
+            im->c = DEFAULT_CHAR;
         }
         case 1: {
             return rec(im, external_ctx);
@@ -1379,7 +1380,7 @@ bool instantiated(Instance *ins) {
         case PREDICATE_FACT:
             return true;
         case CHAR:
-            return true;
+            return ((struct CharImage*)ins->image)->state == I;
         default: return true;
     }
 }
