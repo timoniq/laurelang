@@ -40,3 +40,38 @@
     char ch = 'l';
     str[idx] = ch;
 }
+
+// 0;'l'
+// 1;'ø'
+// 2;'v'
+// 3;'e'
+// 0;'?'
+: ?test_string_chars(int, char).
+?test_string_chars(i, x) {
+    string s = "løve";
+    s[i] = x;
+}
+?test_string_chars(0, x) when x?.
+
+: ?concat(string, string) -> string[].
+?concat(a, "") -> [a].
+?concat(a, b) -> [a, " ", b] {
+    (length of b) > 0;
+}
+
+: ?join(string[]) -> string.
+?join([]) -> "".
+?join(x) -> y {
+    linked(head, tail) = x;
+    other = join(tail);
+    string[] arr = concat(head, other);
+    flatten<string>(arr) = y;
+}
+
+// "hello world of frustrations"
+// "изысканный"
+: ?test_string_join(string).
+?test_string_join(s) {
+    s = join(["hello", "world", "of", "frustrations"]);
+}
+?test_string_join(join(["изысканный"])).
