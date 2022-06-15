@@ -4,12 +4,12 @@
 }
 
 // 1
-: ?test_generic_1(int).
-?test_generic_1(x) {
+: ?test_generic(int).
+?test_generic(x) {
     char[] arr = ['a', 'b', 'c'];
     generic1(x, arr);
 }
-?test_generic_1(x) {
+?test_generic(x) {
     generic1(x, [1]);
 }
 

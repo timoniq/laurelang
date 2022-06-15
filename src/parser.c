@@ -790,6 +790,7 @@ laure_parse_result laure_parse(string query) {
             error_result("not implemented");
         }
         case '[': {
+            if (lastc(query) != ']') goto gotodefault;
             if (strstr(query, "=") || strstr(query, "~")) goto gotodefault;
             if (lastc(query) != ']') {
                 error_result("invalid array");
@@ -956,7 +957,7 @@ laure_parse_result laure_parse(string query) {
 
             left = read_til(query, '=');
 
-            if (!left) {
+            if (!left || (lastc(left) == '>' || lastc(left) == '<')) {
                 left = read_til(query, '~');
                 flag = 1;
             }
@@ -1149,8 +1150,8 @@ laure_parse_result laure_parse(string query) {
                         laure_parse_result lpr_ns = laure_parse(ns);
                         if (! lpr_ns.is_ok) error_format("failed to parse namespace: %s", lpr_ns.err);
                         laure_expression_t *ns_exp = lpr_ns.exp;
-                        if (ns_exp->t != let_var)
-                            error_format("namespace must be %s not %s", EXPT_NAMES[let_var], EXPT_NAMES[ns_exp->t]);
+                        // if (ns_exp->t != let_var)
+                        //    error_format("namespace must be %s not %s", EXPT_NAMES[let_var], EXPT_NAMES[ns_exp->t]);
                         first_linked_argument = ns_exp;
                         query += strlen(ns) + 1;
                     }
@@ -1170,7 +1171,7 @@ laure_parse_result laure_parse(string query) {
                             t_name = strdup(type_name);
                             t_nest = pop_nestings(t_name);
                             name = strdup(generic_before);
-                            query += strlen(generic) + 1;
+                            query += strlen(generic) + 1 + (t_nest * 2);
                         }
                     }
 
@@ -1181,7 +1182,7 @@ laure_parse_result laure_parse(string query) {
 
                     laure_expression_set *args_exps = NULL;
 
-                    if (strlen(args)) {
+                    if (args && strlen(args)) {
                         laure_parse_many_result args_res = laure_parse_many(args, ',', NULL);
                         if (!args_res.is_ok) {
                             error_result(args_res.err);
@@ -1609,7 +1610,7 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
 
             for (int i = 0; i < exp->ba->body_len; i++) {
                 laure_expression_t *arg_exp = laure_expression_set_get_by_idx(exp->ba->set, i);
-                if (arg_exp->t == let_var || arg_exp->t == let_custom || arg_exp->t == let_array || arg_exp->t == let_atom) {
+                if (arg_exp->t == let_var || arg_exp->t == let_custom || arg_exp->t == let_array || arg_exp->t == let_atom || arg_exp->t == let_singlq) {
                     args = laure_expression_set_link(args, arg_exp);
                 } else {
                     char buff[16];

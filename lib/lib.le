@@ -27,11 +27,11 @@ int natural* = 0...
 #>(x, y) {__>(x, y)}
 #<(x, y) {__>(y, x)}
 
-: #>eq(int, int).
-#>eq(x, y) when x __gte y.
+: #>=(int, int).
+#>=(x, y) when x __gte y.
 
-: #<eq(int, int).
-#<eq(x, y) when y >eq x.
+: #<=(int, int).
+#<=(x, y) when y >= x.
 
 ?+(x, y) -> x __+ y.
 ?-(y + z, y) -> z.
@@ -97,6 +97,6 @@ int natural* = 0...
 // `x = 0 .. 4`
 // `5 = 0 .. 4 -> fail()`
 : #..(int, int) -> int.
-#..(a, b) -> c when c >eq a, c <eq b.
+#..(a, b) -> c when c >= a, c <= b.
 
 cons ~ never.
