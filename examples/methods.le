@@ -1,13 +1,13 @@
 !use "@/array".
 
 : ?inc(int) -> int,
-  ?flatten('T'[][]) -> 'T'[].
+  ?flatten_('T'[][]) -> 'T'[].
 
 ?inc(x) -> x + 1.
 
-?flatten([]) -> [].
+?flatten_([]) -> [].
 
-?flatten(array) -> flattened {
+?flatten_(array) -> flattened {
     linked(head, tail) = array;
-    flattened = head:append(tail:flatten());
+    flattened = head:append(tail:flatten_());
 }

@@ -29,3 +29,12 @@
     arr[0] = head;
     append([head], tail) = arr;
 }
+
+: ?flatten('T'[][]) -> 'T'[].
+
+?flatten([]) -> [].
+
+?flatten(array) -> flattened {
+    linked(head, tail) = array;
+    flattened = head:append(tail:flatten());
+}
