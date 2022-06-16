@@ -14,6 +14,8 @@
 
 #define LINKED(image) ((struct ArrayImage*)image)->i_data.linked
 
+#define STATE(image) ((struct ArrayImage*)image)->state
+
 qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
     Instance *arr_ins = pd_get_arg(pd, 0);
     Instance *el_ins = pd->resp;
@@ -357,8 +359,6 @@ qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
 
             MUST_BE(image_equals(ins->image, ins2->image));
 
-            printf("%s ~~~~ %s\n", ins->repr(ins), ins2->repr(ins2));
-
             length--;
             linked = linked->next;
 
@@ -454,6 +454,40 @@ qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
         to_img->i_data.length = to_length;
         to_img->i_data.linked = orig_linked;
         return RESPOND_TRUE;
+    } else if (instantiated(res)) {
+        // combinations
+        uint length = LENGTH(res->image);
+        array_linked_t *linked = LINKED(res->image);
+        bool found = false;
+
+        for (uint to_len = 0; to_len <= length; to_len++) {
+            STATE(to->image) = I;
+            STATE(with->image) = I;
+            LENGTH(to->image) = to_len;
+            LINKED(to->image) = LINKED(res->image);
+            LENGTH(with->image) = length - to_len;
+            LINKED(with->image) = linked;
+
+            // passing control
+            laure_scope_t *nscope = laure_scope_create_copy(cctx, pd->scope);
+            nscope->repeat++;
+
+            laure_scope_t *old_sc = pd->scope;
+            qcontext *old_qc = cctx->qctx;
+            cctx->qctx = cctx->qctx->next;
+            cctx->scope = nscope;
+            
+            qresp result = laure_start(cctx, cctx->qctx ? cctx->qctx->expset : NULL);
+            if (result.state == q_true || (result.state == q_yield && result.payload == (void*)1)) found = true;
+
+            cctx->scope = old_sc;
+            cctx->qctx = old_qc;
+            laure_scope_free(nscope);
+
+            if (! linked) break;
+            linked = linked->next;
+        }
+        return respond(q_yield, found);
     }
     printf("too ambig\n");
     return RESPOND_FALSE;

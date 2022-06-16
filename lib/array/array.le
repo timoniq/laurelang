@@ -7,7 +7,7 @@
 ?'T'[]:append(arr, tail) -> __append(arr, tail).
 
 // Predicate states that there are no nearby standing equal elements in array
-: ?no_repeat(int[]).
+: ?no_repeat('T'[]).
 
 ?no_repeat([]).
 ?no_repeat(arr) when length of arr = 1.
