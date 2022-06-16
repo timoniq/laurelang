@@ -143,13 +143,13 @@
 
 : ?test_array_no_repeat().
 ?test_array_no_repeat() {
-    no_repeat([1, 2, 3]);
-    no_repeat([1, 2, 2]) -> fail();
-    no_repeat([1, 1, 2]) -> fail();
-    no_repeat of [];
-    no_repeat of [1];
-    no_repeat of [1, 2];
-    no_repeat of [1, 1] -> fail();
+    no_repeat<int>([1, 2, 3]);
+    no_repeat<int>([1, 2, 2]) -> fail();
+    no_repeat<int>([1, 1, 2]) -> fail();
+    no_repeat<int> of [];
+    no_repeat<int> of [1];
+    no_repeat<int> of [1, 2];
+    no_repeat<int> of [1, 1] -> fail();
 }
 
 

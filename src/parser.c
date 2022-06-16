@@ -405,6 +405,28 @@ uint pop_nestings(string s) {
     return nesting;
 }
 
+uint pop_generic(string* name, string *tname, string *query) {
+    string generic_before = read_til(*name, GENERIC_OPEN);
+    uint t_nest = 0;
+    if (generic_before && strlen(generic_before)) {
+        string generic = (*name) + strlen(generic_before) + 1;
+
+        if (lastc(generic) == GENERIC_CLOSE) {
+            char type_name[64];
+            uint l = strlen(generic) - 1;
+            if (l > 63) l = 63;
+            strncpy(type_name, generic, l);
+            type_name[l] = 0;
+            *tname = strdup(type_name);
+            t_nest = pop_nestings(*tname);
+            *name = strdup(generic_before);
+            if (query)
+                *query = (*query) + strlen(generic) + 1 + (t_nest * 2);
+        }
+    }
+    return t_nest;
+}
+
 laure_parse_many_result laure_parse_many(const string query_, char divisor, laure_expression_set *linked_opt) {
     string s = string_clean( strdup(query_) );
 
@@ -1116,17 +1138,27 @@ laure_parse_result laure_parse(string query) {
                         if (strcmp(el2->s, LAURE_SYNTAX_INFIX_PREPOSITION) == 0) {
                             // predicate call with one argument
                             // `length of Something`
+
+                            // add generic if needed
+                            string t_name = NULL;
+                            uint t_nest = pop_generic(&el1->s, &t_name, NULL);
+
                             laure_expression_set *set = laure_expression_set_link(NULL, el3);
                             laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 1, 0);
-                            lpr.exp = laure_expression_create(let_pred_call, "", false, el1->s, 0, ba, query);
+                            lpr.exp = laure_expression_create(let_pred_call, t_name ? t_name : "", false, el1->s, t_nest, ba, query);
                             return lpr;
                         } else {
                             // predicate call with two arguments
                             // `A + 1`
+
+                            // add generic if needed
+                            string t_name = NULL;
+                            uint t_nest = pop_generic(&el2->s, &t_name, NULL);
+                            
                             laure_expression_set *set = laure_expression_set_link(NULL, el1);
                             set = laure_expression_set_link(set, el3);
                             laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
-                            lpr.exp = laure_expression_create(let_pred_call, "", false, el2->s, 0, ba, query);
+                            lpr.exp = laure_expression_create(let_pred_call, t_name ? t_name : "", false, el2->s, t_nest, ba, query);
                             lpr.exp->linepos = strlen(temp) + 1;
                             return lpr;
                         }
