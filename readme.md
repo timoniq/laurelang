@@ -1,3 +1,5 @@
+![Laurelang](./.github/logo.svg)
+
 # laurelang
 
 A pure logical, compact language.
