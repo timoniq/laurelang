@@ -33,3 +33,15 @@ typedef enum laure_command_type {
     command_use,
     command_useso
 } laure_command_type;
+
+typedef enum laure_compact_predicate_flag {
+    pred_flag_none,
+    pred_flag_primitive,
+    pred_flag_template,
+    pred_flag_primitive_template
+} laure_compact_predicate_flag;
+
+#define PREDFLAG_IS_PRIMITIVE(flag) (flag == pred_flag_primitive || flag == pred_flag_primitive_template)
+#define PREDFLAG_IS_TEMPLATE(flag) (flag == pred_flag_template || flag == pred_flag_primitive_template)
+#define PREDFLAG_GET(is_primitive, is_template) \
+    ((is_primitive && is_template) ? pred_flag_primitive_template : ((is_primitive || is_template) ? (is_primitive ? pred_flag_primitive : pred_flag_template) : pred_flag_none))

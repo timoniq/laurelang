@@ -248,6 +248,8 @@ apply_result_t laure_consult_predicate(
     assert(predicate_exp->t == let_pred || predicate_exp->t == let_constraint);
     Instance *pred_ins = laure_scope_find_by_key(scope, predicate_exp->s, true);
 
+    bool is_template = PREDFLAG_IS_TEMPLATE(predicate_exp->flag);
+
     bool is_header = (pred_ins == NULL && predicate_exp->is_header);
 
     if (is_header) {
@@ -257,11 +259,23 @@ apply_result_t laure_consult_predicate(
 
         Instance *maybe_header = pred_ins;
 
-        void *img = laure_apply_pred(predicate_exp, scope);
+        struct PredicateImage *img = laure_apply_pred(predicate_exp, scope);
 
         if (! img) return respond_apply(apply_error, "predicate hint is undefined");
-
         string name = strdup(predicate_exp->s);
+
+        if (is_template) {
+            // add variation with all anonymous instances
+            uint l = img->header.args->length + (img->header.resp ? 1 : 0);
+            laure_expression_set *set = NULL;
+            for (uint i = 0; i < l; i++) set = laure_expression_set_link(
+                set,
+                laure_expression_create(let_var, NULL, false, "_", 0, NULL, "")
+            );
+            laure_expression_t *e = laure_expression_create(let_pred, NULL, false, name, true, laure_bodyargs_create(set, 0, img->header.resp != NULL), "");
+            predicate_addvar(img, e);
+        }
+
         Instance *ins = instance_new(name, LAURE_DOC_BUFF ? strdup(LAURE_DOC_BUFF) : NULL, img);
         ins->repr = predicate_exp->t == let_pred ? predicate_repr : constraint_repr;
 
@@ -270,6 +284,9 @@ apply_result_t laure_consult_predicate(
         LAURE_DOC_BUFF = NULL;
         return respond_apply(apply_ok, NULL);
     } else {
+        if (is_template) {
+            return respond_apply(apply_error, "template can only be header");
+        }
         if (! pred_ins)
             return respond_apply(apply_error, "header for predicate is undefined");
         predicate_addvar(pred_ins->image, predicate_exp);
@@ -343,7 +360,7 @@ string consult_single(laure_session_t *session, string fname, FILE *file, bool *
     while (ifp[0]) {
         string fp = *ifp;
         if (str_eq(fp, fname)) {
-            printf("  %sFile%s %s%s was already consulted, skipping%s\n", RED_COLOR, BOLD_WHITE, fname, RED_COLOR, NO_COLOR);
+            debug("%sFile%s %s%s was already consulted, skipping%s\n", RED_COLOR, BOLD_WHITE, fname, RED_COLOR, NO_COLOR);
             *failed = true;
             return NULL;
         }

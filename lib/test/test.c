@@ -120,7 +120,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
                 break;
             }
             laure_image_head h = read_head(ins->image);
-            if (h.t == PREDICATE_FACT) {
+            if (h.t == PREDICATE_FACT || h.t == CONSTRAINT_FACT) {
                 tests[len] = ins;
                 len++;
             }

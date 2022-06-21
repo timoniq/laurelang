@@ -409,10 +409,7 @@ qresp laure_showcast(control_ctx *cctx) {
         strncpy(name, vpk->tracked_vars[i], 64);
 
         if (str_starts(name, "$")) {
-            string doc = ins->doc;
-            if (doc && strlen(doc)) {
-                snprintf(name, 64, "%s %s[%s]%s", ins->name, GRAY_COLOR, doc, NO_COLOR);
-            }
+            snprintf(name, 64, "%s", ins->name);
         }
 
         string repr = ins->repr(ins);
@@ -1256,6 +1253,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
 
     bool need_more = false;
     bool found = false;
+
     laure_scope_t *init_scope = laure_scope_create_copy(cctx, scope);
     for (uint variation_idx = 0; variation_idx < pred_img->variations->len; variation_idx++) {
         predfinal *pf = pred_img->variations->finals[variation_idx];

@@ -9,5 +9,6 @@
     "kb_pl.le",
     "isolated_set.le",
     "quantors.le",
-    "generic.le"
+    "generic.le",
+    "abstract.le"
 ).

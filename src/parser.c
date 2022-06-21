@@ -681,6 +681,13 @@ laure_parse_result laure_parse(string query) {
         case '?':
         case '#': {
 
+            // abstract templates, feature #13
+            bool is_abstract_template = false;
+            if (query[0] == '#') {
+                is_abstract_template = true;
+                query++;
+            }
+
             laure_expression_type type = (det == '?') ? let_pred : let_constraint;
 
             string body = NULL;
@@ -802,7 +809,7 @@ laure_parse_result laure_parse(string query) {
 
             laure_parse_result lpr;
             lpr.is_ok = true;
-            lpr.exp = laure_expression_create(type, "", false, name, is_primitive, ba, query);
+            lpr.exp = laure_expression_create(type, "", false, name, PREDFLAG_GET(is_primitive, is_abstract_template), ba, query);
             lpr.exp->link = linked_namespace;
 
             return lpr;
