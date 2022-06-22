@@ -171,3 +171,20 @@
     primitive(8 - 10) = x;
     &all x { x = 2 };
 }
+
+: ?case_of_cut(int) -> int.
+?case_of_cut(42) -> 1%
+?case_of_cut(x) -> 2 when x / 2.
+
+// 1
+// 123
+// 2
+: ?test_case_of_cut(int).
+?test_case_of_cut(x) {
+    case_of_cut(42) = x;
+}
+?test_case_of_cut(123).
+?test_case_of_cut(x) {
+    case_of_cut(36) = x;
+}%
+?test_case_of_cut(100).

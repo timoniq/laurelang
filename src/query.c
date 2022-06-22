@@ -1261,6 +1261,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
         qresp resp;
         bool do_continue = true;
         ulong cut_store = cctx->cut;
+        bool cut_case = false;
 
         if (pf->t == PF_C) {
             // C source predicate
@@ -1371,6 +1372,10 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 laure_scope_free(init_scope);
                 RESPOND_ERROR(signature_err, e, "predicate %s got %d args, expected %d", predicate_name, e->ba->body_len, pf->interior.argc);
             }
+
+            laure_expression_t *exp = pred_img->variations->set[variation_idx].exp;
+            cut_case = PREDFLAG_IS_CUT(exp->flag);
+
             laure_scope_t *nscope = laure_scope_new(scope->glob, prev);
             nscope->owner = predicate_ins->name;
 
@@ -1512,10 +1517,14 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
         } else if (cctx->cut != 0 && cctx->cut - 1 > scope->idx) {
             debug("stop cutting on predicate %s\n", predicate_name);
             cctx->cut = 0;
-        } else if (resp.state == q_true) {
+        } else if (resp.state == q_true || resp.state == q_continue) {
             found = true;
+            if (cut_case) break;
         } else if (resp.state == q_yield) {
-            if (resp.payload == YIELD_OK) found = true;
+            if (resp.payload == YIELD_OK) {
+                found = true;
+                if (cut_case) break;
+            }
         }
         // laure_scope_free(prev);
     }

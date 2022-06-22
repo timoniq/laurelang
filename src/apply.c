@@ -449,10 +449,11 @@ string consult_single(laure_session_t *session, string fname, FILE *file, bool *
             continue;
         }
 
-        if (last != '}' && last != '.') {
+        if (last != '}' && last != '.' && last != '%') {
             strcpy(buff, line);
         } else {
             if (lastc(line) == '.') lastc(line) = 0;
+            if (lastc(line) == '%') lastc(line) = '\r';
             string line_ = strdup(line);
             string o = LAURE_CURRENT_ADDRESS;
             LAURE_CURRENT_ADDRESS = fname;

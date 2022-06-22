@@ -621,6 +621,7 @@ int main(int argc, char *argv[]) {
         bool lp = false;
         while (laure_parser_needs_continuation(line)) {
             if (lastc(line) == '\\') lastc(line) = 0;
+            
             if (lp) up;
             up; erase;
             printf("(%s%s%s)\n", GREEN_COLOR, line, NO_COLOR); erase;
@@ -635,6 +636,9 @@ int main(int argc, char *argv[]) {
             line = strdup( nline );
             lp = true;
         }
+        if (lastc(line) == '.') lastc(line) = 0;
+        if (lastc(line) == '%') lastc(line) = '\r';
+        
         if (lp) {up; up; erase; printf("%s%s\n", DPROMPT, line); erase;}
         int res = laure_process_query(session, line);
         if (!res) break;

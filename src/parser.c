@@ -680,6 +680,11 @@ laure_parse_result laure_parse(string query) {
         }
         case '?':
         case '#': {
+            bool endexcl = false;
+            if (lastc(query) == '\r') {
+                endexcl = true;
+                lastc(query) = 0;
+            }
 
             // abstract templates, feature #13
             bool is_abstract_template = false;
@@ -809,7 +814,7 @@ laure_parse_result laure_parse(string query) {
 
             laure_parse_result lpr;
             lpr.is_ok = true;
-            lpr.exp = laure_expression_create(type, "", false, name, PREDFLAG_GET(is_primitive, is_abstract_template), ba, query);
+            lpr.exp = laure_expression_create(type, "", false, name, PREDFLAG_GET(is_primitive, is_abstract_template, endexcl), ba, query);
             lpr.exp->link = linked_namespace;
 
             return lpr;
