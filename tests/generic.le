@@ -17,16 +17,21 @@
 : #generic2('T', 'T'[]).
 #generic2(_, _).
 
+: ##generic2_sc('T', 'T'[]).
+
 // 10
 : ?test_generic_t_check(int).
 ?test_generic_t_check(x) {
     generic2(x, 1);
+    generic2_sc(x, 1);
     x = 2;
 }
 ?test_generic_t_check(x) {
     generic2(x, [1,2]);
+    generic2_sc(x, [1,2,3]);
     x = 10;
 }
 ?test_generic_t_check(x) {
     generic2(x, ['a', 'b']);
+    generic2_sc(x, ['c', 'd', 'e']);
 }

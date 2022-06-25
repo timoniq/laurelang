@@ -345,6 +345,10 @@ qresp check_interactive(string cmd, string showcast) {
     else if (str_eq(cmd, ";")) {
         return respond(q_continue, NULL);
     }
+    else if (str_eq(cmd, "...")) {
+        longjmp(JUMPBUF, 1);
+        return respond(q_stop, (void*)1);
+    }
     else {
         up;
         erase;

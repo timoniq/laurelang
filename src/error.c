@@ -76,7 +76,7 @@ void laure_error_write(
     snprintf(
         buff,
         buff_sz, 
-        "  %s\n  %s%s^%s error%s: %s", 
+        "  %s\n  %s%s╰%s error%s: %s", 
         err->reason->fullstring, 
         place_pointer, 
         GREEN_COLOR, RED_COLOR, NO_COLOR,

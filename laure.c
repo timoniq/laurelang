@@ -196,6 +196,7 @@ int laure_process_query(laure_session_t *session, string line) {
             break;
         }
         case 1: {
+            printf("Force quit\n");
             return 0;
         }
         case 2: {
@@ -610,6 +611,10 @@ int main(int argc, char *argv[]) {
     printf("\n  %sYou are in interactive enviroment.\n", GRAY_COLOR);
     printf("  Use %s.help%s to see commands\n", LAURUS_NOBILIS, GRAY_COLOR);
     printf("  and %s.quit%s to quit it.%s\n\n", LAURUS_NOBILIS, GRAY_COLOR, NO_COLOR);
+
+    if (setjmp(JUMPBUF)) {
+        printf("  ╰ %sjumped off %s\n", YELLOW_COLOR, NO_COLOR);
+    }
 
     string line;
     while ((line = readline_wrapper()) != NULL) {

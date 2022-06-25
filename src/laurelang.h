@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <time.h>
+#include <setjmp.h>
 #include "expr.h"
 
 #define ulong unsigned long
@@ -31,6 +32,7 @@ typedef struct laure_instance {
 } Instance;
 
 typedef struct laure_control_ctx control_ctx;
+jmp_buf JUMPBUF;
 
 /* =-----------=
      Scope
