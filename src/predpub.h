@@ -26,11 +26,11 @@ qresp respond(qresp_state s, string e);
 
 #define error_max_length 128
 
-#define RESPOND_ERROR(k, exp, msg, ...) do {\
+#define RESPOND_ERROR(k, exp, ...) do {\
         char _errmsg[error_max_length]; \
-        snprintf(_errmsg, error_max_length, msg, __VA_ARGS__); \
+        snprintf(_errmsg, error_max_length, __VA_ARGS__); \
         LAURE_ACTIVE_ERROR = laure_error_create(k, strdup(_errmsg), exp); \
-        return respond(q_error, 1);} while (0)
+        return respond(q_error, (void*)1);} while (0)
 
 #define RESPOND_TRUE           respond(q_true, NULL)
 #define RESPOND_FALSE          respond(q_false, NULL)

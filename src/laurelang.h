@@ -10,10 +10,12 @@
 
 #define ulong unsigned long
 #define streq(s, s2) strcmp(s, s2) == 0
-#define str_eq(s, s2) strcmp(s, s2) == 0
+#define str_eq(s, s2) (strcmp(s, s2) == 0)
 #define str_starts(s, start) (strncmp(start, s, strlen(start)) == 0)
 #define string char*
+#ifndef NULL
 #define NULL (void*)0
+#endif
 
 extern ulong *LAURE_LINK_ID;
 typedef enum {false, true} bool;
@@ -77,7 +79,7 @@ typedef struct laure_cell {
 #define max_cells 256
 
 typedef struct laure_scope {
-    long *nlink;
+    unsigned long *nlink;
     uint idx, repeat, count;
     laure_cell cells[max_cells];
     struct laure_scope *glob, *next;

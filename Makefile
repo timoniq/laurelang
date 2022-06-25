@@ -2,7 +2,7 @@ TARGET = laure
 SOURCES = src
 PREFIX = /usr/local
 WS_FLAGS = 
-CFLAGS = -I$(SOURCES) -I/usr/local/include -g $(LIBFLAG) -fPIC -rdynamic ${ADDFLAGS} ${WS_FLAGS}
+CFLAGS = -I$(SOURCES) -I/usr/local/include -g $(LIBFLAG) -fPIC ${ADDFLAGS} ${WS_FLAGS} -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers
 LDFLAGS = -L/usr/local/lib -lreadline -lm -g -ldl
 
 .PHONY: all clean
@@ -19,7 +19,7 @@ endif
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	$(CC) -ldl -rdynamic -g -o $(TARGET) $(OBJECTS) $(LDFLAGS)
+	$(CC) -ldl -g -o $(TARGET) $(OBJECTS) $(LDFLAGS)
 
 packages: $(LIB)
 	$(CC) -fPIC -shared -g -o laurelang.so $(LIB) $(LDFLAGS)

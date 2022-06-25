@@ -344,7 +344,7 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
     free(cctx);
     
     if (response.state == q_error) {
-        printf("\nError while applying statement:\n  %s%s%s\n    %s\n", RED_COLOR, exp->s, NO_COLOR, LAURE_ACTIVE_ERROR ? LAURE_ACTIVE_ERROR->msg : response.payload);
+        printf("\nError while applying statement:\n  %s%s%s\n    %s\n", RED_COLOR, exp->s, NO_COLOR, LAURE_ACTIVE_ERROR ? LAURE_ACTIVE_ERROR->msg : (string)response.payload);
         return respond_apply(apply_error, response.payload);
     }
     return respond_apply(apply_ok, NULL);
@@ -355,7 +355,7 @@ int laure_init_structures(laure_session_t *session) {
 }
 
 string consult_single(laure_session_t *session, string fname, FILE *file, bool *failed) {
-    void **ifp = session->_included_filepaths;
+    void **ifp = (void**)session->_included_filepaths;
 
     while (ifp[0]) {
         string fp = *ifp;
@@ -475,6 +475,6 @@ string consult_single(laure_session_t *session, string fname, FILE *file, bool *
 void laure_consult_recursive(laure_session_t *session, string path, int *failed) {
     string next = path;
     while (next) {
-        next =  consult_single(session, next, fopen(next, "r"), failed);
+        next =  consult_single(session, next, fopen(next, "r"), (bool*)failed);
     }
 }

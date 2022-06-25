@@ -345,7 +345,7 @@ gen_resp int_domain_generate(Domain *dom, gen_resp (*receiver)(bigint*, void*), 
             return (receiver)(dom->lborder.data, context);
         }
     }
-    gen_resp r = {1, respond(q_yield, 1)};
+    gen_resp r = {1, respond(q_yield, (void*)1)};
     return r;
 }
 

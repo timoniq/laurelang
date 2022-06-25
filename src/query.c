@@ -416,7 +416,7 @@ qresp laure_showcast(control_ctx *cctx) {
         string showcast;
 
         if (strlen(repr) > 264) {
-            printf("  %s = ", name, repr);
+            printf("  %s = ", name);
             printf("%s\n", repr);
             showcast = "";
         } else {
@@ -1248,7 +1248,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             predfinal *pf = get_pred_final(pv);
             pfs[i] = pf;
         }
-        pred_img->variations->finals = pfs;
+        pred_img->variations->finals = (predfinal**)pfs;
     }
 
     bool need_more = false;
@@ -1909,7 +1909,7 @@ qresp laure_eval_command(_laure_eval_sub_args) {
                         RESPOND_ERROR(undefined_err, e, "failed to find file %s", path_);
                     }
                     fclose(f);
-                    laure_consult_recursive(cctx->session, path_, failed);
+                    laure_consult_recursive(cctx->session, path_, (int*)failed);
                 }
                 linked = linked->next;
             }

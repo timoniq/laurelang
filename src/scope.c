@@ -322,7 +322,7 @@ Instance *laure_scope_change_link_by_key(laure_scope_t *scope, string key, ulong
     pd.new_link = new_link;
     pd.scope = scope;
     laure_cell cell = laure_scope_find(scope, cell_chk_key_change_lid, &pd, false, search_glob);
-    if (cell.link == NULL) return NULL;
+    if (cell.link == 0) return NULL;
     return cell.ptr;
 }
 
@@ -332,7 +332,7 @@ Instance *laure_scope_change_link_by_link(laure_scope_t *scope, ulong link, ulon
     pd.new_link = new_link;
     pd.scope = scope;
     laure_cell cell = laure_scope_find(scope, cell_chk_lid_change_lid, &pd, false, search_glob);
-    if (cell.link == NULL) return NULL;
+    if (cell.link == 0) return NULL;
     return cell.ptr;
 }
 
@@ -356,7 +356,7 @@ laure_scope_t *laure_scope_create_copy(control_ctx *cctx, laure_scope_t *scope) 
 
 void laure_scope_show(laure_scope_t *scope) {
     printf("--- scope stodgy impl ---\n");
-    printf("=== ID: %zi COUNT: %u ===\n", scope->idx, scope->count);
+    printf("=== ID: %u COUNT: %u ===\n", scope->idx, scope->count);
     laure_scope_iter(scope, cellptr, {
         string repr = cellptr->ptr->repr(cellptr->ptr);
         if (! cellptr->ptr->locked)

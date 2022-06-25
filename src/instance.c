@@ -19,6 +19,7 @@ int char_isnumber(int _c) {
 
 gen_resp form_gen_resp(bool state, qresp qr) {
     gen_resp gr = {state, qr};
+    return gr;
 }
 
 /*
@@ -187,7 +188,7 @@ bool int_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
             int_domain_lt(new_domain, right_value);
         }
 
-        img->t = U;
+        img->state = U;
         img->u_data = new_domain;
         return true;
     }
@@ -231,7 +232,7 @@ string int_repr(Instance *ins) {
         char buff[512];
         bigint_write(buff, 512, im->i_data);
         return strdup(buff);
-    } else if (im->state == U) {
+    } else {
         return int_domain_repr(im->u_data);
     }
 }
@@ -977,6 +978,7 @@ gen_resp char_generate(
             return form_gen_resp(true, MOCK_QRESP);
         }
     }
+    return form_gen_resp(false, MOCK_QRESP);
 }
 
 void char_free(struct CharImage *im) {
@@ -1128,6 +1130,7 @@ bool atom_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) 
         });
         return true;
     }
+    return false;
 }
 
 bool atom_eq(struct AtomImage *img1_t, struct AtomImage *img2_t) {
@@ -1252,7 +1255,7 @@ gen_resp atom_generate(
         }
         im->single = false;
         im->mult = temp;
-        return form_gen_resp(true, respond(q_yield, 1));
+        return form_gen_resp(true, respond(q_yield, (void*)1));
     }
 }
 
@@ -1668,7 +1671,7 @@ void laure_typeset_push_decl(laure_typeset *ts, string generic_name) {
     ts->length++;
     ts->data = realloc(ts->data, sizeof(laure_typedecl) * ts->length);
     ts->data[ts->length - 1].t = td_generic;
-    ts->data[ts->length - 1].instance = generic_name;
+    ts->data[ts->length - 1].generic = generic_name;
 }
 
 bool laure_typeset_all_instances(laure_typeset *ts) {

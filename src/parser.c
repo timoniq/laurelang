@@ -10,7 +10,7 @@
 #define ERR_MAX_LEN 100
 
 #define error_result(err_) do {laure_parse_result lpr; lpr.is_ok = false; lpr.err = err_; return lpr;} while (0)
-#define error_format(err_, ...) do {char _errmsg[ERR_MAX_LEN]; snprintf(_errmsg, ERR_MAX_LEN, err_, __VA_ARGS__); error_result(strdup(_errmsg));} while (0)
+#define error_format(...) do {char _errmsg[ERR_MAX_LEN]; snprintf(_errmsg, ERR_MAX_LEN, __VA_ARGS__); error_result(strdup(_errmsg));} while (0)
 #define lineinfo(str) do {char info[ERR_MAX_LEN]; snprintf(info, ERR_MAX_LEN, "%s:%d", __FILE__, __LINE__); str = strdup(info);} while (0)
 #define printindent(indent) for (int __i = 0; __i < indent; __i++) printf(" ");
 
@@ -749,7 +749,7 @@ laure_parse_result laure_parse(string query) {
                 if (! lpr_ns.is_ok) error_format("failed to parse namespace: %s", lpr_ns.err);
                 laure_expression_t *ns_exp = lpr_ns.exp;
                 if (ns_exp->t != let_var && ns_exp->t != let_singlq)
-                    error_format("namespace must be %s or 'T' (single quoted), not %s", EXPT_NAMES[let_var], EXPT_NAMES[let_singlq], EXPT_NAMES[ns_exp->t]);
+                    error_format("namespace must be %s or 'T' (single quoted), not %s", EXPT_NAMES[let_var], EXPT_NAMES[ns_exp->t]);
                 linked_namespace = ns_exp;
             }
 
@@ -1299,8 +1299,9 @@ laure_parse_result laure_parse(string query) {
                         });
                         laure_parse_result lpr;
                         lpr.is_ok = true;
+                        query--;
                         lpr.exp = laure_expression_create(
-                            let_atom, NULL, false, --query, 1, 
+                            let_atom, NULL, false, query, 1, 
                             laure_bodyargs_create(lpmr.exps, laure_expression_get_count(lpmr.exps), 0),
                             query
                         );

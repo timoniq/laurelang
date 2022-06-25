@@ -29,7 +29,7 @@ extern "C" {
 }
 
 typedef struct laure_ws {
-    double k = k;
+    double k;
     std::vector<optimality_t> *acc;
     double (*calc_w)(laure_ws*, size_t);
     laure_ws *next;

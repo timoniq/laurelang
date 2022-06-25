@@ -188,7 +188,7 @@ int laure_process_query(laure_session_t *session, string line) {
                 string full_path = strdup( realpath(path, _PATH) );
                 bool failed[1];
                 failed[0] = false;
-                laure_consult_recursive(session, full_path, failed);
+                laure_consult_recursive(session, full_path, (int*)failed);
                 if (! failed[0])
                     printf("  %s%s%s: consulted\n", GREEN_COLOR, args.argv[j], NO_COLOR);
                 free(path);
@@ -238,7 +238,7 @@ int laure_process_query(laure_session_t *session, string line) {
                 for (int i = 0; i < strlen(doc); i++) {
                     char c = doc[i];
                     if (c == '\n') {
-                        printf("\n   ", GRAY_COLOR, NO_COLOR);
+                        printf("\n   ");
                     } else if (c == '`') {
                         printf("%s", color_set ? NO_COLOR : LAURUS_NOBILIS);
                         color_set = color_set ? false : true;
@@ -562,7 +562,7 @@ int main(int argc, char *argv[]) {
             string path = strdup( real_path );
             bool failed[1];
             failed[0] = false;
-            laure_consult_recursive(session, path, failed);
+            laure_consult_recursive(session, path, (int*)failed);
         }
     }
 
@@ -581,7 +581,7 @@ int main(int argc, char *argv[]) {
         string full_path = strdup( realpath(path, _PATH) );
         bool failed[1];
         failed[0] = false;
-        laure_consult_recursive(session, full_path, failed);
+        laure_consult_recursive(session, full_path, (int*)failed);
         if (! failed[0])
             printf("  %s%s%s: consulted\n", GREEN_COLOR, filenames->filename, NO_COLOR);
         else

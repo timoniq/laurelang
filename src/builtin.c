@@ -199,4 +199,5 @@ Instance *laure_api_add_predicate(
     ins->repr = is_constraint ? bc_repr : bp_repr;
 
     laure_scope_insert(session->scope, ins);
+    return ins;
 }
