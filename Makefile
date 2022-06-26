@@ -16,6 +16,13 @@ ifeq ($(DEBUG), true)
 else
 endif
 
+ifeq ($(NOWS), true)
+	CFLAGS := $(CFLAGS) -DDISABLE_WS=1
+	LDFLAGS := $(LDFLAGS) -DDISABLE_WS=1
+	WS_FLAGS := $(WS_FLAGS) -DDISABLE_WS=1
+else
+endif
+
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
