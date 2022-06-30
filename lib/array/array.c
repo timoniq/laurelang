@@ -487,7 +487,7 @@ qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
             if (! linked) break;
             linked = linked->next;
         }
-        return respond(q_yield, found);
+        return respond(q_yield, (void*)found);
     }
     printf("too ambig\n");
     return RESPOND_FALSE;

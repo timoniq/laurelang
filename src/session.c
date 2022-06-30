@@ -12,6 +12,15 @@ bool LAURE_WS                   = false;
 uint DFLAG_N = 0;
 char DFLAGS[DFLAG_MAX][2][32] = {{0, 0}};
 
+laure_backtrace *LAURE_BACKTRACE = NULL;
+
+void init_backtrace() {
+    if (! LAURE_BACKTRACE) {
+        LAURE_BACKTRACE = malloc(sizeof(laure_backtrace));
+    }
+    *LAURE_BACKTRACE = laure_backtrace_new();
+}
+
 laure_session_t *laure_session_new() {
     laure_session_t *session = malloc(sizeof(laure_session_t));
     session->scope = laure_scope_create_global();

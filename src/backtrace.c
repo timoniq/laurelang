@@ -4,40 +4,59 @@
 #define BACKTRACE_CHAIN_LIMIT 10
 #endif
 
-#define BACKTRACE_CHAIN_CAPACITY 100
-
 /* Backtrace
     log - current evaluated expression info
     chain - chain of keypoints (limited by BACKTRACE_CHAIN_LIMIT)
 */
 
-typedef struct laure_backtrace {
-    string log;
-    char *chain[BACKTRACE_CHAIN_CAPACITY];
-    uint cursor;
-} laure_backtrace;
+laure_backtrace laure_backtrace_new() {
+    laure_backtrace bt;
+    bt.cursor = 0;
+    bt.log = NULL;
+    memset(bt.chain, 0, (BACKTRACE_CHAIN_CAPACITY-1) * sizeof(struct chain_p));
+    return bt;
+}
 
 void laure_backtrace_log(laure_backtrace *backtrace, string log) {
+    if (! backtrace) return;
     backtrace->log = log;
 }
 
+void laure_backtrace_nullify(laure_backtrace *backtrace) {
+    if (! backtrace) return;
+    memset(backtrace->chain, 0, (BACKTRACE_CHAIN_CAPACITY-1) * sizeof(struct chain_p));
+    backtrace->cursor = 0;
+}
+
 void laure_backtrace_add(laure_backtrace *backtrace, string key) {
+    if (! backtrace) return;
+    if (! key) return;
     if (backtrace->cursor >= BACKTRACE_CHAIN_CAPACITY - 2) {
-        char *nchain[BACKTRACE_CHAIN_LIMIT-1];
-        memcpy(nchain, backtrace->chain + backtrace->cursor - BACKTRACE_CHAIN_LIMIT + 1, sizeof(void*) * (BACKTRACE_CHAIN_LIMIT - 1));
-        memset(backtrace->chain, 0, BACKTRACE_CHAIN_CAPACITY);
-        memcpy(backtrace->chain, nchain, BACKTRACE_CHAIN_LIMIT-1);
+        struct chain_p nchain[BACKTRACE_CHAIN_LIMIT-1];
+        memcpy(nchain, backtrace->chain + backtrace->cursor - BACKTRACE_CHAIN_LIMIT + 1, sizeof(struct chain_p) * (BACKTRACE_CHAIN_LIMIT - 1));
+        memset(backtrace->chain, 0, BACKTRACE_CHAIN_CAPACITY * sizeof(struct chain_p));
+        memcpy(backtrace->chain, nchain, (BACKTRACE_CHAIN_LIMIT-1) * sizeof(struct chain_p));
         backtrace->cursor = BACKTRACE_CHAIN_LIMIT-1;
     }
-    backtrace->chain[backtrace->cursor++] = key;
+    if (backtrace->cursor && str_eq(backtrace->chain[backtrace->cursor-1].key, key)) {
+        backtrace->chain[backtrace->cursor].times++;
+    } else {
+        struct chain_p p;
+        p.key = key;
+        p.times = 0;
+        backtrace->chain[backtrace->cursor++] = p;
+    }
 }
 
 void laure_backtrace_print(laure_backtrace *backtrace) {
-    char **chain = backtrace->chain;
-    while((chain + backtrace->cursor)[0]) {
-        char *key = (chain + backtrace->cursor)[0];
-        printf("%s\n", key);
+    if (! backtrace) return;
+    struct chain_p *chain = backtrace->chain;
+    while (chain[0].key) {
+        struct chain_p p = chain[0];
+        if (p.times) printf("%s (%u times)\n", p.key, p.times);
+        else printf("%s\n", p.key);
         chain++;
     }
-    printf("in %s\n", backtrace->log);
+    if (backtrace->log)
+        printf("in %s\n", backtrace->log);
 }

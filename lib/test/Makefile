@@ -1,4 +1,4 @@
-LDFLAGS = -L/usr/local/lib -lreadline -lm -I'../../src'
+LDFLAGS = -L/usr/local/lib -lreadline -lm -I'../../src' -Wno-incompatible-function-pointer-types
 CC = gcc
 
 all:

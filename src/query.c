@@ -99,7 +99,7 @@ gen_resp image_rec_default(void *image, struct img_rec_ctx *ctx) {
 }
 
 gen_resp proc_unify_response(qresp resp, struct img_rec_ctx *ctx) {
-    if (resp.state == q_stop) {
+    if (resp.state == q_stop || resp.state == q_error) {
         gen_resp gr = {0, resp};
         return gr;
     } else if (resp.state != q_true) {
@@ -152,6 +152,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
     }
     #endif
     EXPSET_ITER(expset, exp, {
+        laure_backtrace_add(LAURE_BACKTRACE, exp->fullstring);
         qresp response = laure_eval(cctx, exp, _set->next);
         if (
             response.state == q_yield 
@@ -917,6 +918,7 @@ qresp laure_eval_unify(_laure_eval_sub_args) {
         RESPOND_ERROR(access_err, e, "%s is locked", e->s);
     struct img_rec_ctx *ctx = img_rec_ctx_create(to_unif, cctx, expset, proc_unify_response);
     gen_resp gr = image_generate(scope, to_unif->image, image_rec_default, ctx);
+    if (gr.qr.state == q_error) return gr.qr;
     if (! ctx->flag) return respond(q_yield, YIELD_FAIL);
     free(ctx);
     if (gr.qr.state == q_stop) {
@@ -1346,8 +1348,6 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
 
             resp = pf->c.pred(pd, cctx);
             preddata_free(pd);
-
-            if (resp.state == q_stop) return resp;
 
             if (resp.state == q_false) continue;
 

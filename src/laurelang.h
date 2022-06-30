@@ -394,6 +394,25 @@ void laure_error_write(
 extern laure_error *LAURE_ACTIVE_ERROR;
 
 #define SINGLE_DOCMARK (char*)0x2
+#define BACKTRACE_CHAIN_CAPACITY 100
+
+struct chain_p {
+    char *key;
+    uint times;
+};
+
+typedef struct laure_backtrace {
+    string log;
+    struct chain_p chain[BACKTRACE_CHAIN_CAPACITY];
+    uint cursor;
+} laure_backtrace;
+
+extern laure_backtrace *LAURE_BACKTRACE;
+
+laure_backtrace laure_backtrace_new();
+void laure_backtrace_add(laure_backtrace *backtrace, string key);
+void laure_backtrace_print(laure_backtrace *backtrace);
+void laure_backtrace_nullify(laure_backtrace *backtrace);
 
 /* =--------=
 WS (weighted search)

@@ -7,7 +7,7 @@ LDFLAGS = -L/usr/local/lib -lreadline -lm -g -ldl
 
 .PHONY: all clean
 
-LIB = $(SOURCES)/parser.o $(SOURCES)/string.o $(SOURCES)/instance.o $(SOURCES)/query.o $(SOURCES)/session.o $(SOURCES)/scope.o $(SOURCES)/domain.o $(SOURCES)/bigint.o $(SOURCES)/builtin.o $(SOURCES)/predicates.o  $(SOURCES)/apply.o $(SOURCES)/error.o $(SOURCES)/weight.o
+LIB = $(SOURCES)/parser.o $(SOURCES)/string.o $(SOURCES)/instance.o $(SOURCES)/query.o $(SOURCES)/session.o $(SOURCES)/scope.o $(SOURCES)/domain.o $(SOURCES)/bigint.o $(SOURCES)/builtin.o $(SOURCES)/predicates.o  $(SOURCES)/apply.o $(SOURCES)/error.o $(SOURCES)/backtrace.o $(SOURCES)/weight.o
 OBJECTS = laure.o $(LIB)
 
 ifeq ($(DEBUG), true)
@@ -66,5 +66,6 @@ src/builtin.o: src/laurelang.h src/laureimage.h src/builtin.h src/builtin.c
 src/predicates.o: src/laurelang.h src/laureimage.h src/predicates.h src/predicates.c
 src/apply.o: src/laurelang.h src/apply.c
 src/error.o: src/laurelang.h src/error.c
+src/backtrace.o: src/laurelang.h src/backtrace.c
 src/weight.o:
 	g++ src/weight.cpp -o src/weight.o -shared $(WS_FLAGS)
