@@ -152,7 +152,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
     }
     #endif
     EXPSET_ITER(expset, exp, {
-        laure_backtrace_add(LAURE_BACKTRACE, exp->fullstring);
+        laure_backtrace_add(LAURE_BACKTRACE, exp);
         qresp response = laure_eval(cctx, exp, _set->next);
         if (
             response.state == q_yield 
@@ -1869,6 +1869,18 @@ qresp laure_eval_command(_laure_eval_sub_args) {
             }
             add_dflag(n, v);
             return RESPOND_TRUE;
+        }
+        case command_error: {
+            switch (e->link->t) {
+                case let_var: {
+                    Instance *runtime_instance = laure_scope_find_by_key(scope, e->link->s, true);
+                    if (runtime_instance) {
+                        RESPOND_ERROR(runtime_err, e, "error from variable %s: %s", runtime_instance->name, runtime_instance->repr(runtime_instance));
+                    }
+                }
+                default: break;
+            }
+            RESPOND_ERROR(runtime_err, e, "%s", e->link->s);
         }
         case command_use:
         case command_useso: {

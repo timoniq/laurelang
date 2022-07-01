@@ -612,6 +612,28 @@ laure_parse_result laure_parse(string query) {
                 return lpr;
             } else {
                 string setting = string_clean(query);
+                query--;
+                
+                if (str_starts(setting, "error ")) {
+                    string msg = setting + 6;
+
+                    laure_parse_result msg_lpr = laure_parse(msg);
+                    if (! msg_lpr.is_ok) return msg_lpr;
+                    
+                    laure_parse_result lpr;
+                    lpr.is_ok = true;
+                    lpr.exp = laure_expression_create(
+                        let_command,
+                        NULL,
+                        false,
+                        msg,
+                        command_error,
+                        NULL,
+                        query
+                    );
+                    lpr.exp->link = msg_lpr.exp;
+                    return lpr;
+                }
 
                 if (str_starts(setting, "use ") || str_starts(setting, "useso ")) {
                     bool use_kwd = str_starts(setting, "use ");

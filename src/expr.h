@@ -31,7 +31,8 @@ typedef enum {
 typedef enum laure_command_type {
     command_setflag,
     command_use,
-    command_useso
+    command_useso,
+    command_error
 } laure_command_type;
 
 typedef enum laure_compact_predicate_flag {

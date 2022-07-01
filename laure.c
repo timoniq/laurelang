@@ -17,7 +17,7 @@
 #define str_starts(s, start) (strncmp(start, s, strlen(start)) == 0)
 
 #define VERSION        "0.1"
-#define BUGTRACKER_URL "github.com/timoniq/laurelang"
+#define BUGTRACKER_URL "https://github.com/timoniq/laurelang"
 
 struct laure_flag {
     int    id;
@@ -257,9 +257,9 @@ int laure_process_query(laure_session_t *session, string line) {
         }
         case 7: {
             // print_header("laurelang interpreter info");
-            printf("  %s%slaurelang %s%s\n", BOLD_DEC, LAURUS_NOBILIS, VERSION, NO_COLOR);
+            printf("  %s%sλaurelang %s%s\n", BOLD_DEC, LAURUS_NOBILIS, VERSION, NO_COLOR);
             printf("  running `%s`\n", LAURE_INTERPRETER_PATH);
-            printf("  bugtracker %s\n", BUGTRACKER_URL);
+            printf("  bugtracker\n    %s%s%s\n", LAURUS_NOBILIS, BUGTRACKER_URL, NO_COLOR);
             printf("  %sbuild info%s:\n", BOLD_WHITE, NO_COLOR);
             printf("    %sstack build%s: %s\n", 
             BOLD_WHITE, NO_COLOR,
@@ -403,6 +403,9 @@ int laure_process_query(laure_session_t *session, string line) {
         if (!laure_is_silent(cctx)) {
             if (response.state == q_error) {
                 code = 2;
+                if (LAURE_BACKTRACE && LAURE_BACKTRACE->cursor > 2) {
+                    laure_backtrace_print(LAURE_BACKTRACE);
+                }
                 if (! LAURE_ACTIVE_ERROR) {
                     printf("  %serror%s: %s\n", RED_COLOR, NO_COLOR, (string)response.payload);
                 } else {
@@ -611,12 +614,12 @@ int main(int argc, char *argv[]) {
 
     init_backtrace();
 
-    printf("\n  %sYou are in interactive enviroment.\n", GRAY_COLOR);
+    printf("\n  ♦ %sYou are in interactive enviroment.\n", GRAY_COLOR);
     printf("  Use %s.help%s to see commands\n", LAURUS_NOBILIS, GRAY_COLOR);
     printf("  and %s.quit%s to quit it.%s\n\n", LAURUS_NOBILIS, GRAY_COLOR, NO_COLOR);
 
     if (setjmp(JUMPBUF)) {
-        printf("  ╰-> %sjumped off %s\n", YELLOW_COLOR, NO_COLOR);
+        printf("  ↳ %sjumped off %s\n", YELLOW_COLOR, NO_COLOR);
     }
 
     string line;

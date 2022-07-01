@@ -61,18 +61,26 @@ bool should_skip(string_linked *skips, string s) {
     return false;
 }
 
-void headerprint(string s, uint maxnlen, uint colorcodes) {
-    uint filler = 9 + maxnlen;
+void headerprint(string s, uint maxnlen, uint colorcodes, int isstart) {
+    uint filler = 9 + maxnlen + 4;
     uint len_s = laure_string_strlen(s) + 9 - (colorcodes * 6);
+    char *l, *r;
+    if (isstart) {
+        l = "┌──";
+        r = "──┐";
+    } else {
+        l = "└──";
+        r = "──┘";
+    }
     if (filler < len_s)
-        printf("--- %s ---\n", s);
+        printf("%s %s %s\n", l, s, r);
     else {
         filler = (filler - len_s) / 2;
-        printf("---");
+        printf("%s", l);
         for (int j = 0; j < filler; j++) printf(" ");
         printf(" %s ", s);
         for (int j = 0; j < filler; j++) printf(" ");
-        printf("---\n");
+        printf("%s\n", r);
     }
 }
 
@@ -154,7 +162,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         }
     }
 
-    if (mode == full) headerprint("Running tests", max_name_len, 0);
+    if (mode == full) headerprint("Running tests", max_name_len, 0, 1);
 
     clock_t t = clock();
 
@@ -165,6 +173,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     uint skipped = 0;
 
     for (int i = 0; i < len; i++) {
+        printf("│ ");
         Instance *predicate = tests[i];
         struct PredicateImage *pred_im = (struct PredicateImage*)predicate->image;
         char spaces[128] = {0};
@@ -174,11 +183,11 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         }
 
         if (should_skip(skips, predicate->name)) {
-            if (mode == full) printf("%s: %s%sskipped%s\n", predicate->name, spaces, YELLOW_COLOR, NO_COLOR);
+            if (mode == full) printf("%s: %s%somited%s │\n", predicate->name, spaces, YELLOW_COLOR, NO_COLOR);
             checked_len--; skipped++;
             continue;
         }
-        if (mode == full) printf("%s: %s%srunning%s\n", predicate->name, spaces, YELLOW_COLOR, NO_COLOR);
+        if (mode == full) printf("%s: %s%srunned%s\n", predicate->name, spaces, YELLOW_COLOR, NO_COLOR);
 
         int argc = 0;
         char **data = 0;
@@ -249,35 +258,37 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
             erase;
         }
 
+        printf("│ ");
+
         if (! payload->passed && payload->got_invalid) {
-            if (mode == full) printf("%s: %s%sfailed%s\n", predicate->name, spaces, RED_COLOR, NO_COLOR);
+            if (mode == full) printf("%s: %s%sfailed%s │\n", predicate->name, spaces, RED_COLOR, NO_COLOR);
             char buff[256];
             snprintf(buff, 256, "  %sargument idx = %d: \n        got %s%s%s \n        exp %s%s%s", NO_COLOR, payload->idx + 1, RED_COLOR, payload->got_invalid, NO_COLOR, YELLOW_COLOR, payload->data[payload->idx], NO_COLOR);
             comments[i] = strdup( buff );
         } else if (payload->idx != payload->data_cnt) {
-            if (mode == full) printf("%s: %s%sfailed%s\n", predicate->name, spaces, RED_COLOR, NO_COLOR);
+            if (mode == full) printf("%s: %s%sfailed%s │\n", predicate->name, spaces, RED_COLOR, NO_COLOR);
             char buff[64];
             snprintf(buff, 64, "  %s%d relations expected, %d generated", NO_COLOR, payload->data_cnt, payload->idx);
             comments[i] = strdup( buff );
         } else if (payload->data_cnt > 0) {
             // all found
-            if (mode == full) printf("%s: %s%spassed%s\n", predicate->name, spaces, GREEN_COLOR, NO_COLOR);
+            if (mode == full) printf("%s: %s%spassed%s │\n", predicate->name, spaces, GREEN_COLOR, NO_COLOR);
             tests_passed++;
         } else {
             switch (response.state) {
                 case q_yield: {
                     if (response.payload == (char*)0x1) {
                         if (mode == full)
-                        printf("%s: %s%spassed%s\n", predicate->name, spaces, GREEN_COLOR, NO_COLOR);
+                        printf("%s: %s%spassed%s │\n", predicate->name, spaces, GREEN_COLOR, NO_COLOR);
                         tests_passed++;
                     } else {
-                        printf("%s: %s%sfailed%s\n", predicate->name, spaces, RED_COLOR, NO_COLOR);
+                        printf("%s: %s%sfailed%s │\n", predicate->name, spaces, RED_COLOR, NO_COLOR);
                     }
                     break;
                 }
                 case q_error: {
                     if (mode == full)
-                    printf("%s: %s%sfailed%s\n", predicate->name, spaces, RED_COLOR, NO_COLOR);
+                    printf("%s: %s%sfailed%s │\n", predicate->name, spaces, RED_COLOR, NO_COLOR);
                     if (! LAURE_ACTIVE_ERROR) {
                         comments[i] = strdup(response.payload);
                     } else {
@@ -289,14 +300,14 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
                 }
                 default: {
                     if (mode == full) 
-                    printf("%s: %s%sunknown%s\n", predicate->name, spaces, GRAY_COLOR, NO_COLOR);
+                    printf("%s: %s%sunknown%s │\n", predicate->name, spaces, GRAY_COLOR, NO_COLOR);
                     break;
                 }
             }
         }
         free(payload);
         laure_scope_free(ncctx->tmp_answer_scope);
-        if (stopkwd && strstr(predicate->name + 5, stopkwd)){
+        if (stopkwd && (strstr(predicate->name + 5, stopkwd) || strcmp(stopkwd, ".") == 0)) {
             printf("%sCaught keyword. Press any key to continue%s\n", LAURUS_NOBILIS, NO_COLOR);
             getchar();
             up; erase;
@@ -312,7 +323,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     free(sess);
 
     if (mode != nologs) {
-        headerprint("Showing results", max_name_len, 0);
+        headerprint("Done. Showing results", max_name_len, 0, 0);
         if (skipped) printf("Skipped %d tests.\n", skipped);
 
         for (int i = 0; i < len; i++) {
@@ -325,10 +336,10 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
 
         double passed_percent = ((double)tests_passed / (double)len) * 100;
 
-        printf("----------------------\n");
+        printf("━━━━━━━━━━━━━━━━━━━━━━\n");
         printf("Succeed %d/%d (%s%d%%%s)\n", tests_passed, len, passed_percent >= 70 ? GREEN_COLOR : RED_COLOR, (int)round(passed_percent), NO_COLOR);
         printf("Time elapsed %fs\n", elapsed);
-        printf("----------------------\n");
+        printf("━━━━━━━━━━━━━━━━━━━━━━\n");
     }
 
     return respond(tests_passed == len ? q_true : q_false, NULL);

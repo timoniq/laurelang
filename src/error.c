@@ -52,6 +52,10 @@ string laure_error_msg(laure_error *err) {
             strcpy(buff, "signature");
             break;
         }
+        case runtime_err: {
+            strcpy(buff, "runtime");
+            break;
+        }
     }
     strcat(buff, "( ");
     strcat(buff, RED_COLOR);
