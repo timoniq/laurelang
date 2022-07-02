@@ -403,7 +403,7 @@ int laure_process_query(laure_session_t *session, string line) {
         if (!laure_is_silent(cctx)) {
             if (response.state == q_error) {
                 code = 2;
-                if (LAURE_BACKTRACE && LAURE_BACKTRACE->cursor > 2) {
+                if (LAURE_BACKTRACE && LAURE_BACKTRACE->cursor > 1) {
                     laure_backtrace_print(LAURE_BACKTRACE);
                 }
                 if (! LAURE_ACTIVE_ERROR) {

@@ -9,6 +9,16 @@
     chain - chain of keypoints (limited by BACKTRACE_CHAIN_LIMIT)
 */
 
+laure_expression_type BACKTRACED_EXPRESSIONS[] = {let_pred_call, let_choice_2, let_unify, let_imply};
+
+bool is_backtraced(laure_expression_type t) {
+    for (uint i = 0; i < sizeof(BACKTRACED_EXPRESSIONS) / sizeof(laure_expression_type); i++) {
+        if (t == BACKTRACED_EXPRESSIONS[i])
+            return true;
+    }
+    return false;
+}
+
 laure_backtrace laure_backtrace_new() {
     laure_backtrace bt;
     bt.cursor = 0;
@@ -30,7 +40,7 @@ void laure_backtrace_nullify(laure_backtrace *backtrace) {
 
 void laure_backtrace_add(laure_backtrace *backtrace, laure_expression_t *e) {
     if (! backtrace) return;
-    if (! e) return;
+    if (! e || ! is_backtraced(e->t)) return;
     if (backtrace->cursor >= BACKTRACE_CHAIN_LIMIT - 2) {
         struct chain_p nchain[BACKTRACE_CHAIN_LIMIT-1];
         memcpy(nchain, backtrace->chain + backtrace->cursor - BACKTRACE_CHAIN_LIMIT + 1, sizeof(struct chain_p) * (BACKTRACE_CHAIN_LIMIT - 1));
@@ -56,15 +66,17 @@ void laure_backtrace_print(laure_backtrace *backtrace) {
     if (chain[0].e) {
         printf("\n  ━━ Backtrace ━━\n");
     }
-    while (chain[0].e) {
+    uint i = 0;
+    while (chain[0].e && i <= backtrace->cursor) {
         struct chain_p p = chain[0];
-        printf("  %s↪%s in %s:\n", GREEN_COLOR, NO_COLOR, EXPT_NAMES[p.e->t]);
-        if (p.times) printf("    %s (%u times)\n", p.e->fullstring, p.times);
+        printf("  %s↪%s because of %s:\n", GREEN_COLOR, NO_COLOR, EXPT_NAMES[p.e->t]);
+        if (p.times) printf("    %s%s%s (%u times)\n", GRAY_COLOR, p.e->fullstring, NO_COLOR, p.times);
         else printf("      %s%s%s\n", GRAY_COLOR, p.e->fullstring, NO_COLOR);
         chain++;
+        i++;
     }
     if (backtrace->chain != chain) {
-        printf("  ━━━━━━━━━━━━━━━━\n\n");
+        printf("  ━━━━━━━━━━━━━━━\n\n");
     }
     if (backtrace->log)
         printf("in %s\n", backtrace->log);

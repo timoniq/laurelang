@@ -1259,6 +1259,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
 
     bool need_more = false;
     bool found = false;
+    uint backtrace_cursor = LAURE_BACKTRACE ? LAURE_BACKTRACE->cursor : 0;
 
     laure_scope_t *init_scope = laure_scope_create_copy(cctx, scope);
     for (uint variation_idx = 0; variation_idx < pred_img->variations->len; variation_idx++) {
@@ -1517,16 +1518,20 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
         } else if (cctx->cut - 1 <= scope->idx) {
             found = true;
             debug("variation of %s skipped (due to cut: up to scope idx=%ld)\n", predicate_name, cctx->cut);
+            if (LAURE_BACKTRACE) LAURE_BACKTRACE->cursor = backtrace_cursor;
             break;
         } else if (cctx->cut != 0 && cctx->cut - 1 > scope->idx) {
             debug("stop cutting on predicate %s\n", predicate_name);
             cctx->cut = 0;
+            if (LAURE_BACKTRACE) LAURE_BACKTRACE->cursor = backtrace_cursor;
         } else if (resp.state == q_true || resp.state == q_continue) {
             found = true;
+            if (LAURE_BACKTRACE) LAURE_BACKTRACE->cursor = backtrace_cursor;
             if (cut_case) break;
         } else if (resp.state == q_yield) {
             if (resp.payload == YIELD_OK) {
                 found = true;
+                if (LAURE_BACKTRACE) LAURE_BACKTRACE->cursor = backtrace_cursor;
                 if (cut_case) break;
             }
         }
