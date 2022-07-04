@@ -1771,12 +1771,17 @@ string predicate_repr(Instance *ins) {
             rs = img->header.resp->generic;
         }
         snprintf(respbuff, 64, " -> %s", rs);
+        uint remaining_length = 64 - strlen(respbuff);
         if (img->header.resp->t == td_generic) {
             uint n = img->header.response_nesting;
-            //! todo add overflow protection
             while (n > 0) {
+                if (n > 1 && remaining_length <= 4) {
+                    strcat(respbuff, "...");
+                    break;
+                }
                 strcat(respbuff, "[]");
                 n--;
+                remaining_length -= 2;
             }
         }
     } else

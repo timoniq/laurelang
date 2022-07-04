@@ -2,12 +2,26 @@ TARGET = laure
 SOURCES = src
 PREFIX = /usr/local
 WS_FLAGS = 
-CFLAGS = -I$(SOURCES) -I/usr/local/include -g $(LIBFLAG) -fPIC ${ADDFLAGS} ${WS_FLAGS} -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers
+CFLAGS = -I$(SOURCES) -Icompiler -I/usr/local/include -g $(LIBFLAG) -fPIC ${ADDFLAGS} ${WS_FLAGS} -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers
 LDFLAGS = -L/usr/local/lib -lreadline -lm -g -ldl
 
 .PHONY: all clean
 
-LIB = $(SOURCES)/parser.o $(SOURCES)/string.o $(SOURCES)/instance.o $(SOURCES)/query.o $(SOURCES)/session.o $(SOURCES)/scope.o $(SOURCES)/domain.o $(SOURCES)/bigint.o $(SOURCES)/builtin.o $(SOURCES)/predicates.o  $(SOURCES)/apply.o $(SOURCES)/error.o $(SOURCES)/backtrace.o $(SOURCES)/weight.o
+LIB = $(SOURCES)/parser.o \
+	  $(SOURCES)/string.o \
+	  $(SOURCES)/instance.o \
+	  $(SOURCES)/query.o \
+	  $(SOURCES)/session.o \
+	  $(SOURCES)/scope.o \
+	  $(SOURCES)/domain.o \
+	  $(SOURCES)/bigint.o \
+	  $(SOURCES)/builtin.o \
+	  $(SOURCES)/predicates.o  \
+	  $(SOURCES)/apply.o \
+	  $(SOURCES)/error.o \
+	  $(SOURCES)/backtrace.o \
+	  $(SOURCES)/weight.o
+
 OBJECTS = laure.o $(LIB)
 
 ifeq ($(DEBUG), true)
@@ -69,3 +83,5 @@ src/error.o: src/laurelang.h src/error.c
 src/backtrace.o: src/laurelang.h src/backtrace.c
 src/weight.o:
 	g++ src/weight.cpp -o src/weight.o -shared $(WS_FLAGS)
+
+compiler/$(fname).o: compiler/compiler.h $(SOURCES)/laurelang.h compiler/$(fname).c

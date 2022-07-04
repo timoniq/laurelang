@@ -1086,7 +1086,6 @@ laure_parse_result laure_parse(string query) {
             if (lastc(query) == '?') {
                 // force unify operation
                 string vn = strdup(query);
-                //! leak
                 lastc(vn) = 0;
                 if (!is_fine_name_for_var(vn)) {
                     free(vn);
