@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <signal.h>
+#include "compiler/compiler.h"
 
 #include <unistd.h>
 
@@ -451,6 +452,8 @@ string readline_wrapper() {
     return readline(DPROMPT);
 }
 
+int compiler_cli(int argc, char *argv[]);
+
 int main(int argc, char *argv[]) {
     signal(SIGINT, sigint_handler);
 
@@ -459,6 +462,10 @@ int main(int argc, char *argv[]) {
         printf("Pass knownledge base filenames to consult.\n");
         printf("Read documentation at %shttps://docs.laurelang.org%s\n", LAURUS_NOBILIS, NO_COLOR);
         exit(0);
+    }
+
+    if (argc >= 2 && str_eq(argv[1], "compile")) {
+        return compiler_cli(argc - 2, argv + 2);
     }
 
     for (int idx = 0; idx < argc; idx++) {

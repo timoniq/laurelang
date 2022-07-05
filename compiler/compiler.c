@@ -1,8 +1,6 @@
 // laurelang compiler
 // (c) Arseny Kriuchkov, 2022
 
-#pragma once
-
 #include "compiler.h"
 #include <limits.h>
 #include <memory.h>
@@ -11,19 +9,12 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include "../src/expr.h"
-
 typedef unsigned char ID;
-typedef enum {false, true} bool;
 
-string VARIABLE_IDS[CHAR_BIT];
-unsigned char VARIABLES_SIGNED = 0;
+Name VARIABLE_IDS[ID_MAX];
+uint VARIABLES_SIGNED = 0;
 
-typedef struct Bitstream {
-    FILE *stream;
-    unsigned char buf;
-    unsigned int idx;
-} Bitstream;
+uint ID_BITS = 0;
 
 bool get_bit(unsigned char byte, uint pos) {
     assert(pos >= 0 && pos <= 7);
@@ -65,15 +56,6 @@ Bitstream *bitstream_new(FILE *stream) {
     return bs;
 }
 
-bool bitstream_write_bit(Bitstream *bs, bool bit) {
-    if (bs->idx == CHAR_BIT && ! bitstream_flush(bs))
-        return false;
-    if (bit)
-        bs->buf |= (0x80 >> bs->idx);
-    bs->idx++;
-    return true;
-}
-
 bool bitstream_flush(Bitstream *bs) {
     if (bs->idx > 0) {
         if (fputc(bs->buf, bs->stream) == EOF)
@@ -84,20 +66,74 @@ bool bitstream_flush(Bitstream *bs) {
     return true;
 }
 
-unsigned char search_var(string var_name) {
-    for (unsigned char i = 0; i < VARIABLES_SIGNED; i++)
-        if (str_eq(VARIABLE_IDS[i], var_name))
-            return i;
-    // create an id
-    VARIABLE_IDS[VARIABLES_SIGNED++] = strdup(var_name);
-    return VARIABLES_SIGNED - 1;
+bool bitstream_write_bit(Bitstream *bs, bool bit) {
+    if (bs->idx == CHAR_BIT && ! bitstream_flush(bs))
+        return false;
+    if (bit)
+        bs->buf |= (0x80 >> bs->idx);
+    bs->idx++;
+    return true;
 }
 
-void compile_expression(
-    laure_expression_t *expr,
-    FILE *writable_stream
+Name get_name(ID id) {
+    return VARIABLE_IDS[id];
+}
+
+/*
+returns -1 if undefined
+else ID 
+*/
+int check_name_exists(string name) {
+    for (uint i = 0; i < VARIABLES_SIGNED; i++)
+        if (str_eq(VARIABLE_IDS[i].s, name))
+            return i;
+    return -1;
+}
+
+bool write_name_ID(Bitstream *bits, string var_name, bool flag) {
+    for (uint i = 0; i < VARIABLES_SIGNED; i++)
+        if (str_eq(VARIABLE_IDS[i].s, var_name)) {
+            write_count_bits_from_uint(bits, i, ID_BITS);
+            return true;
+        }
+    if (VARIABLES_SIGNED >= ID_MAX) {
+        printf("panic: too many variables created (cannot fit in ID_COUNT)\n");
+        return false;
+    }
+    // create an id
+    Name new_name;
+    new_name.s = strdup(var_name);
+    new_name.flag = flag;
+
+    VARIABLE_IDS[VARIABLES_SIGNED++] = new_name;
+    uint id = VARIABLES_SIGNED - 1;
+    write_count_bits_from_uint(bits, id, ID_BITS);
+    return true;
+}
+
+bool write_name(Bitstream *bits, string s) {
+    if (strlen(s) > CHAR_MAX) {
+        printf("panic: too long predicate name\n");
+        return false;
+    }
+    unsigned char length = (unsigned char) strlen(s);
+    write_bits(bits, length, CHAR_BIT);
+    for (unsigned char idx = 0; idx < length; idx++) {
+        write_bits(bits, s[idx], CHAR_BIT);
+    }
+    return true;
+}
+
+void init_settings() {
+    if (! ID_BITS)
+        ID_BITS = log2(ID_MAX);
+}
+
+bool compile_expression_with_bitstream(
+    laure_expression_t *expr, 
+    Bitstream *bits
 ) {
-    Bitstream *bits = bitstream_new(writable_stream);
+    init_settings();
     switch (expr->t) {
         case let_var: 
         case let_unify: {
@@ -105,17 +141,72 @@ void compile_expression(
                 write_header(bits, CH_var);
             } else if (expr->t == let_unify)
                 write_header(bits, CH_unify);
-            ID var_id = search_var(expr->s);
-            write_bits(bits, var_id, CHAR_BIT);
+            write_name_ID(bits, expr->s, false);
             if (expr->flag > 0) {
                 if (! check_uint_fit(expr->flag, COUNT_BITS_NESTING)) {
                     printf("panic: too big nesting\n");
-                    return;
+                    return false;
                 }
                 write_count_bits_from_uint(bits, expr->flag, COUNT_BITS_NESTING);
             }
             break;
         }
+        case let_pred:
+        case let_constraint: {
+            if (expr->is_header) {
+                if (expr->t == let_pred)
+                    write_header(bits, CH_preddeclHead);
+                else
+                    write_header(bits, CH_cnstrHead);
+                
+                // predicate name
+                write_name(bits, expr->s);
+                write_name_ID(bits, expr->s, expr->ba->has_resp);
+                // flag bits
+                bool is_primitive = PREDFLAG_IS_PRIMITIVE(expr->flag);
+                bool is_abstract_template = PREDFLAG_IS_TEMPLATE(expr->flag);
+                bool has_response = expr->ba->has_resp;
+                bitstream_write_bit(bits, is_primitive);
+                bitstream_write_bit(bits, is_abstract_template);
+                bitstream_write_bit(bits, has_response);
+                
+                // write linked expressions
+                laure_expression_t *ptr = 0;
+                EXPSET_ITER(expr->ba->set, ptr, {
+                    bool result = compile_expression_with_bitstream(ptr, bits);
+                    if (! result) return false;
+                });
+                write_header(bits, CH_endblock);
+                break;
+            } else {
+                int id = check_name_exists(expr->s);
+                if (id < 0) {
+                    printf("panic: header for predicate %s is undefined\n", expr->s);
+                    return false;
+                }
+                Name name = get_name((ID)id);
+                laure_expression_t *ptr = 0;
+                EXPSET_ITER(expr->ba->set, ptr, {
+                    bool result = compile_expression_with_bitstream(ptr, bits);
+                    if (! result) return false;
+                });
+                break;
+            }
+        }
+        default: break;
     }
-    bitstream_flush(bits);
+    return true;
+}
+
+bool laure_compile_expression(
+    laure_expression_t *expr,
+    FILE *writable_stream
+) {
+    Bitstream *bits = bitstream_new(writable_stream);
+    if (compile_expression_with_bitstream(expr, bits)) {
+        bitstream_flush(bits);
+        return true;
+    }
+    printf("compilation failure\n");
+    return false;
 }

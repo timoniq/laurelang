@@ -20,7 +20,9 @@ LIB = $(SOURCES)/parser.o \
 	  $(SOURCES)/apply.o \
 	  $(SOURCES)/error.o \
 	  $(SOURCES)/backtrace.o \
-	  $(SOURCES)/weight.o
+	  $(SOURCES)/weight.o \
+	  compiler/compiler.o \
+	  compiler/cli.o
 
 OBJECTS = laure.o $(LIB)
 
@@ -38,6 +40,8 @@ else
 endif
 
 all: $(TARGET)
+
+compiler/$(fname).o: compiler/compiler.h $(SOURCES)/laurelang.h compiler/$(fname).c
 
 $(TARGET): $(OBJECTS)
 	$(CC) -ldl -g -o $(TARGET) $(OBJECTS) $(LDFLAGS)
@@ -83,5 +87,3 @@ src/error.o: src/laurelang.h src/error.c
 src/backtrace.o: src/laurelang.h src/backtrace.c
 src/weight.o:
 	g++ src/weight.cpp -o src/weight.o -shared $(WS_FLAGS)
-
-compiler/$(fname).o: compiler/compiler.h $(SOURCES)/laurelang.h compiler/$(fname).c

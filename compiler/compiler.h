@@ -3,6 +3,11 @@
 
 #include "../src/laurelang.h"
 #include <limits.h>
+#pragma once 
+
+/* COMPILATION FLAGS
+*/
+extern void CF_NOPE;
 
 
 struct PredicateCompileData {
@@ -13,11 +18,12 @@ struct PredicateCompileData {
 
 // HEADER
 #define HEADER_BITS 5
+#define ID_MAX 128
 
 /* NAME DECLARATION
    1 byte - N length of name
    N bytes - name
-/*
+*/
 
 /* Case Declaration
    1 byte - Predicate ID
@@ -29,11 +35,10 @@ struct PredicateCompileData {
 
 /* Header Declaration
    {NAME DECLARATION}
-   ---
-   1 bit - flag (1 for eg in generic constraints)
+   1 byte - given ID
+   1 bit - is primitive
+   1 bit - is abstract template
    1 bit - R has resp
-   ... align ...
-   ---
    X+R exprs args before endblock
 */
 #define CH_preddeclHead 0x00010
@@ -127,5 +132,25 @@ struct PredicateCompileData {
 11111
 */
 
-extern string VARIABLE_IDS[CHAR_BIT];
-extern unsigned char VARIABLES_SIGNED;
+typedef struct Name {
+    string s;
+    bool flag;
+} Name;
+
+extern Name VARIABLE_IDS[ID_MAX];
+extern uint VARIABLES_SIGNED;
+
+typedef struct Bitstream {
+    FILE *stream;
+    unsigned char buf;
+    unsigned int idx;
+} Bitstream;
+
+Bitstream *bitstream_new(FILE *stream);
+bool bitstream_flush(Bitstream *bs);
+bool bitstream_write_bit(Bitstream *bs, bool bit);
+
+bool laure_compile_expression(
+    laure_expression_t *expr,
+    FILE *writable_stream
+);
