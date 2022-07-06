@@ -13,6 +13,7 @@ typedef unsigned char ID;
 
 Name VARIABLE_IDS[ID_MAX];
 uint VARIABLES_SIGNED = 0;
+unsigned char SIGNATURE[] = "laurelang";
 
 uint ID_BITS = 0;
 
@@ -73,6 +74,22 @@ bool bitstream_write_bit(Bitstream *bs, bool bit) {
         bs->buf |= (0x80 >> bs->idx);
     bs->idx++;
     return true;
+}
+
+bool bitstream_load_byte(Bitstream *bs) {
+    int byte = fgetc(bs->stream);
+    if (byte == EOF)
+        return false;
+    bs->buf = byte;
+    bs->idx = 0;
+    return true;
+}
+
+
+int bitstream_read_bit(Bitstream *bs) {
+    if (bs->idx == CHAR_BIT && ! bitstream_load_byte(bs))
+        return EOF;
+    return ((0x80 >> bs->idx++) & bs->buf) == 0 ? 0 : 1;
 }
 
 Name get_name(ID id) {
@@ -152,11 +169,45 @@ bool compile_expression_with_bitstream(
             break;
         }
         case let_set: {
-            if (expr->is_header && expr->ba->body_len == 1) {
-                expr = expr->ba->set->expression;
+            if (expr->is_header) {
+                laure_expression_t *ptr;
+                EXPSET_ITER(expr->ba->set, ptr, {
+                    ptr->is_header = true;
+                    bool result = compile_expression_with_bitstream(ptr, bits);
+                    if (! result) return false;
+                });
+                return true;
+            } else {
+                if (expr->flag) {
+                    // isolated set
+                    write_header(bits, CH_isol_start);
+                }
+                // append expressions
+                laure_expression_t *ptr;
+                EXPSET_ITER(expr->ba->set, ptr, {
+                    bool result = compile_expression_with_bitstream(ptr, bits);
+                    if (! result) return false;
+                });
+                if (expr->flag) {
+                    write_header(bits, CH_endblock);
+                }
+                return true;
             }
-            else
-                break;
+        }
+        case let_cut: {
+            write_header(bits, CH_cut);
+            break;
+        }
+        case let_pred_call: {
+            write_header(bits, CH_call);
+            write_name_ID(bits, expr->s, 0);
+            laure_expression_t *ptr;
+            EXPSET_ITER(expr->ba->set, ptr, {
+                bool result = compile_expression_with_bitstream(ptr, bits);
+                if (! result) return false;
+            });
+            write_header(bits, CH_endblock);
+            break;
         }
         case let_pred:
         case let_constraint: {
@@ -200,20 +251,76 @@ bool compile_expression_with_bitstream(
                 break;
             }
         }
-        default: break;
+        case let_image: {
+            laure_expression_t *expr1 = expr->ba->set->expression;
+            laure_expression_t *expr2 = expr->ba->set->next->expression;
+            if (expr1->t == let_var && expr2->t == let_var) {
+                write_header(bits, CH_img);
+                write_name_ID(bits, expr1->s, 0);
+                write_name_ID(bits, expr2->s, 0);
+                break;
+            } else {
+                write_header(bits, CH_imgNS);
+                bool result;
+                result = compile_expression_with_bitstream(expr1, bits);
+                if (! result) return false;
+                result = compile_expression_with_bitstream(expr2, bits);
+                return result;
+            }
+        }
+        case let_assert: {
+            laure_expression_t *expr1 = expr->ba->set->expression;
+            laure_expression_t *expr2 = expr->ba->set->next->expression;
+            if (expr1->t != let_var) {
+                printf("%spanic%s: assertion left value must be variable\n", RED_COLOR, NO_COLOR);
+                return false;
+            }
+            if (expr2->t == let_var) {
+                write_header(bits, CH_assertV2V);
+                write_name_ID(bits, expr1->s, 0);
+                write_name_ID(bits, expr2->s, 0);
+                break;
+            } else {
+                write_header(bits, CH_assertV2VAL);
+                write_name_ID(bits, expr1->s, 0);
+                return compile_expression_with_bitstream(expr2, bits);
+            }
+        }
+        case let_custom: {
+            write_header(bits, CH_data);
+            write_name(bits, expr->s);
+            break;
+        }
+        default: {
+            printf("%swarning%s: compiler has no instruction for %s expression (%s)\n", YELLOW_COLOR, NO_COLOR, EXPT_NAMES[expr->t], expr->fullstring);
+            break;
+        }
     }
     return true;
 }
 
-bool laure_compile_expression(
+void write_signature(FILE *file) {
+    assert(SIGNATURE_LENGTH <= strlen(SIGNATURE));
+    Bitstream *bits = bitstream_new(file);
+    for (uint i = 0; i < SIGNATURE_LENGTH; i++) {
+        write_bits(bits, SIGNATURE[i], SIGNATURE_CHARBITS);
+    }
+    bitstream_flush(bits);
+}
+
+bool laure_compiler_compile_expression(
     laure_expression_t *expr,
     FILE *writable_stream
 ) {
     Bitstream *bits = bitstream_new(writable_stream);
-    if (compile_expression_with_bitstream(expr, bits)) {
-        bitstream_flush(bits);
-        return true;
-    }
-    printf("     > compilation failure\n");
-    return false;
+    laure_expression_set *composed = laure_expression_compose_one(expr);
+    laure_expression_t *ptr;
+    EXPSET_ITER(composed, ptr, {
+        if (! compile_expression_with_bitstream(ptr, bits)) {
+            printf("     > compilation failure\n");
+            return false;
+        }
+    });
+    bitstream_flush(bits);
+    return true;
 }

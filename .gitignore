@@ -11,3 +11,4 @@ laurelanglib.o
 *.dSYM
 *.so
 examples/_*.le
+*.laurec

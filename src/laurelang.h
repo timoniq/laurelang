@@ -449,6 +449,17 @@ void laure_restore_transistions(laure_ws *ws, size_t to_sz);
 // math
 optimality_t laure_ws_soften(optimality_t o);
 
+/* Compiler
+*/
+
+bool laure_compiler_compile_expression(
+    laure_expression_t *expr,
+    FILE *writable_stream
+);
+
+void laure_consult_bytecode(laure_session_t *session, FILE *file);
+int laure_compiler_cli(laure_session_t *comp_session, int argc, char *argv[]);
+
 #endif
 
 #endif

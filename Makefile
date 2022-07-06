@@ -2,27 +2,28 @@ TARGET = laure
 SOURCES = src
 PREFIX = /usr/local
 WS_FLAGS = 
-CFLAGS = -I$(SOURCES) -Icompiler -I/usr/local/include -g $(LIBFLAG) -fPIC ${ADDFLAGS} ${WS_FLAGS} -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers
+CFLAGS = -Isrc -Icompiler -I/usr/local/include -g $(LIBFLAG) -fPIC ${ADDFLAGS} ${WS_FLAGS} -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers
 LDFLAGS = -L/usr/local/lib -lreadline -lm -g -ldl
 
 .PHONY: all clean
 
-LIB = $(SOURCES)/parser.o \
-	  $(SOURCES)/string.o \
-	  $(SOURCES)/instance.o \
-	  $(SOURCES)/query.o \
-	  $(SOURCES)/session.o \
-	  $(SOURCES)/scope.o \
-	  $(SOURCES)/domain.o \
-	  $(SOURCES)/bigint.o \
-	  $(SOURCES)/builtin.o \
-	  $(SOURCES)/predicates.o  \
-	  $(SOURCES)/apply.o \
-	  $(SOURCES)/error.o \
-	  $(SOURCES)/backtrace.o \
-	  $(SOURCES)/weight.o \
+LIB = src/parser.o \
+	  src/string.o \
+	  src/instance.o \
+	  src/query.o \
+	  src/session.o \
+	  src/scope.o \
+	  src/domain.o \
+	  src/bigint.o \
+	  src/builtin.o \
+	  src/predicates.o  \
+	  src/apply.o \
+	  src/error.o \
+	  src/backtrace.o \
+	  src/weight.o \
 	  compiler/compiler.o \
-	  compiler/cli.o
+	  compiler/cli.o \
+	  compiler/runtime.o
 
 OBJECTS = laure.o $(LIB)
 
@@ -41,7 +42,7 @@ endif
 
 all: $(TARGET)
 
-compiler/$(fname).o: compiler/compiler.h $(SOURCES)/laurelang.h compiler/$(fname).c
+compiler/$(fname).o: compiler/compiler.h src/laurelang.h compiler/$(fname).c
 
 $(TARGET): $(OBJECTS)
 	$(CC) -ldl -g -o $(TARGET) $(OBJECTS) $(LDFLAGS)
@@ -51,7 +52,7 @@ packages: $(LIB)
 	python3 utility/build_pkg.py
 
 clean:
-	rm -f $(TARGET) *.o $(SOURCES)/*.o *.so lib/*.so lib/*/*.so lib/*/src/*.o
+	rm -f $(TARGET) *.o src/*.o *.so lib/*.so lib/*/*.so lib/*/src/*.o compiler/*.o
 	find . -name "*.dSYM" -prune -exec rm -rf {} \;
 
 test:

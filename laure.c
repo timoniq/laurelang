@@ -39,7 +39,9 @@ const struct laure_flag flags[] = {
     {8, "-D", "Add dyn flag. Format var=value", true},
     {9, "-nomain", "Do not run main predicate", false},
     {10, "--ignore", "Ignore consultation failures", false},
-    {11, "-ws", "Enable weighted search", false}
+    {11, "-ws", "Enable weighted search", false},
+    {12, "-b", "Consult bytecode", true},
+    {12, "-bytecode", "Consult bytecode", true}
 };
 
 struct cmd_info {
@@ -82,6 +84,8 @@ string                  INTERPRETER_PATH = NULL;
 struct filename_linked *FILENAMES = NULL;
 char                   _PATH[PATH_MAX] = {0};
 char                    DPROMPT[32] = PROMPT;
+FILE                   *BYTECODE[32] = {0};
+uint                    BYTECODE_N   = 0;
 
 typedef struct {
     int argc;
@@ -452,7 +456,7 @@ string readline_wrapper() {
     return readline(DPROMPT);
 }
 
-int compiler_cli(laure_session_t *comp_session, int argc, char *argv[]);
+int laure_compiler_cli(laure_session_t *comp_session, int argc, char *argv[]);
 
 int main(int argc, char *argv[]) {
     signal(SIGINT, sigint_handler);
@@ -468,7 +472,7 @@ int main(int argc, char *argv[]) {
         laure_session_t comp_session[1];
         comp_session->scope = NULL;
         memset(comp_session->_included_filepaths, 0, included_fp_max * sizeof(void*));
-        return compiler_cli(comp_session, argc - 2, argv + 2);
+        return laure_compiler_cli(comp_session, argc - 2, argv + 2);
     }
 
     for (int idx = 0; idx < argc; idx++) {
@@ -552,6 +556,16 @@ int main(int argc, char *argv[]) {
                     #endif
                     break;
                 }
+                case 12: {
+                    FILE *file = fopen(word, "rb");
+                    if (! file) {
+                        printf("%sFile (bytecode) %s is undefined%s\n", RED_COLOR, word, NO_COLOR);
+                        break;
+                    }
+                    BYTECODE[BYTECODE_N] = file;
+                    BYTECODE_N++;
+                    break;
+                }
             }}}
 
             if (!found)
@@ -574,6 +588,18 @@ int main(int argc, char *argv[]) {
     laure_set_translators();
     laure_init_name_buffs();
     laure_register_builtins(session);
+
+    if (BYTECODE_N) {
+        debug("%d bytecode source(s) should be loaded\n", BYTECODE_N);
+        for (uint i = 0; i < BYTECODE_N; i++) {
+            FILE *file = BYTECODE[i];
+            if (file) {
+                laure_consult_bytecode(session, file);
+                fclose(file);
+            }
+        }
+        debug("bytecode sources successfully loaded\n");
+    }
 
     if (! FLAG_CLEAN) {
         string lp = FLAG_LIBRARY ? FLAG_LIBRARY : lib_path;

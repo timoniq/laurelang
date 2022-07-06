@@ -45,10 +45,8 @@ struct PredicateCompileData {
 #define CH_cnstrHead    0x00100
 
 /* Call
-   1 bit - known K
-   if !K
-       {NAME DECLARATION}
-    X exprs of arguments before endblock
+   1 byte - ID
+   X exprs of arguments before endblock
 */
 #define CH_call         0x01000
 
@@ -56,7 +54,7 @@ struct PredicateCompileData {
 /* Assert to value
    1 byte - variable ID
    1 byte - value length L
-   L bytes - value
+   1 expression (value)
 */
 #define CH_assertV2VAL  0x10000
 
@@ -72,20 +70,10 @@ struct PredicateCompileData {
 */
 #define CH_img          0x00101
 
-/* Image + Assert to value
-   1 byte - variable ID
-   1 byte - variable to im ID
-   1 byte value length L
-   L bytes - value
+/* Image variable non standart
+   2 expressions (1 ~ 2)
 */
-#define CH_img_asrt2VAL 0x00110
-
-/* Image + Assert to variable
-   1 byte variable ID
-   1 byte variable to image ID
-   1 byte variable to assert ID
-*/
-#define CH_img_asrt2V   0x01001
+#define CH_imgNS        0x00110
 
 /* Use/useso command
    {NAME DECLARATION}
@@ -126,8 +114,18 @@ struct PredicateCompileData {
 */
 #define CH_give_id      0x10101
 
+/* Expression set isolated
+   N expressions until ENDBLOCK
+*/
+#define CH_isol_start   0x10101
+
+/* DATA (expression let_custom)
+   {SIMILAR TO NAME DECLARATION}
+*/
+#define CH_data         0x01001
+
 /*
-10101 10110 11001 11010 11100 
+10110 11001 11010 11100 
 01111 10111 11011 11101 11110 
 11111
 */
@@ -149,8 +147,22 @@ typedef struct Bitstream {
 Bitstream *bitstream_new(FILE *stream);
 bool bitstream_flush(Bitstream *bs);
 bool bitstream_write_bit(Bitstream *bs, bool bit);
+int  bitstream_read_bit(Bitstream *bs);
+bool bitstream_load_byte(Bitstream *bs);
 
-bool laure_compile_expression(
+bool laure_compiler_compile_expression(
     laure_expression_t *expr,
     FILE *writable_stream
 );
+
+void laure_compiler_consult_bytecode(Bitstream *bits);
+void laure_consult_bytecode(laure_session_t *session, FILE *file);
+int laure_compiler_cli(laure_session_t *comp_session, int argc, char *argv[]);
+
+// SIGNATURE
+extern unsigned char SIGNATURE[];
+
+#define SIGNATURE_CHARBITS 4
+#define SIGNATURE_LENGTH   9
+
+void write_signature(FILE *file);

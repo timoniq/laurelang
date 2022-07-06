@@ -430,7 +430,10 @@ void laure_scope_free(laure_scope_t *scope) {
 #endif
 
 ulong laure_scope_generate_link() {
-    assert(LAURE_LINK_ID);
+    if (! LAURE_LINK_ID) {
+        LAURE_LINK_ID = malloc(sizeof(ulong));
+        *LAURE_LINK_ID = (unsigned long)1;
+    }
     ulong link = *LAURE_LINK_ID;
     *LAURE_LINK_ID = *LAURE_LINK_ID + 1;
     return link;
