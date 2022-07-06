@@ -346,9 +346,21 @@ string laure_get_contn();
 /* =-----------=
    Consulting
 =-----------= */
-typedef struct apply_result apply_result_t;
+typedef enum apply_status {
+    apply_error,
+    apply_ok
+} apply_status_t;
+
+typedef struct apply_result {
+    apply_status_t status;
+    char *error;
+} apply_result_t;
+
+#define LAURE_FACT_REC(name) apply_result_t (*name)(laure_session_t *session, string fact)
 
 void laure_consult_recursive(laure_session_t *session, string path, int *failed);
+void laure_consult_recursive_with_receiver(laure_session_t *session, string path, int *failed, LAURE_FACT_REC(rec));
+
 apply_result_t laure_apply(laure_session_t *session, string fact);
 apply_result_t laure_consult_predicate(
     laure_session_t *session, 

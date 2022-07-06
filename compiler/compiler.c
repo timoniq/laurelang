@@ -97,7 +97,7 @@ bool write_name_ID(Bitstream *bits, string var_name, bool flag) {
             return true;
         }
     if (VARIABLES_SIGNED >= ID_MAX) {
-        printf("panic: too many variables created (cannot fit in ID_COUNT)\n");
+        printf("%spanic%s: too many variables created (cannot fit in ID_COUNT)\n", RED_COLOR, NO_COLOR);
         return false;
     }
     // create an id
@@ -113,7 +113,7 @@ bool write_name_ID(Bitstream *bits, string var_name, bool flag) {
 
 bool write_name(Bitstream *bits, string s) {
     if (strlen(s) > CHAR_MAX) {
-        printf("panic: too long predicate name\n");
+        printf("%spanic%s: too long predicate name\n", RED_COLOR, NO_COLOR);
         return false;
     }
     unsigned char length = (unsigned char) strlen(s);
@@ -144,12 +144,19 @@ bool compile_expression_with_bitstream(
             write_name_ID(bits, expr->s, false);
             if (expr->flag > 0) {
                 if (! check_uint_fit(expr->flag, COUNT_BITS_NESTING)) {
-                    printf("panic: too big nesting\n");
+                    printf("%spanic%s: too big nesting\n", RED_COLOR, NO_COLOR);
                     return false;
                 }
                 write_count_bits_from_uint(bits, expr->flag, COUNT_BITS_NESTING);
             }
             break;
+        }
+        case let_set: {
+            if (expr->is_header && expr->ba->body_len == 1) {
+                expr = expr->ba->set->expression;
+            }
+            else
+                break;
         }
         case let_pred:
         case let_constraint: {
@@ -181,7 +188,7 @@ bool compile_expression_with_bitstream(
             } else {
                 int id = check_name_exists(expr->s);
                 if (id < 0) {
-                    printf("panic: header for predicate %s is undefined\n", expr->s);
+                    printf("%spanic%s: header for predicate %s is undefined\n", RED_COLOR, NO_COLOR, expr->s);
                     return false;
                 }
                 Name name = get_name((ID)id);
@@ -207,6 +214,6 @@ bool laure_compile_expression(
         bitstream_flush(bits);
         return true;
     }
-    printf("compilation failure\n");
+    printf("     > compilation failure\n");
     return false;
 }

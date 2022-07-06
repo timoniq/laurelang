@@ -452,7 +452,7 @@ string readline_wrapper() {
     return readline(DPROMPT);
 }
 
-int compiler_cli(int argc, char *argv[]);
+int compiler_cli(laure_session_t *comp_session, int argc, char *argv[]);
 
 int main(int argc, char *argv[]) {
     signal(SIGINT, sigint_handler);
@@ -465,7 +465,10 @@ int main(int argc, char *argv[]) {
     }
 
     if (argc >= 2 && str_eq(argv[1], "compile")) {
-        return compiler_cli(argc - 2, argv + 2);
+        laure_session_t comp_session[1];
+        comp_session->scope = NULL;
+        memset(comp_session->_included_filepaths, 0, included_fp_max * sizeof(void*));
+        return compiler_cli(comp_session, argc - 2, argv + 2);
     }
 
     for (int idx = 0; idx < argc; idx++) {

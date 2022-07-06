@@ -354,7 +354,13 @@ int laure_init_structures(laure_session_t *session) {
     return 1;
 }
 
-string consult_single(laure_session_t *session, string fname, FILE *file, bool *failed) {
+string consult_single(
+    laure_session_t *session, 
+    string fname, 
+    FILE *file, 
+    bool *failed,
+    LAURE_FACT_REC(fact_receiver)
+) {
     void **ifp = (void**)session->_included_filepaths;
 
     while (ifp[0]) {
@@ -445,7 +451,7 @@ string consult_single(laure_session_t *session, string fname, FILE *file, bool *
         }
 
         if (str_starts(line, "//")) {
-            laure_apply(session, line);
+            fact_receiver(session, line);
             continue;
         }
 
@@ -457,8 +463,10 @@ string consult_single(laure_session_t *session, string fname, FILE *file, bool *
             string line_ = strdup(line);
             string o = LAURE_CURRENT_ADDRESS;
             LAURE_CURRENT_ADDRESS = fname;
-            apply_result_t result = laure_apply(session, line_);
+            apply_result_t result = fact_receiver(session, line_);
             if (result.status == apply_error) {
+                *failed = 0;
+                return 0;
                 // printf("Error:\n  %s\n    %s%s%s\n", line_, RED_COLOR, result.error, NO_COLOR);
             }
             LAURE_CURRENT_ADDRESS = o;
@@ -472,9 +480,13 @@ string consult_single(laure_session_t *session, string fname, FILE *file, bool *
     return NULL;
 }
 
-void laure_consult_recursive(laure_session_t *session, string path, int *failed) {
+void laure_consult_recursive_with_receiver(laure_session_t *session, string path, int *failed, LAURE_FACT_REC(rec)) {
     string next = path;
     while (next) {
-        next =  consult_single(session, next, fopen(next, "r"), (bool*)failed);
+        next = consult_single(session, next, fopen(next, "r"), (bool*)failed, rec);
     }
+}
+
+void laure_consult_recursive(laure_session_t *session, string path, int *failed) {
+    laure_consult_recursive_with_receiver(session, path, failed, laure_apply);
 }

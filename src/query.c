@@ -1942,6 +1942,7 @@ qresp laure_eval_command(_laure_eval_sub_args) {
 }
 
 control_ctx *control_new(laure_session_t *session, laure_scope_t* scope, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig) {
+    if (! scope) return NULL;
     control_ctx *cctx = malloc(sizeof(control_ctx));
     cctx->session = session;
     cctx->scope = scope;

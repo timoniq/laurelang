@@ -59,16 +59,6 @@ struct BuiltinPredHint {
     char *resp_type; // resp type name (NULL if no resp), "_" means no typehint
 };
 
-typedef enum apply_status {
-    apply_error,
-    apply_ok
-} apply_status_t;
-
-typedef struct apply_result {
-    apply_status_t status;
-    char *error;
-} apply_result_t;
-
 typedef void (*single_proc)(laure_scope_t*, char*, void*);
 typedef bool (*sender_rec)(char*, void*);
 
