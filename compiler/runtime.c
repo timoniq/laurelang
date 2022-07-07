@@ -118,6 +118,11 @@ consultS read_until_endblock(laure_session_t *session, Bitstream *bits, laure_ex
     consultS status;
     uint i = 0;
     while (true) {
+        laure_expression_t expr[1];
+        status = consult_expression(session, bits, set_expr, expr);
+        if (status != consult_fine) {
+            return status;
+        }
         if (i != 0) {
             laure_expression_set new_set[1];
             new_set->expression = 0;
@@ -126,10 +131,6 @@ consultS read_until_endblock(laure_session_t *session, Bitstream *bits, laure_ex
             set->next = new_set;
             set = set->next;
         }
-
-        laure_expression_t expr[1];
-        status = consult_expression(session, bits, set_expr, expr);
-        if (status != consult_fine) return status;
         set->expression = expr;
         i++;
     }

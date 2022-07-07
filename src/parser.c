@@ -117,7 +117,7 @@ uint laure_expression_get_count(laure_expression_set *root) {
     if (!root) return 0;
 
     uint count = 0;
-    while (root) {
+    while (root && root->expression) {
         count++;
         root = root->next;
     }

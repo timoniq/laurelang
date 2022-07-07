@@ -260,17 +260,26 @@ bool compile_expression_with_bitstream(
                 write_header(bits, CH_endblock);
                 break;
             } else {
+                write_header(bits, CH_preddecl);
                 int id = check_name_exists(expr->s);
                 if (id < 0) {
                     printf("%spanic%s: header for predicate %s is undefined\n", RED_COLOR, NO_COLOR, expr->s);
                     return false;
                 }
+                write_name_ID(bits, expr->s, false);
                 Name name = get_name((ID)id);
                 laure_expression_t *ptr = 0;
+                uint args_len = laure_expression_get_count(expr->ba->set) - expr->ba->body_len;
+                if (expr->ba->has_resp) args_len--;
+
+                uint i = 0;
                 EXPSET_ITER(expr->ba->set, ptr, {
+                    i++;
+                    if (i == args_len) write_header(bits, CH_endblock);
                     bool result = compile_expression_with_bitstream(ptr, bits);
                     if (! result) return false;
                 });
+                write_header(bits, CH_endblock);
                 break;
             }
         }
