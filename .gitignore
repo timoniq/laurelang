@@ -12,3 +12,4 @@ laurelanglib.o
 *.so
 examples/_*.le
 *.laurec
+*.lc

@@ -60,8 +60,7 @@ typedef unsigned char H;
 
 /* Assert to value
    1 byte - variable ID
-   1 byte - value length L
-   1 expression (value)
+   {SIMILAR TO NAME DECLARATION}
 */
 #define CH_assertV2VAL  4
 
@@ -71,7 +70,7 @@ typedef unsigned char H;
 */
 #define CH_assertV2V    5
 
-/* Image variable
+/* Image variable (standart variable ~ variable)
    1 byte - variable1 ID
    1 byte - variable2 ID
 */
@@ -106,7 +105,7 @@ typedef unsigned char H;
 /* Variable / unify / nested var
    1 byte - variable ID
    if nestedvar:
-      3 bits nesting
+      COUNT_BITS_NESTING bits nesting
 */
 #define COUNT_BITS_NESTING 3
 #define CH_var          15

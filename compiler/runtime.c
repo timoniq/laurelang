@@ -5,6 +5,8 @@
 
 control_ctx *CONTEXT = 0;
 
+bool HAS_RESP[ID_MAX];
+
 bool get_bit(unsigned char byte, uint pos);
 
 bool read_bits(Bitstream *bits, uint count, bool *buf) {
@@ -82,9 +84,24 @@ typedef enum consultS {
 #define CONSULT_EXP_REC(name) \
         bool (*name)(laure_expression_t *expr, void *payload)
 
+consultS consult_expression(
+    laure_session_t *session, 
+    Bitstream *bits,
+    CONSULT_EXP_REC(rec),
+    void *external_payload
+);
+
 bool set_appender(laure_expression_t *expr, laure_expression_set *set) {
+    while (set->next) {
+        set = set->next;
+    }
     set->expression = expr;
     set->next = 0;
+    return true;
+}
+
+bool set_expr(laure_expression_t *exp, laure_expression_t *ptr) {
+    *ptr = *exp;
     return true;
 }
 
@@ -95,6 +112,30 @@ unsigned char read_uchar(Bitstream *bits) {
     unsigned char c = bitset_uchar(byte);
     return c;
 }
+
+
+consultS read_until_endblock(laure_session_t *session, Bitstream *bits, laure_expression_set *set) {
+    consultS status;
+    uint i = 0;
+    while (true) {
+        if (i != 0) {
+            laure_expression_set new_set[1];
+            new_set->expression = 0;
+            new_set->next = 0;
+
+            set->next = new_set;
+            set = set->next;
+        }
+
+        laure_expression_t expr[1];
+        status = consult_expression(session, bits, set_expr, expr);
+        if (status != consult_fine) return status;
+        set->expression = expr;
+        i++;
+    }
+    return consult_fine;
+}
+
 
 string read_name(Bitstream *bits) {
     bool length_byte[8];
@@ -116,16 +157,144 @@ consultS consult_expression(
     CONSULT_EXP_REC(rec),
     void *external_payload
 ) {
-    align(bits);
     bool header[HEADER_BITS];
     bool can_read = read_bits(bits, HEADER_BITS, header);
     if (! can_read) return consult_stoperr;
     int h = bitset_toint(header, HEADER_BITS);
+
+    laure_expression_t expr[1];
+    expr->flag = 0;
+    expr->docstring = 0;
+    expr->fullstring = 0;
+    expr->is_header = 0;
+    expr->link = 0;
+    expr->s = 0;
+    expr->ba = 0;
+    expr->flag2 = 0;
     
-    printf("%d\n", h);
     switch (h) {
         case CH_endblock: {
             return consult_endblock;
+        }
+        case CH_var: 
+        case CH_nestedvar:
+        case CH_unify: {
+            if (h == CH_var || h == CH_nestedvar)
+                expr->t = let_var;
+            else expr->t = let_unify;
+
+            ID id = read_uchar(bits);
+            expr->flag2 = id;
+            if (h == CH_nestedvar) {
+                bool nesting_bits[COUNT_BITS_NESTING];
+                bool can_read = read_bits(bits, COUNT_BITS_NESTING, nesting_bits);
+                if (! can_read) {
+                    printf("panic: can't read nesting\n");
+                    return consult_stoperr;
+                }
+                int nesting = bitset_toint(nesting_bits, COUNT_BITS_NESTING);
+                expr->flag = nesting;
+            }
+            break;
+        }
+        case CH_cut: {
+            expr->t = let_cut;
+            break;
+        }
+        case CH_isol_start: {
+            laure_expression_set set[1];
+            set->expression = 0;
+            set->next = 0;
+
+            consultS status;
+            while ((status = consult_expression(session, bits, set_appender, set)) == consult_fine) {
+            }
+            if (status == consult_fine) {
+                printf("%swarning%s: endblock was undefined while reading expressions in isolated set", RED_COLOR, NO_COLOR);
+            } else if (status == consult_stoperr) {
+                return consult_stoperr;
+            }
+
+            laure_expression_compact_bodyargs ba[1];
+            ba->body_len = laure_expression_get_count(set);
+            ba->has_resp = 0;
+            ba->set = set;
+
+            expr->t = let_set;
+            expr->flag = 1;
+            expr->ba = ba;
+            break;
+        }
+        case CH_assertV2V:
+        case CH_img: {
+            if (h == CH_assertV2V) expr->t = let_assert;
+            else expr->t = let_image;
+
+            ID lid = read_uchar(bits);
+            ID rid = read_uchar(bits);
+            
+            laure_expression_t left[1];
+            laure_expression_t right[1];
+            memset(left, 0, sizeof(laure_expression_t));
+            memset(right, 0, sizeof(laure_expression_t));
+
+            left->t = let_var;
+            right->t = let_var;
+            left->flag2 = lid;
+            right->flag2 = rid;
+
+            laure_expression_set set2[1];
+            set2->expression = right;
+            set2->next = 0;
+            
+            laure_expression_set set[1];
+            set->expression = left;
+            set->next = set2;
+
+            laure_expression_compact_bodyargs ba[1];
+            ba->body_len = laure_expression_get_count(set);
+            ba->has_resp = 0;
+            ba->set = set;
+            
+            expr->ba = ba;
+            break;
+        }
+        case CH_assertV2VAL: {
+            ID id = read_uchar(bits);
+            string s = read_name(bits);
+
+            laure_expression_t var[1];
+            memset(var, 0, sizeof(laure_expression_t));
+            var->t = let_var;
+            var->flag2 = id;
+
+            laure_expression_t value[1];
+            memset(value, 0, sizeof(laure_expression_t));
+            value->t = let_custom;
+            value->s = s;
+
+            laure_expression_set set2[1];
+            set2->expression = var;
+            set2->next = 0;
+            
+            laure_expression_set set[1];
+            set->expression = value;
+            set->next = set2;
+            
+            laure_expression_compact_bodyargs ba[1];
+            ba->body_len = laure_expression_get_count(set);
+            ba->has_resp = 0;
+            ba->set = set;
+
+            expr->t = let_assert;
+            expr->ba = ba;
+            break;
+        }
+        case CH_data: {
+            string value = read_name(bits);
+            expr->t = let_custom;
+            expr->s = value;
+            break;
         }
         case CH_preddeclHead: 
         case CH_cnstrHead: {
@@ -136,12 +305,14 @@ consultS consult_expression(
 
             int is_abc_template = bitstream_read_bit(bits);
             int has_resp = bitstream_read_bit(bits);
+
+            HAS_RESP[id] = (bool)has_resp;
             
             laure_expression_set set[1];
             set->expression = 0;
             set->next = 0;
-            consultS status;
-            while ((status = consult_expression(session, bits, set_appender, set)) == consult_fine) {}
+
+            consultS status = read_until_endblock(session, bits, set);
             if (status == consult_fine) {
                 // endblock is undefined
                 printf("%swarning%s: endblock was undefined while reading expressions in header", RED_COLOR, NO_COLOR);
@@ -170,10 +341,54 @@ consultS consult_expression(
             
             bool is_ok = rec(predicate_expr, external_payload);
             if (! is_ok) return consult_stoperr;
+            return consult_fine;
+        }
+        case CH_preddecl: {
+            // predicate case
+            ID id = read_uchar(bits);
+
+            laure_expression_set args[1];
+            args->expression = 0;
+            args->next = 0;
+            
+            consultS status = read_until_endblock(session, bits, args);
+            if (status == consult_fine) {
+                // endblock is undefined
+                printf("%swarning%s: endblock was undefined while reading expressions in args of predicate case", RED_COLOR, NO_COLOR);
+            } else if (status == consult_stoperr) {
+                // error occured
+                return consult_stoperr;
+            }
+
+            bool has_resp = HAS_RESP[id];
+
+            if (HAS_RESP[id]) {
+                laure_expression_t resp[1];
+                consultS status = consult_expression(session, bits, set_expr, resp);
+                if (status != consult_fine) return status;
+                laure_expression_set last_set[1];
+                *last_set = *args;
+                while (last_set->next) *last_set = *last_set->next; // ?
+                last_set->expression = resp;
+            }
+
+            laure_expression_set body[1];
+            body->expression = 0;
+            body->next = 0;
+
+            status = read_until_endblock(session, bits, body);
+            if (status != consult_fine) return status;
+
+            // merge sets
+            laure_expression_set *linked = laure_expression_set_link_branch(args, body);
+            expr->flag2 = id;
+            expr->ba = linked;
             break;
         }
         default: break;
     }
+    bool is_ok = rec(expr, external_payload);
+    if (! is_ok) return consult_stoperr;
     return consult_fine;
 }
 
@@ -211,5 +426,12 @@ void laure_compiler_consult_bytecode(laure_session_t *session, Bitstream *bits) 
     CONTEXT = control_new(session, session->scope, 0, 0, 0, true);
 
     // CONSULTING EXPRESSIONS
-    while (consult_expression(session, bits, evaluator, 0) == consult_fine) {}
+    consultS status;
+    align(bits);
+    while ((status = consult_expression(session, bits, evaluator, 0)) == consult_fine) {
+        align(bits);
+    }
+    if (status == consult_stoperr) {
+        printf("fatal: error occured\n");
+    }
 }
