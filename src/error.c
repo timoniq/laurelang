@@ -70,7 +70,7 @@ void laure_error_write(
     string buff, 
     size_t buff_sz
 ) {
-    uint lnpos = err->reason->linepos > 127 ? 127 : err->reason->linepos;
+    uint lnpos = err->reason->flag2 > 127 ? 127 : err->reason->flag2;
     char place_pointer[128];
     memset(place_pointer, ' ', 128);
     place_pointer[lnpos] = 0;

@@ -9,8 +9,6 @@
 #include <math.h>
 #include <stdlib.h>
 
-typedef unsigned char ID;
-
 Name VARIABLE_IDS[ID_MAX];
 uint VARIABLES_SIGNED = 0;
 unsigned char SIGNATURE[] = "laurelang";
@@ -22,9 +20,33 @@ bool get_bit(unsigned char byte, uint pos) {
     return (byte >> pos) & 0x1;
 }
 
-void write_header(Bitstream *bs, unsigned char header) {
-    for (uint i = 0; i < HEADER_BITS; i++)
-        bitstream_write_bit(bs, get_bit(header, i));
+void bits_inc(bool bits[], uint n) {
+    for (uint i = 0; i < n; i++) {
+        uint j = n - i - 1;
+        if (! bits[j]) {
+            bits[j] = 1;
+            for (uint k = j + 1; k < n; k++)
+                bits[k] = 0;
+            break;
+        }
+    }
+}
+
+void calc_bits(int value, bool bits[], uint n) {
+    memset(bits, 0, sizeof(bool) * n);
+    while (value > 0) {
+        bits_inc(bits, n);
+        value--;
+    }
+}
+
+void write_header(Bitstream *bs, int header) {
+    bool bits[HEADER_BITS];
+    calc_bits(header, bits, HEADER_BITS);
+    for (uint i = 0; i < HEADER_BITS; i++) {
+        bool bit = bits[i];
+        bitstream_write_bit(bs, bit);
+    }
 }
 
 bool check_uint_fit(uint i, uint count_bits) {
@@ -36,11 +58,13 @@ void write_count_bits_from_uint(Bitstream *bs, uint integer, uint count_bits) {
     assert(integer <= pow(2, count_bits));
     assert(integer <= CHAR_MAX);
 
-    unsigned char byte = (unsigned char)integer;
+    bool bits[64]; // max
+    calc_bits(integer, bits, count_bits);
+
     for (uint i = 0; i < count_bits; i++) {
-        uint pos = CHAR_BIT - i - 1;
-        bitstream_write_bit(bs, get_bit(byte, pos));
-    } 
+        bool bit = bits[i];
+        bitstream_write_bit(bs, bit);
+    }
 }
 
 void write_bits(Bitstream *bs, unsigned char byte, uint count) {
@@ -119,7 +143,7 @@ bool write_name_ID(Bitstream *bits, string var_name, bool flag) {
     }
     // create an id
     Name new_name;
-    new_name.s = strdup(var_name);
+    new_name.s    = strdup(var_name);
     new_name.flag = flag;
 
     VARIABLE_IDS[VARIABLES_SIGNED++] = new_name;
@@ -220,11 +244,10 @@ bool compile_expression_with_bitstream(
                 // predicate name
                 write_name(bits, expr->s);
                 write_name_ID(bits, expr->s, expr->ba->has_resp);
+
                 // flag bits
-                bool is_primitive = PREDFLAG_IS_PRIMITIVE(expr->flag);
                 bool is_abstract_template = PREDFLAG_IS_TEMPLATE(expr->flag);
                 bool has_response = expr->ba->has_resp;
-                bitstream_write_bit(bits, is_primitive);
                 bitstream_write_bit(bits, is_abstract_template);
                 bitstream_write_bit(bits, has_response);
                 
@@ -289,6 +312,21 @@ bool compile_expression_with_bitstream(
         case let_custom: {
             write_header(bits, CH_data);
             write_name(bits, expr->s);
+            break;
+        }
+        case let_imply: {
+            write_header(bits, CH_implication);
+            laure_expression_t *ptr;
+            EXPSET_ITER(expr->ba->set->expression->ba->set, ptr, {
+                bool result = compile_expression_with_bitstream(ptr, bits);
+                if (! result) return false;
+            });
+            write_header(bits, CH_endblock);
+            EXPSET_ITER(expr->ba->set->next, ptr, {
+                bool result = compile_expression_with_bitstream(ptr, bits);
+                if (! result) return false;
+            });
+            write_header(bits, CH_endblock);
             break;
         }
         default: {

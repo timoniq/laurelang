@@ -32,7 +32,7 @@ apply_result_t compiler_fact_receiver(laure_session_t *comp_session, string fact
 
 void laure_consult_bytecode(laure_session_t *session, FILE *file) {
     Bitstream *bits = bitstream_new(file);
-    laure_compiler_consult_bytecode(bits);
+    laure_compiler_consult_bytecode(session, bits);
     free(bits);
 }
 

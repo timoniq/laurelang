@@ -593,12 +593,13 @@ int main(int argc, char *argv[]) {
         debug("%d bytecode source(s) should be loaded\n", BYTECODE_N);
         for (uint i = 0; i < BYTECODE_N; i++) {
             FILE *file = BYTECODE[i];
+            debug("loading source n %d\n", i);
             if (file) {
                 laure_consult_bytecode(session, file);
                 fclose(file);
             }
         }
-        debug("bytecode sources successfully loaded\n");
+        printf("  %sBytecode Sources%s: consulted\n", GREEN_COLOR, NO_COLOR);
     }
 
     if (! FLAG_CLEAN) {

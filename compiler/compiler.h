@@ -2,6 +2,7 @@
 // (c) Arseny Kriuchkov, 2022
 
 #include "../src/laurelang.h"
+#include "../src/predpub.h"
 #include <limits.h>
 #pragma once 
 
@@ -16,9 +17,16 @@ struct PredicateCompileData {
     uint argument_number;
 };
 
+typedef unsigned char ID;
+typedef unsigned char H;
+
 // HEADER
 #define HEADER_BITS 5
-#define ID_MAX 128
+
+#ifndef ID_MAX
+// not greater than 256
+#define ID_MAX 256
+#endif
 
 /* NAME DECLARATION
    1 byte - N length of name
@@ -31,24 +39,23 @@ struct PredicateCompileData {
    1 expr of response if R
    Y exprs before endblock: Body
 */
-#define CH_preddecl     0x00001
+#define CH_preddecl     0
 
 /* Header Declaration
    {NAME DECLARATION}
    1 byte - given ID
-   1 bit - is primitive
    1 bit - is abstract template
    1 bit - R has resp
    X+R exprs args before endblock
 */
-#define CH_preddeclHead 0x00010
-#define CH_cnstrHead    0x00100
+#define CH_preddeclHead 1
+#define CH_cnstrHead    2
 
 /* Call
    1 byte - ID
    X exprs of arguments before endblock
 */
-#define CH_call         0x01000
+#define CH_call         3
 
 
 /* Assert to value
@@ -56,45 +63,45 @@ struct PredicateCompileData {
    1 byte - value length L
    1 expression (value)
 */
-#define CH_assertV2VAL  0x10000
+#define CH_assertV2VAL  4
 
 /* Assert to variable
    1 byte - variable1 ID
    1 byte - variable2 ID
 */
-#define CH_assertV2V    0x00011
+#define CH_assertV2V    5
 
 /* Image variable
    1 byte - variable1 ID
    1 byte - variable2 ID
 */
-#define CH_img          0x00101
+#define CH_img          6
 
 /* Image variable non standart
    2 expressions (1 ~ 2)
 */
-#define CH_imgNS        0x00110
+#define CH_imgNS        7
 
 /* Use/useso command
    {NAME DECLARATION}
 */
-#define CH_cmd_use      0x01010
-#define CH_cmd_useso    0x01100
+#define CH_cmd_use      8
+#define CH_cmd_useso    9
 
 /* Error
    {NAME DECLARATION}
 */
-#define CH_cmd_error    0x10001
+#define CH_cmd_error    10
 /* Command set
    {NAME DECLARATION} - name
    {NAME DECLARATION} - value
 */
-#define CH_cmd_set      0x10010
+#define CH_cmd_set      11
 
 /* Nothing */
-#define CH_cut          0x10100
-#define CH_endblock     0x11000
-#define CH_endblockWcut 0x00111
+#define CH_cut          12
+#define CH_endblock     13
+#define CH_endblockWcut 14
 
 /* Variable / unify / nested var
    1 byte - variable ID
@@ -102,30 +109,36 @@ struct PredicateCompileData {
       3 bits nesting
 */
 #define COUNT_BITS_NESTING 3
-#define CH_var          0x01011
-#define CH_unify        0x01101
-#define CH_nestedvar    0x01110
+#define CH_var          15
+#define CH_unify        16
+#define CH_nestedvar    17
 
 
-#define CH_startblock   0x10011
+#define CH_startblock   18
 
 /* Give ID
    {NAME DECLARATION}
 */
-#define CH_give_id      0x10101
+#define CH_give_id      19
 
 /* Expression set isolated
    N expressions until ENDBLOCK
 */
-#define CH_isol_start   0x10101
+#define CH_isol_start   20
 
 /* DATA (expression let_custom)
    {SIMILAR TO NAME DECLARATION}
 */
-#define CH_data         0x01001
+#define CH_data         21
+
+/* Implication
+   X expressions until endblock : fact set
+   Y expressions until endblock : implies for
+*/
+#define CH_implication  22
 
 /*
-10110 11001 11010 11100 
+11001 11010 11100 
 01111 10111 11011 11101 11110 
 11111
 */
@@ -155,7 +168,7 @@ bool laure_compiler_compile_expression(
     FILE *writable_stream
 );
 
-void laure_compiler_consult_bytecode(Bitstream *bits);
+void laure_compiler_consult_bytecode(laure_session_t *session, Bitstream *bits);
 void laure_consult_bytecode(laure_session_t *session, FILE *file);
 int laure_compiler_cli(laure_session_t *comp_session, int argc, char *argv[]);
 

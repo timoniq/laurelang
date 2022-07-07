@@ -38,6 +38,16 @@ jmp_buf JUMPBUF;
      Scope
 =-----------= */
 
+#define SCOPE_MAX_ID ((ulong)0x1000000000)
+
+// access by ID (for static instances, eg predicates)
+// not greater than 256 (1B)
+#define ID_MAX 256
+Instance *HEAP_TABLE[ID_MAX];
+
+// returns link to access from scope
+ulong laure_set_heap_value(Instance *value, uint link);
+
 #ifdef SCOPE_LINKED
 
 // Efficient implementation of linked scope
@@ -148,7 +158,15 @@ typedef struct laure_expression {
 
     char *s;
     struct laure_expression *link;
-    uint flag, linepos; // nesting for let_var, cursor position for error handling
+    /*
+    Flag:
+    + nesting for let_var
+    + is isolated for let_set
+    Flag2:
+    + cursor pointer for error tracing
+    + ID for vars with ID access let_var / pred call predicate name (when s is NULL)
+    */
+    uint flag, flag2; // nesting for let_var, cursor position for error handling
     laure_expression_compact_bodyargs *ba;
 } laure_expression_t;
 
@@ -207,6 +225,7 @@ laure_parse_result laure_parse(char *query);
 laure_parse_many_result laure_parse_many(const string query_, char divisor, laure_expression_set *linked_opt);
 bool laure_parser_needs_continuation(char *query);
 bool laure_is_silent(control_ctx *cctx);
+Instance *laure_scope_find_var(laure_scope_t *scope, laure_expression_t *var, bool search_glob);
 
 /* =-----------=
     String

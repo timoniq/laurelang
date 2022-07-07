@@ -46,7 +46,7 @@ laure_expression_t *laure_expression_create(
     exp->flag = flag;
     exp->ba = ba;
     exp->fullstring = strdup(q);
-    exp->linepos = 0;
+    exp->flag2 = 0;
     exp->link = NULL;
     return exp;
 }
@@ -1192,7 +1192,7 @@ laure_parse_result laure_parse(string query) {
                             set = laure_expression_set_link(set, el3);
                             laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
                             lpr.exp = laure_expression_create(let_pred_call, t_name ? t_name : "", false, el2->s, t_nest, ba, query);
-                            lpr.exp->linepos = strlen(temp) + 1;
+                            lpr.exp->flag2 = strlen(temp) + 1;
                             return lpr;
                         }
                     }
