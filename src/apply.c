@@ -17,6 +17,7 @@
 
 short int LAURE_ASK_IGNORE = 0;
 char     *NESTED_DOC_AUTOGEN = NULL;
+Instance *_TEMP_PREDCONSULT_LAST = NULL;
 
 void print_errhead(string str) {
     printf("  %s", RED_COLOR);
@@ -246,7 +247,10 @@ apply_result_t laure_consult_predicate(
     string address
 ) {
     assert(predicate_exp->t == let_pred || predicate_exp->t == let_constraint);
-    Instance *pred_ins = laure_scope_find_by_key(scope, predicate_exp->s, true);
+
+    Instance *pred_ins;
+    if (predicate_exp->s == NULL) pred_ins = HEAP_TABLE[predicate_exp->flag2];
+    else pred_ins = laure_scope_find_by_key(scope, predicate_exp->s, true);
 
     bool is_template = PREDFLAG_IS_TEMPLATE(predicate_exp->flag);
 
@@ -280,6 +284,7 @@ apply_result_t laure_consult_predicate(
         ins->repr = predicate_exp->t == let_pred ? predicate_repr : constraint_repr;
 
         laure_scope_insert(scope, ins);
+        _TEMP_PREDCONSULT_LAST = ins;
 
         LAURE_DOC_BUFF = NULL;
         return respond_apply(apply_ok, NULL);

@@ -290,12 +290,6 @@ Instance *laure_scope_find_by_key_l(laure_scope_t *scope, string key, ulong *lin
 }
 
 Instance *laure_scope_find_by_link(laure_scope_t *scope, ulong link, bool search_glob) {
-    if (link > SCOPE_MAX_ID) {
-        // value from heap
-        uint i = (uint)(SCOPE_MAX_ID - link);
-        assert(i < SCOPE_MAX_ID);
-        return HEAP_TABLE[i];
-    }
     laure_cell cell = laure_scope_find(scope, cell_chk_link, &link, false, search_glob);
     if (cell.ptr == NULL) return NULL;
     return cell.ptr;
@@ -440,10 +434,6 @@ ulong laure_scope_generate_link() {
         LAURE_LINK_ID = malloc(sizeof(ulong));
         *LAURE_LINK_ID = (unsigned long)1;
     }
-    if (*LAURE_LINK_ID >= SCOPE_MAX_ID - 1) {
-        printf("FATAL: max link limit exceeded (%lu)\n", SCOPE_MAX_ID);
-        return 0;
-    }
     ulong link = *LAURE_LINK_ID;
     *LAURE_LINK_ID = *LAURE_LINK_ID + 1;
     return link;
@@ -462,15 +452,20 @@ string laure_scope_get_owner(laure_scope_t *scope) {
 
 Instance *laure_scope_find_var(laure_scope_t *scope, laure_expression_t *var, bool search_glob) {
     if (var->s == NULL && var->flag2) {
-        ulong id = ((ulong)SCOPE_MAX_ID + var->flag2);
-        return laure_scope_find_by_link(scope, id, search_glob);
+        if (var->flag2 >= VAR_LINK_LIMIT) {
+            // access from heap
+            uint heap_id = VAR_LINK_LIMIT - var->flag2;
+            assert(heap_id < ID_MAX);
+            return HEAP_TABLE[heap_id];
+        }
+        return laure_scope_find_by_link(scope, var->flag2, search_glob);
     }
     assert(var->s);
     return laure_scope_find_by_key(scope, var->s, search_glob);
 }
 
-ulong laure_set_heap_value(Instance *value, uint link) {
-    assert(link < ID_MAX);
-    HEAP_TABLE[link] = value;
-    return (ulong)(SCOPE_MAX_ID + link);
+ulong laure_set_heap_value(Instance *value, uint id) {
+    assert(id < ID_MAX);
+    HEAP_TABLE[id] = value;
+    return (ulong)(VAR_LINK_LIMIT + id);
 }

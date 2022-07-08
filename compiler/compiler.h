@@ -116,6 +116,7 @@ typedef unsigned char H;
 #define CH_startblock   18
 
 /* Give ID
+   1 byte - given ID
    {NAME DECLARATION}
 */
 #define CH_give_id      19

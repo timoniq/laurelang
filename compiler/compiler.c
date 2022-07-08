@@ -13,6 +13,9 @@ Name VARIABLE_IDS[ID_MAX];
 uint VARIABLES_SIGNED = 0;
 unsigned char SIGNATURE[] = "laurelang";
 
+string *KNOWN_NAMES_DYNAMIC[ID_MAX];
+uint KNOWN_NAMES_DYNAMIC_N = 0;
+
 uint ID_BITS = 0;
 
 bool get_bit(unsigned char byte, uint pos) {
@@ -51,6 +54,18 @@ void write_header(Bitstream *bs, int header) {
 
 bool check_uint_fit(uint i, uint count_bits) {
     return i <= CHAR_MAX && i <= pow(2, count_bits);
+}
+
+void add_known_name(string name) {
+    assert(KNOWN_NAMES_DYNAMIC_N < ID_MAX);
+    KNOWN_NAMES_DYNAMIC[KNOWN_NAMES_DYNAMIC_N++] = name;
+}
+
+bool is_known_name(string name) {
+    for (uint i = 0; i < KNOWN_NAMES_DYNAMIC_N; i++) {
+        if (str_eq(KNOWN_NAMES_DYNAMIC[i], name)) return true;
+    }
+    return false;
 }
 
 void write_count_bits_from_uint(Bitstream *bs, uint integer, uint count_bits) {
@@ -158,11 +173,20 @@ bool write_name(Bitstream *bits, string s) {
         return false;
     }
     unsigned char length = (unsigned char) strlen(s);
-    write_bits(bits, length, CHAR_BIT);
+    write_bits(bits, length, 8);
     for (unsigned char idx = 0; idx < length; idx++) {
-        write_bits(bits, s[idx], CHAR_BIT);
+        unsigned char c = s[idx];
+        bool cbits[8];
+        calc_bits((int)c, cbits, 8);
+        for (uint j = 0; j < 8; j++) bitstream_write_bit(bits, cbits[j]);
     }
     return true;
+}
+
+void write_give_id(Bitstream *bits, string name) {
+    write_header(bits, CH_give_id);
+    write_name_ID(bits, name, 0);
+    write_name(bits, name);
 }
 
 void init_settings() {
@@ -223,6 +247,9 @@ bool compile_expression_with_bitstream(
             break;
         }
         case let_pred_call: {
+            if (! is_known_name(expr->s)) {
+                write_give_id(bits, expr->s);
+            }
             write_header(bits, CH_call);
             write_name_ID(bits, expr->s, 0);
             laure_expression_t *ptr;
@@ -367,7 +394,7 @@ bool laure_compiler_compile_expression(
             printf("     > compilation failure\n");
             return false;
         }
+        bitstream_flush(bits);
     });
-    bitstream_flush(bits);
     return true;
 }

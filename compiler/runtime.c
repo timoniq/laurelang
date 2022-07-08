@@ -4,8 +4,14 @@
 #include "compiler.h"
 
 control_ctx *CONTEXT = 0;
+uint LAURE_COMPILER_ID_OFFSET = 0;
+uint END_WITH_OFFSET = 0;
 
 bool HAS_RESP[ID_MAX];
+uint VAR_LINKS_BY_ID[ID_MAX];
+
+bool NBID_INITTED = false;
+string NAME_BY_ID[ID_MAX];
 
 bool get_bit(unsigned char byte, uint pos);
 
@@ -105,12 +111,27 @@ bool set_expr(laure_expression_t *exp, laure_expression_t *ptr) {
     return true;
 }
 
+void print_bits(bool bits[], uint n) {
+    printf("[");
+    for (uint i = 0; i < n; i++) printf("%d", bits[i]);
+    printf("]\n");
+}
+
 unsigned char read_uchar(Bitstream *bits) {
-    bool byte[CHAR_BIT];
-    bool can_read = read_bits(bits, CHAR_BIT, byte);
+    bool byte[8];
+    bool can_read = read_bits(bits, 8, byte);
     if (! can_read) return 0;
-    unsigned char c = bitset_uchar(byte);
+    unsigned char c = (unsigned char)(bitset_toint(byte, 8));
     return c;
+}
+
+ID read_ID(Bitstream *bits) {
+    ID id = read_uchar(bits);
+    if (id >= END_WITH_OFFSET)
+        END_WITH_OFFSET = id + 1;
+    id += LAURE_COMPILER_ID_OFFSET;
+    assert(id < ID_MAX);
+    return id;
 }
 
 
@@ -146,7 +167,9 @@ string read_name(Bitstream *bits) {
     string s = malloc(length + 1);
     s[length] = 0;
     for (unsigned char i = 0; i < length; i++) {
-        unsigned char c = read_uchar(bits);
+        bool cbits[8];
+        read_bits(bits, 8, cbits);
+        unsigned char c = (unsigned char)(bitset_toint(cbits, 8));
         s[i] = c;
     }
     return s;
@@ -184,7 +207,7 @@ consultS consult_expression(
                 expr->t = let_var;
             else expr->t = let_unify;
 
-            ID id = read_uchar(bits);
+            ID id = read_ID(bits);
             expr->flag2 = id;
             if (h == CH_nestedvar) {
                 bool nesting_bits[COUNT_BITS_NESTING];
@@ -201,6 +224,39 @@ consultS consult_expression(
         case CH_cut: {
             expr->t = let_cut;
             break;
+        }
+        case CH_call: {
+            ID id = read_ID(bits);
+            laure_expression_set set[1];
+            memset(set, 0, sizeof(laure_expression_set));
+
+            consultS status = read_until_endblock(session, bits, set);
+            if (status == consult_stoperr) return status;
+
+            laure_expression_compact_bodyargs ba[1];
+            ba->has_resp = false;
+            ba->body_len = laure_expression_get_count(set);
+            ba->set = set;
+
+            expr->t = let_pred_call;
+            expr->ba = ba;
+            
+            if (HEAP_TABLE[id])
+                expr->flag2 = VAR_LINK_LIMIT + id;
+            else {
+                if (! NAME_BY_ID[id]) {
+                    printf("not found predicate call name (probably missing CH_give_name instruction)\n");
+                    return consult_stoperr;
+                }
+                expr->s = NAME_BY_ID[id];
+            }
+            break;
+        }
+        case CH_give_id: {
+            ID id = read_ID(bits);
+            string name = read_name(bits);
+            NAME_BY_ID[id] = name;
+            return consult_fine;
         }
         case CH_isol_start: {
             laure_expression_set set[1];
@@ -231,8 +287,8 @@ consultS consult_expression(
             if (h == CH_assertV2V) expr->t = let_assert;
             else expr->t = let_image;
 
-            ID lid = read_uchar(bits);
-            ID rid = read_uchar(bits);
+            ID lid = read_ID(bits);
+            ID rid = read_ID(bits);
             
             laure_expression_t left[1];
             laure_expression_t right[1];
@@ -261,7 +317,7 @@ consultS consult_expression(
             break;
         }
         case CH_assertV2VAL: {
-            ID id = read_uchar(bits);
+            ID id = read_ID(bits);
             string s = read_name(bits);
 
             laure_expression_t var[1];
@@ -302,7 +358,7 @@ consultS consult_expression(
             // read name
             string name = read_name(bits);
             // read ID
-            ID id = read_uchar(bits);
+            ID id = read_ID(bits);
 
             int is_abc_template = bitstream_read_bit(bits);
             int has_resp = bitstream_read_bit(bits);
@@ -324,7 +380,7 @@ consultS consult_expression(
 
             // prepare bodyargs
             laure_expression_compact_bodyargs ba[1];
-            ba->body_len = laure_expression_get_count(set) - (has_resp ? 1 : 0);
+            ba->body_len = 0;
             ba->has_resp = has_resp;
             ba->set = set;
 
@@ -342,11 +398,15 @@ consultS consult_expression(
             
             bool is_ok = rec(predicate_expr, external_payload);
             if (! is_ok) return consult_stoperr;
+
+            Instance *predicate_instance = _TEMP_PREDCONSULT_LAST;
+            laure_set_heap_value(predicate_instance, id);
+
             return consult_fine;
         }
         case CH_preddecl: {
             // predicate case
-            ID id = read_uchar(bits);
+            ID id = read_ID(bits);
 
             laure_expression_set args[1];
             args->expression = 0;
@@ -382,8 +442,15 @@ consultS consult_expression(
 
             // merge sets
             laure_expression_set *linked = laure_expression_set_link_branch(args, body);
+
+            laure_expression_compact_bodyargs ba[1];
+            ba->set = linked;
+            ba->has_resp = has_resp;
+            ba->body_len = laure_expression_get_count(body);
+
+            expr->t = let_pred;
             expr->flag2 = id;
-            expr->ba = linked;
+            expr->ba = ba;
             break;
         }
         default: break;
@@ -401,7 +468,9 @@ bool evaluator(laure_expression_t *expr, void *_) {
 
 
 void laure_compiler_consult_bytecode(laure_session_t *session, Bitstream *bits) {
-
+    if (! NBID_INITTED) {
+        memset(NAME_BY_ID, 0, sizeof(bool) * ID_MAX);
+    }
     // SIGNATURE CHECK
     align(bits);
     debug("checking signature\n");
@@ -426,6 +495,7 @@ void laure_compiler_consult_bytecode(laure_session_t *session, Bitstream *bits) 
     debug("creating context");
     CONTEXT = control_new(session, session->scope, 0, 0, 0, true);
 
+    debug("ID offset is %d", LAURE_COMPILER_ID_OFFSET);
     // CONSULTING EXPRESSIONS
     consultS status;
     align(bits);
@@ -435,4 +505,7 @@ void laure_compiler_consult_bytecode(laure_session_t *session, Bitstream *bits) 
     if (status == consult_stoperr) {
         printf("fatal: error occured\n");
     }
+    debug("during bytecode interpretation %d id unique positions were taken");
+    LAURE_COMPILER_ID_OFFSET += END_WITH_OFFSET;
+    debug("bytecode interpretation completed");
 }

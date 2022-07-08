@@ -38,15 +38,23 @@ jmp_buf JUMPBUF;
      Scope
 =-----------= */
 
-#define SCOPE_MAX_ID ((ulong)0x1000000000)
+// to separate pre-linked variables
+// accessed from heap from ones accessed
+// from scope
+#define VAR_LINK_LIMIT ((uint)0xF4240)
 
 // access by ID (for static instances, eg predicates)
-// not greater than 256 (1B)
+// not greater than 256 (size of 1B)
 #define ID_MAX 256
+
+/* HEAP
+access: when var->flag2 is greater than VAR_LINK_LIMIT
+var is accessed from heap with ID = var->flag2 - VAR_LINK_LIMIT
+*/
 Instance *HEAP_TABLE[ID_MAX];
 
 // returns link to access from scope
-ulong laure_set_heap_value(Instance *value, uint link);
+ulong laure_set_heap_value(Instance *value, uint id);
 
 #ifdef SCOPE_LINKED
 
@@ -478,6 +486,8 @@ bool laure_compiler_compile_expression(
 
 void laure_consult_bytecode(laure_session_t *session, FILE *file);
 int laure_compiler_cli(laure_session_t *comp_session, int argc, char *argv[]);
+extern Instance *_TEMP_PREDCONSULT_LAST;
+extern uint      LAURE_COMPILER_ID_OFFSET;
 
 #endif
 
