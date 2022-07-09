@@ -187,12 +187,16 @@ void write_give_id(Bitstream *bits, string name) {
     write_header(bits, CH_give_id);
     write_name_ID(bits, name, 0);
     write_name(bits, name);
+    bitstream_flush(bits);
 }
 
 void init_settings() {
     if (! ID_BITS)
         ID_BITS = log2(ID_MAX);
 }
+
+#define up printf("\033[A") 
+#define erase printf("\33[2K\r")
 
 bool compile_expression_with_bitstream(
     laure_expression_t *expr, 
@@ -202,8 +206,14 @@ bool compile_expression_with_bitstream(
     switch (expr->t) {
         case let_var: 
         case let_unify: {
+            if (! is_known_name(expr->s)) {
+                write_give_id(bits, expr->s);
+            }
             if (expr->t == let_var) {
-                write_header(bits, CH_var);
+                if (expr->flag > 0)
+                    write_header(bits, CH_nestedvar);
+                else
+                    write_header(bits, CH_var);
             } else if (expr->t == let_unify)
                 write_header(bits, CH_unify);
             write_name_ID(bits, expr->s, false);
@@ -299,10 +309,7 @@ bool compile_expression_with_bitstream(
                 uint args_len = laure_expression_get_count(expr->ba->set) - expr->ba->body_len;
                 if (expr->ba->has_resp) args_len--;
 
-                uint i = 0;
                 EXPSET_ITER(expr->ba->set, ptr, {
-                    i++;
-                    if (i == args_len) write_header(bits, CH_endblock);
                     bool result = compile_expression_with_bitstream(ptr, bits);
                     if (! result) return false;
                 });
@@ -313,7 +320,13 @@ bool compile_expression_with_bitstream(
         case let_image: {
             laure_expression_t *expr1 = expr->ba->set->expression;
             laure_expression_t *expr2 = expr->ba->set->next->expression;
-            if (expr1->t == let_var && expr2->t == let_var) {
+            if (! is_known_name(expr1->s)) {
+                write_give_id(bits, expr1->s);
+            }
+            if (! is_known_name(expr2->s)) {
+                write_give_id(bits, expr2->s);
+            }
+            if (expr1->t == let_var && expr2->t == let_var && ! expr1->flag && ! expr2->flag) {
                 write_header(bits, CH_img);
                 write_name_ID(bits, expr1->s, 0);
                 write_name_ID(bits, expr2->s, 0);

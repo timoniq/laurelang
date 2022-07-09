@@ -35,9 +35,7 @@ typedef unsigned char H;
 
 /* Case Declaration
    1 byte - Predicate ID
-   X exprs before endblock: Braced args
-   1 expr of response if R
-   Y exprs before endblock: Body
+   Y exprs before endblock
 */
 #define CH_preddecl     0
 

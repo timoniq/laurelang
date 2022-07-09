@@ -88,7 +88,7 @@ typedef enum consultS {
 } consultS;
 
 #define CONSULT_EXP_REC(name) \
-        bool (*name)(laure_expression_t *expr, void *payload)
+        bool (*name)(laure_session_t *session, Bitstream *bits, laure_expression_t *expr, void *payload)
 
 consultS consult_expression(
     laure_session_t *session, 
@@ -97,17 +97,49 @@ consultS consult_expression(
     void *external_payload
 );
 
-bool set_appender(laure_expression_t *expr, laure_expression_set *set) {
+laure_expression_t *heap_copy_expr(laure_expression_t *expr) {
+    laure_expression_t *exprn = malloc(sizeof(laure_expression_t));
+    exprn->t = expr->t;
+    exprn->s = expr->s;
+    exprn->link = expr->link ? heap_copy_expr(expr->link) : NULL;
+    exprn->docstring = NULL;
+    exprn->flag = expr->flag;
+    exprn->flag2 = expr->flag2;
+    exprn->fullstring = expr->fullstring;
+    exprn->is_header = expr->is_header;
+    if (expr->ba) {
+        laure_expression_set *set = NULL;
+        laure_expression_t *ptr;
+        EXPSET_ITER(expr->ba->set, ptr, {
+            set = laure_expression_set_link(set, heap_copy_expr(ptr));
+        });
+        exprn->ba = laure_bodyargs_create(set, expr->ba->body_len, expr->ba->has_resp);
+    } else {
+        exprn->ba = NULL;
+    }
+    return exprn;
+}
+
+bool set_appender(laure_session_t *session, Bitstream *bits, laure_expression_t *expr, laure_expression_set *set) {
+    if (! expr) return true;
     while (set->next) {
         set = set->next;
     }
-    set->expression = expr;
+    set->expression = heap_copy_expr(expr);
     set->next = 0;
     return true;
 }
 
-bool set_expr(laure_expression_t *exp, laure_expression_t *ptr) {
-    *ptr = *exp;
+bool set_expr(laure_session_t *session, Bitstream *bits, laure_expression_t *exp, laure_expression_t **ptr) {
+    if (! exp) {
+        align(bits);
+        consultS status = consult_expression(session, bits, set_expr, ptr);
+        // some expressions such as CH_give_id require
+        // continuation
+        assert(status != consult_endblock);
+        return status == consult_fine;
+    }
+    *ptr = heap_copy_expr(exp);
     return true;
 }
 
@@ -135,25 +167,19 @@ ID read_ID(Bitstream *bits) {
 }
 
 
-consultS read_until_endblock(laure_session_t *session, Bitstream *bits, laure_expression_set *set) {
+consultS read_until_endblock(laure_session_t *session, Bitstream *bits, laure_expression_set **set) {
     consultS status;
-    uint i = 0;
     while (true) {
-        laure_expression_t expr[1];
-        status = consult_expression(session, bits, set_expr, expr);
+        laure_expression_t *expr_ptr[1];
+        status = consult_expression(session, bits, set_expr, expr_ptr);
         if (status != consult_fine) {
+            if (*set)
+                (*set)->next = 0;
             return status;
         }
-        if (i != 0) {
-            laure_expression_set new_set[1];
-            new_set->expression = 0;
-            new_set->next = 0;
-
-            set->next = new_set;
-            set = set->next;
+        if (expr_ptr[0]) {
+            (*set) = laure_expression_set_link(*set, heap_copy_expr(expr_ptr[0]));
         }
-        set->expression = expr;
-        i++;
     }
     return consult_fine;
 }
@@ -195,6 +221,8 @@ consultS consult_expression(
     expr->s = 0;
     expr->ba = 0;
     expr->flag2 = 0;
+
+    printf("%d\n", h);
     
     switch (h) {
         case CH_endblock: {
@@ -208,6 +236,9 @@ consultS consult_expression(
             else expr->t = let_unify;
 
             ID id = read_ID(bits);
+            if (NAME_BY_ID[id]) {
+                expr->s = NAME_BY_ID[id];
+            }
             expr->flag2 = id;
             if (h == CH_nestedvar) {
                 bool nesting_bits[COUNT_BITS_NESTING];
@@ -227,11 +258,13 @@ consultS consult_expression(
         }
         case CH_call: {
             ID id = read_ID(bits);
-            laure_expression_set set[1];
-            memset(set, 0, sizeof(laure_expression_set));
+            laure_expression_set *set_ptr[1];
+            set_ptr[0] = 0;
 
-            consultS status = read_until_endblock(session, bits, set);
+            consultS status = read_until_endblock(session, bits, set_ptr);
             if (status == consult_stoperr) return status;
+
+            laure_expression_set *set = set_ptr[0];
 
             laure_expression_compact_bodyargs ba[1];
             ba->has_resp = false;
@@ -256,6 +289,7 @@ consultS consult_expression(
             ID id = read_ID(bits);
             string name = read_name(bits);
             NAME_BY_ID[id] = name;
+            rec(session, bits, NULL, external_payload);
             return consult_fine;
         }
         case CH_isol_start: {
@@ -299,6 +333,8 @@ consultS consult_expression(
             right->t = let_var;
             left->flag2 = lid;
             right->flag2 = rid;
+            left->s = NAME_BY_ID[lid];
+            right->s = NAME_BY_ID[rid];
 
             laure_expression_set set2[1];
             set2->expression = right;
@@ -316,6 +352,26 @@ consultS consult_expression(
             expr->ba = ba;
             break;
         }
+
+        case CH_imgNS: {
+            laure_expression_t *expr_ptr[2];
+            consultS status;
+            status = consult_expression(session, bits, set_expr, expr_ptr);
+            if (status != consult_fine) return status;
+            status = consult_expression(session, bits, set_expr, expr_ptr + 1);
+            if (status != consult_fine) return status;
+            expr->t = let_image;
+            expr->ba = laure_bodyargs_create(
+                laure_expression_set_link(
+                    laure_expression_set_link(NULL, expr_ptr[0]), 
+                    expr_ptr[1]
+                ), 
+                2, 
+                0
+            );
+            break;
+        }
+
         case CH_assertV2VAL: {
             ID id = read_ID(bits);
             string s = read_name(bits);
@@ -365,11 +421,10 @@ consultS consult_expression(
 
             HAS_RESP[id] = (bool)has_resp;
             
-            laure_expression_set set[1];
-            set->expression = 0;
-            set->next = 0;
+            laure_expression_set *set_ptr[1];
+            set_ptr[0] = 0;
 
-            consultS status = read_until_endblock(session, bits, set);
+            consultS status = read_until_endblock(session, bits, set_ptr);
             if (status == consult_fine) {
                 // endblock is undefined
                 printf("%swarning%s: endblock was undefined while reading expressions in header", RED_COLOR, NO_COLOR);
@@ -377,6 +432,8 @@ consultS consult_expression(
                 // error occured
                 return consult_stoperr;
             }
+
+            laure_expression_set *set = set_ptr[0];
 
             // prepare bodyargs
             laure_expression_compact_bodyargs ba[1];
@@ -396,7 +453,7 @@ consultS consult_expression(
             predicate_expr->s = name;
             predicate_expr->ba = ba;
             
-            bool is_ok = rec(predicate_expr, external_payload);
+            bool is_ok = rec(session, bits, predicate_expr, external_payload);
             if (! is_ok) return consult_stoperr;
 
             Instance *predicate_instance = _TEMP_PREDCONSULT_LAST;
@@ -408,11 +465,10 @@ consultS consult_expression(
             // predicate case
             ID id = read_ID(bits);
 
-            laure_expression_set args[1];
-            args->expression = 0;
-            args->next = 0;
+            laure_expression_set *set_ptr[1];
+            set_ptr[0] = 0;
             
-            consultS status = read_until_endblock(session, bits, args);
+            consultS status = read_until_endblock(session, bits, set_ptr);
             if (status == consult_fine) {
                 // endblock is undefined
                 printf("%swarning%s: endblock was undefined while reading expressions in args of predicate case", RED_COLOR, NO_COLOR);
@@ -421,48 +477,39 @@ consultS consult_expression(
                 return consult_stoperr;
             }
 
+            laure_expression_set *set = set_ptr[0];
             bool has_resp = HAS_RESP[id];
 
-            if (HAS_RESP[id]) {
-                laure_expression_t resp[1];
-                consultS status = consult_expression(session, bits, set_expr, resp);
-                if (status != consult_fine) return status;
-                laure_expression_set last_set[1];
-                *last_set = *args;
-                while (last_set->next) *last_set = *last_set->next; // ?
-                last_set->expression = resp;
-            }
-
-            laure_expression_set body[1];
-            body->expression = 0;
-            body->next = 0;
-
-            status = read_until_endblock(session, bits, body);
-            if (status != consult_fine) return status;
-
-            // merge sets
-            laure_expression_set *linked = laure_expression_set_link_branch(args, body);
-
             laure_expression_compact_bodyargs ba[1];
-            ba->set = linked;
+            ba->set = set;
             ba->has_resp = has_resp;
-            ba->body_len = laure_expression_get_count(body);
+            ba->body_len = laure_expression_get_count(set);
 
             expr->t = let_pred;
             expr->flag2 = id;
             expr->ba = ba;
             break;
         }
-        default: break;
+        default: {
+            printf("unknown header %d\n", h);
+            return consult_stoperr;
+        }
     }
-    bool is_ok = rec(expr, external_payload);
+    bool is_ok = rec(session, bits, expr, external_payload);
     if (! is_ok) return consult_stoperr;
     return consult_fine;
 }
 
-bool evaluator(laure_expression_t *expr, void *_) {
+bool evaluator(laure_session_t *session, Bitstream *bits, laure_expression_t *expr, void *_) {
+    if (! expr) return true;
     assert(CONTEXT);
-    qresp qr = laure_eval(CONTEXT, expr, 0);
+    qresp qr = laure_eval(CONTEXT, heap_copy_expr(expr), 0);
+    if (qr.state == q_error) {
+        if (LAURE_ACTIVE_ERROR) {
+            printf("error: %s\n", LAURE_ACTIVE_ERROR->msg);
+        } else
+            printf("error evaluating bytecode: %s\n", qr.payload);
+    }
     return true;
 }
 
