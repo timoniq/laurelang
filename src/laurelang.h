@@ -264,6 +264,7 @@ bool laure_string_pattern_match(char *s, char *p);
 #define RED_COLOR "\033[31;1m"
 #define GREEN_COLOR "\033[32;1m"
 #define YELLOW_COLOR "\033[33;1m"
+#define BLUE_COLOR "\033[34;1m"
 #define GRAY_COLOR "\033[90;1m"
 #define NO_COLOR "\033[0m"
 #define BOLD_WHITE "\033[37;1m"
@@ -279,6 +280,7 @@ bool laure_string_pattern_match(char *s, char *p);
 #define NO_COLOR ""
 #define BOLD_WHITE ""
 #define RED_BACK ""
+#define BLUE_COLOR ""
 #define LAURUS_NOBILIS ""
 #define BOLD_DEC ""
 #endif
@@ -467,7 +469,8 @@ typedef float optimality_t;
 laure_ws *laure_ws_create(laure_ws *next);
 laure_ws *laure_ws_next(laure_ws *ws);
 void laure_ws_free(laure_ws *ws);
-optimality_t laure_accuracy_count(laure_ws *ws);
+optimality_t laure_optimality_count(laure_ws *ws);
+bool laure_ws_set_function_by_name(laure_ws *ws, string name);
 
 void laure_push_transistion(laure_ws *ws, optimality_t acc);
 size_t laure_count_transistions(laure_ws *ws);

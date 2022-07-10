@@ -1,3 +1,5 @@
+#ifndef EXPR_H
+#define EXPR_H
 /* Laurelang expression enums */
 
 typedef enum {
@@ -48,3 +50,5 @@ typedef enum laure_compact_predicate_flag {
 #define PREDFLAG_IS_CUT(flag) (flag == pred_flag_cut)
 #define PREDFLAG_GET(is_primitive, is_template, is_cut) \
     is_cut ? pred_flag_cut : ((is_primitive && is_template) ? pred_flag_primitive_template : ((is_primitive || is_template) ? (is_primitive ? pred_flag_primitive : pred_flag_template) : pred_flag_none))
+
+#endif

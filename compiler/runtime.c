@@ -549,9 +549,6 @@ void laure_compiler_consult_bytecode(laure_session_t *session, Bitstream *bits) 
     while ((status = consult_expression(session, bits, evaluator, 0)) == consult_fine) {
         align(bits);
     }
-    if (status == consult_stoperr) {
-        printf("fatal: error occured\n");
-    }
     debug("during bytecode interpretation %d id unique positions were taken");
     LAURE_COMPILER_ID_OFFSET += END_WITH_OFFSET;
     debug("bytecode interpretation completed");

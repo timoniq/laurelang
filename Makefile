@@ -20,10 +20,10 @@ LIB = src/parser.o \
 	  src/apply.o \
 	  src/error.o \
 	  src/backtrace.o \
-	  src/weight.o \
 	  compiler/compiler.o \
 	  compiler/cli.o \
-	  compiler/runtime.o
+	  compiler/runtime.o \
+	  src/weight.o
 
 OBJECTS = laure.o $(LIB)
 
@@ -45,6 +45,7 @@ all: $(TARGET)
 compiler/$(fname).o: compiler/compiler.h src/laurelang.h compiler/$(fname).c
 
 $(TARGET): $(OBJECTS)
+	@echo Linking
 	$(CC) -ldl -g -o $(TARGET) $(OBJECTS) $(LDFLAGS)
 
 packages: $(LIB)
@@ -52,7 +53,7 @@ packages: $(LIB)
 	python3 utility/build_pkg.py
 
 clean:
-	rm -f $(TARGET) *.o src/*.o *.so lib/*.so lib/*/*.so lib/*/src/*.o compiler/*.o
+	rm -f $(TARGET) *.o src/*.o src/*.so *.so lib/*.so lib/*/*.so lib/*/src/*.o compiler/*.o
 	find . -name "*.dSYM" -prune -exec rm -rf {} \;
 
 test:
@@ -86,5 +87,4 @@ src/predicates.o: src/laurelang.h src/laureimage.h src/predicates.h src/predicat
 src/apply.o: src/laurelang.h src/apply.c
 src/error.o: src/laurelang.h src/error.c
 src/backtrace.o: src/laurelang.h src/backtrace.c
-src/weight.o:
-	g++ src/weight.cpp -o src/weight.o -shared $(WS_FLAGS)
+src/weight.o: src/laurelang.h src/weight.c

@@ -15,6 +15,10 @@
 #define WMIN_NAME "ws_min"
 #endif
 
+#ifndef WFUNCTION_NAME
+#define WFUNCTION_NAME "ws_func"
+#endif
+
 #define RECURSIVE_AUTONAME "_"
 
 #define is_global(stack) stack->glob == stack
@@ -234,7 +238,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
             sz_curr = laure_count_transistions(current_ws);
             sz = laure_count_transistions(ws_next);
             
-            optimality_t a = laure_accuracy_count(current_ws);
+            optimality_t a = laure_optimality_count(current_ws);
             laure_push_transistion(ws_next, a);
             cctx->ws = ws_next;
         }
@@ -265,7 +269,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
 
         #ifndef DISABLE_WS
         if (LAURE_WS) {
-            optimality_t a = laure_accuracy_count(cctx->ws);
+            optimality_t a = laure_optimality_count(cctx->ws);
             a = laure_ws_soften(a);
             string opt = get_dflag(WMIN_NAME);
             if (opt) {
@@ -785,8 +789,8 @@ qresp laure_eval_image(
 
     if (exp1->t == let_var && exp2->t == let_var) {
 
-        Instance *var1 = laure_scope_find_by_key(scope, exp1->s, true);
-        Instance *var2 = laure_scope_find_by_key(scope, exp2->s, true);
+        Instance *var1 = laure_scope_find_var(scope, exp1, true);
+        Instance *var2 = laure_scope_find_var(scope, exp2, true);
 
         if (var1 && var2)  {
             // Check variables derivation
@@ -1869,6 +1873,17 @@ qresp laure_eval_command(_laure_eval_sub_args) {
         case command_setflag: {
             string v = e->docstring;
             string n = e->s;
+
+            #ifndef DISABLE_WS
+            // check if n is one of builtin names
+            if (str_eq(n, WFUNCTION_NAME)) {
+                bool is_found = laure_ws_set_function_by_name(cctx->ws, v);
+                if (! is_found)
+                    RESPOND_ERROR(undefined_err, e, "WS function with name %s is undefined", v);
+                return RESPOND_TRUE;
+            }
+            #endif
+
             if (! v) {
                 v = DUMMY_FLAGV;
             }

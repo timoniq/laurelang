@@ -219,7 +219,7 @@ int laure_process_query(laure_session_t *session, string line) {
             printf("flags:\n");
             for (int i = 0; i < sizeof(flags) / sizeof(struct laure_flag); i++) {
                 struct laure_flag flag = flags[i];
-                printf("  %s%s%s - %s [%s]\n", BOLD_WHITE, flag.name, NO_COLOR, flag.doc, flag.readword ? "takes arg" : "no args");
+                printf("  %s%s%s - %s %s\n", BOLD_WHITE, flag.name, NO_COLOR, flag.doc, flag.readword ? "{arguments}" : "");
             }
             break;
         }
@@ -451,7 +451,7 @@ void add_filename(string str) {
 string readline_wrapper() {
     #ifndef DISABLE_WS
     if (LAURE_WS) 
-        printf("%sW%s ", RED_COLOR, NO_COLOR);
+        printf("%sW%s ", BLUE_COLOR, NO_COLOR);
     #endif
     return readline(DPROMPT);
 }
