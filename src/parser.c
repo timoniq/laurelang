@@ -27,7 +27,7 @@ string ELLIPSIS = NULL;
 #define GENERIC_OPEN '<'
 #define GENERIC_CLOSE '>'
 
-char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Structure Definition", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Atom", "Command", "Generic DT/Char", "[Nope]"};
+char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Structure Definition", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Atom", "Command", "Generic DT/Char", "Atom Sign", "[Nope]"};
 
 laure_expression_t *laure_expression_create(
     laure_expression_type t, 
@@ -663,15 +663,21 @@ laure_parse_result laure_parse(string query) {
                     );
                     return lpr;
                 }
-                string v = strstr(setting, "=");
-                if (v) {
+                string n = read_til(setting, '=');
+                string v = NULL;
+                if (n) {
                     // particular value
-                    setting[strlen(setting) - strlen(v)] = 0;
-                    v++;
+                    v = setting + strlen(n) + 1;
+                } else {
+                    n = setting;
+                }
+                if (str_starts(n, "\"") && lastc(n) == '\"') {
+                    n++;
+                    lastc(n) = 0;
                 }
                 laure_parse_result lpr;
                 lpr.is_ok = true;
-                lpr.exp = laure_expression_create(let_command, v ? strdup(v) : NULL, false, strdup(setting), 0, NULL, query);
+                lpr.exp = laure_expression_create(let_command, v ? strdup(v) : NULL, false, n, 0, NULL, query);
                 return lpr;
             }
             break;
@@ -770,8 +776,25 @@ laure_parse_result laure_parse(string query) {
                 laure_parse_result lpr_ns = laure_parse(ns);
                 if (! lpr_ns.is_ok) error_format("failed to parse namespace: %s", lpr_ns.err);
                 laure_expression_t *ns_exp = lpr_ns.exp;
-                if (ns_exp->t != let_var && ns_exp->t != let_singlq)
-                    error_format("namespace must be %s or 'T' (single quoted), not %s", EXPT_NAMES[let_var], EXPT_NAMES[ns_exp->t]);
+                if (ns_exp->t == let_array) {
+                    // many namespaces possible
+                    // check they are valid
+                    laure_expression_t *ptr;
+                    EXPSET_ITER(ns_exp->ba->set, ptr, {
+                        if (
+                            ptr->t != let_var 
+                            && ptr->t != let_singlq 
+                            && ptr->t != let_atom_sign
+                            && ptr->t != let_array
+                        ) {
+                            error_format("invalid expression passed as namespace in union (%s)", EXPT_NAMES[ptr->t]);
+                        } else if (ptr->t == let_array) {
+                            error_result("redundant nested union");
+                        }
+                    });
+                }
+                if (ns_exp->t != let_var && ns_exp->t != let_singlq && ns_exp->t != let_array)
+                    error_format("namespace must be %s, @ or 'T' (single quoted), not %s", EXPT_NAMES[let_var], EXPT_NAMES[ns_exp->t]);
                 linked_namespace = ns_exp;
             }
 
@@ -1328,6 +1351,13 @@ laure_parse_result laure_parse(string query) {
                         );
                         return lpr;
                     } else {
+                        if (! strlen(query)) {
+                            // "@" atom sign query
+                            laure_parse_result lpr;
+                            lpr.is_ok = true;
+                            lpr.exp = laure_expression_create(let_atom_sign, NULL, false, --query, 0, NULL, query);
+                            return lpr;
+                        }
                         laure_parse_result lpr = laure_parse(query);
                         if (! lpr.is_ok) error_format("cannot read atom `@%s`", query);
                         else if (lpr.exp->t != let_var && lpr.exp->t != let_custom) {
@@ -1336,7 +1366,7 @@ laure_parse_result laure_parse(string query) {
                                 query, lpr.exp->t != let_atom ? EXPT_NAMES[lpr.exp->t] : "another atom"
                             );
                         }
-                        lpr.exp = laure_expression_create(let_atom, NULL, false, query, 0, NULL, query);
+                        lpr.exp = laure_expression_create(let_atom, NULL, false, lpr.exp->s, 0, NULL, query);
                         return lpr;
                     }
                 }

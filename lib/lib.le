@@ -18,20 +18,29 @@ int natural* = 0...
 : ?/(int, int) -> int.
 
 // `Greater than` constraint
-// read docs at /docs/builtin.md#constraints
-: #>(int, int).
+// can be applied on:
+// * `integers`
+// * `atoms`
+: #>('T', 'T').
+!"T:>"=int.
+
 // `Less than` constraint
-// read docs at /docs/builtin.md#constraints
-: #<(int, int).
+// can be applied on:
+// * `integers`
+// * `atoms`
+: #<('T', 'T').
+!"T:<"=int.
 
-#>(x, y) {__>(x, y)}
-#<(x, y) {__>(y, x)}
+#[int, @]:>(x, y) {__>(x, y)}
+#[int, @]:<(x, y) {__>(y, x)}
 
-: #>=(int, int).
-#>=(x, y) when x __gte y.
+: #>=('T', 'T').
+!"T:>="=int.
+#[int, @]:>=(x, y) when x __gte y.
 
-: #<=(int, int).
-#<=(x, y) when y >= x.
+: #<=('T', 'T').
+!"T:<="=int.
+#[int, @]:<=(x, y) when y >= x.
 
 ?+(x, y) -> x __+ y.
 ?-(y + z, y) -> z.

@@ -13,3 +13,4 @@ laurelanglib.o
 examples/_*.le
 *.laurec
 *.lc
+LOCAL_CLG

@@ -4,6 +4,7 @@
     "function.le",
     "logic.le",
     "atom.le",
+    "translators.le",
     "array.le",
     "string.le",
     "kb_pl.le",

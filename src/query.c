@@ -985,7 +985,7 @@ Instance *get_derived_instance(laure_scope_t *scope, Instance *resolved_instance
     } else if (head.translator->identificator == ARRAY_TRANSLATOR->identificator) {
         return get_array_derived(resolved_instance->image, scope);
     } else if (head.translator->identificator == ATOM_TRANSLATOR->identificator) {
-        return NULL;
+        return resolved_instance;
     } else if (head.translator->identificator == STRING_TRANSLATOR->identificator) {
         return laure_scope_find_by_key(scope->glob, "string", false);
     }
@@ -1223,6 +1223,27 @@ void pd_show(preddata *pd) {
     }
 }
 
+bool check_namespace(laure_scope_t *scope, Instance *T, laure_expression_t *ns) {
+    if (ns->t == let_var) {
+        Instance *var = laure_scope_find_var(scope, ns, true);
+        if (! var) return false;
+        if (read_head(var->image).t != read_head(T->image).t)
+            return false;
+        void *cp_img = image_deepcopy(scope, var->image);
+        void *cpT_img = image_deepcopy(scope, T->image);
+        bool result = image_equals(cp_img, cpT_img);
+        image_free(cp_img);
+        image_free(cpT_img);
+        return result;
+    } else if (ns->t == let_singlq)
+        // abstract generic always true
+        return true;
+    else if (ns->t == let_atom_sign) {
+        return read_head(T->image).t == ATOM;
+    }
+    assert(false);
+}
+
 /* =-------=
 Predicate/constraint call.
 =-------= */
@@ -1385,12 +1406,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             laure_expression_t *exp = pred_img->variations->set[variation_idx].exp;
             cut_case = PREDFLAG_IS_CUT(exp->flag);
 
-            laure_scope_t *nscope = laure_scope_new(scope->glob, prev);
-            nscope->owner = predicate_ins->name;
-
-            struct arg_rec_ctx actx[1];
-            actx->new_scope = nscope;
-
+            // resolve generic type
             Instance *T = NULL;
             if (! laure_typeset_all_instances(pred_img->header.args)) {
                 if (e->docstring && strlen(e->docstring)) {
@@ -1406,9 +1422,49 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 }
                 if (! T) {
                     T = resolve_generic_T(pred_img->header, e->ba->set, scope);
-                    if (! T) RESPOND_ERROR(signature_err, e, "unable to resolve generic datatype%s; add explicit cast or add hint to resolve", "");
+                    if (! T) {
+                        string dname = malloc(strlen(predicate_name) + 3);
+                        strcpy(dname, "T:");
+                        strcat(dname, predicate_name);
+                        string Tdefault = get_dflag(dname);
+                        free(dname);
+                        if (dname) {
+                            T = laure_scope_find_by_key(scope, Tdefault, true);
+                            T = instance_shallow_copy(T);
+                            if (! T)
+                                RESPOND_ERROR(undefined_err, e, "default T which was set for predicate %s is undefined", predicate_name);
+                        } else
+                            RESPOND_ERROR(signature_err, e, "unable to resolve generic datatype%s; add explicit cast or add hint to resolve", "");
+                    }
                 }
             }
+
+            // resolve namespace
+            if (exp->link) {
+                if (! T)
+                    RESPOND_ERROR(internal_err, e, "namespace declaration can be used only within generic type");
+                
+                bool is_valid = false;
+                if (exp->link->t == let_array) {
+                    // union
+                    laure_expression_t *ptr;
+                    EXPSET_ITER(exp->link->ba->set, ptr, {
+                        if (check_namespace(scope, T, ptr)) {
+                            is_valid = true;
+                            break;
+                        }
+                    });
+                } else
+                    is_valid = check_namespace(scope, T, exp->link);
+                
+                if (! is_valid) continue;
+            }
+
+            laure_scope_t *nscope = laure_scope_new(scope->glob, prev);
+            nscope->owner = predicate_ins->name;
+
+            struct arg_rec_ctx actx[1];
+            actx->new_scope = nscope;
 
             laure_expression_set *arg_l = e->ba->set;
             for (uint idx = 0; idx < e->ba->body_len; idx++) {

@@ -1109,6 +1109,7 @@ bool atom_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) 
         }
     } else if (exp->t == let_atom) {
         laure_expression_t *ptr = NULL;
+        multiplicity *new_mult = multiplicity_create();
         EXPSET_ITER(exp->ba->set, ptr, {
             char name[ATOM_LEN_MAX];
             write_atom_name(ptr->s, name);
@@ -1117,6 +1118,7 @@ bool atom_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) 
                 if (strcmp(name, atom->atom) != 0) return false;
             } else {
                 // check all names in atom universum
+                // & contract
                 bool found = false;
                 for (uint i = 0; i < atom->mult->amount; i++) {
                     string v = atom->mult->members[i];
@@ -1125,9 +1127,15 @@ bool atom_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) 
                         break;
                     }
                 }
-                if (! found) return false;
+                if (! found) {
+                    multiplicity_free(new_mult);
+                    return false;
+                }
+                multiplicity_insert(new_mult, strdup(name));
             }
         });
+        multiplicity_free(atom->mult);
+        atom->mult = new_mult;
         return true;
     }
     return false;

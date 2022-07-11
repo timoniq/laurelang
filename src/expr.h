@@ -27,6 +27,7 @@ typedef enum {
     let_atom,
     let_command,
     let_singlq,
+    let_atom_sign,
     let_nope
 } laure_expression_type;
 

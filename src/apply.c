@@ -181,6 +181,10 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
             if (! str_eq(aexp->s, GENERIC_T)) return NULL;
             // generic
             laure_typeset_push_decl(args_set, aexp->s);
+        } else if (aexp->t == let_atom_sign) {
+            // atomic type
+            // (variable must be known)
+            laure_typeset_push_decl(args_set, "@");
         //} else if (str_eq(aexp->s, "_")) {
         //    laure_typeset_push_instance(args_set, NULL);
         } else {

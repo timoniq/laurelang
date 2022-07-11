@@ -68,8 +68,13 @@ auto:
 	@make packages
 	@make test
 
-install:
-	install $(TARGET) $(PREFIX)/bin
+install: $(TARGET)
+	mkdir -p $(PREFIX)/bin
+	cp -f $(TARGET) $(PREFIX)/bin
+	chmod 755 $(PREFIX)/bin/$(TARGET)
+
+uninstall:
+	rm -f $(PREFIX)/bin/$(TARGET)
 
 help:
 	@cat MAKEHELP

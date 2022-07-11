@@ -54,6 +54,21 @@ qresp laure_constraint_gt(preddata *pd, control_ctx* cctx) {
     Instance *i = pd_get_arg(pd, 0);
     Instance *gt = pd_get_arg(pd, 1);
 
+    if (read_head(i->image).t == ATOM) {
+        assert(read_head(gt->image).t == ATOM);
+        // check size
+        struct AtomImage *l = (struct AtomImage*)i->image;
+        struct AtomImage *r = (struct AtomImage*)gt->image;
+        
+        uint l_sz, r_sz;
+        if (l->single) l_sz = 1;
+        else l_sz = l->mult->amount;
+        if (r->single) r_sz = 1;
+        else r_sz = r->mult->amount;
+
+        return respond((l_sz > r_sz) ? q_true : q_false, 0);
+    }
+
     struct IntImage *i_im = (struct IntImage*)i->image;
     struct IntImage *gt_im = (struct IntImage*)gt->image;
 
@@ -91,6 +106,21 @@ qresp laure_constraint_gt(preddata *pd, control_ctx* cctx) {
 qresp laure_constraint_gte(preddata *pd, control_ctx* cctx) {
     Instance *i = pd_get_arg(pd, 0);
     Instance *gt = pd_get_arg(pd, 1);
+
+    if (read_head(i->image).t == ATOM) {
+        assert(read_head(gt->image).t == ATOM);
+        // check size
+        struct AtomImage *l = (struct AtomImage*)i->image;
+        struct AtomImage *r = (struct AtomImage*)gt->image;
+        
+        uint l_sz, r_sz;
+        if (l->single) l_sz = 1;
+        else l_sz = l->mult->amount;
+        if (r->single) r_sz = 1;
+        else r_sz = r->mult->amount;
+
+        return respond((l_sz >= r_sz) ? q_true : q_false, 0);
+    }
 
     struct IntImage *i_im = (struct IntImage*)i->image;
     struct IntImage *gt_im = (struct IntImage*)gt->image;
