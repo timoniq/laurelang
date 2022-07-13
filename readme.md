@@ -1,11 +1,9 @@
-<div style="margin-bottom: 7%">
-<img src="https://raw.githubusercontent.com/timoniq/laurelang/main/.github/logo.svg" height="150px" style="float: left">
-<center>
-<h1>laurelang</h1>
-<p><b>A pure logical, compact language.</b></p>
-<p>Work in progress.</p>
-</center>
-</div>
+<p align="center">
+<img src="https://raw.githubusercontent.com/timoniq/laurelang/main/.github/logo.svg" height="150px" align="center">
+</p>
+<h1 align="center">laurelang</h1>
+<p align="center"><b>A pure logical, compact language.</b></p>
+<p align="center">Work in progress.</p>
 <hr>
 
 # Usage
