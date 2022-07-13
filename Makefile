@@ -48,13 +48,18 @@ $(TARGET): $(OBJECTS)
 	@echo Linking
 	$(CC) -ldl -g -o $(TARGET) $(OBJECTS) $(LDFLAGS)
 
-packages: $(LIB)
+shared: $(LIB)
 	$(CC) -fPIC -shared -g -o laurelang.so $(LIB) $(LDFLAGS)
+
+packages: shared
 	python3 utility/build_pkg.py
 
 clean:
 	rm -f $(TARGET) *.o src/*.o src/*.so *.so lib/*.so lib/*/*.so lib/*/src/*.o compiler/*.o
 	find . -name "*.dSYM" -prune -exec rm -rf {} \;
+
+package: shared
+	python3 utility/build_pkg.py $(name)
 
 test:
 	./$(TARGET) @/test tests \

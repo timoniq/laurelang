@@ -5,7 +5,9 @@
   make          - minimal build
   make test     - run tests
   make auto     - build interpreter and default pkgs
+  make shared   - build shared object
   make packages - build all packages in lib
+  make package  - build library package `name=pkg_name`
   make clean    - delete temp files
 
     Build flags:

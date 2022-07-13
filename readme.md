@@ -1,10 +1,12 @@
-![Laurelang](./.github/logo.svg)
-
-# laurelang
-
-A pure logical, compact language.
-
-Work in progress.
+<div style="margin-bottom: 7%">
+<img src="https://raw.githubusercontent.com/timoniq/laurelang/main/.github/logo.svg" height="150px" style="float: left">
+<center>
+<h1>laurelang</h1>
+<p><b>A pure logical, compact language.</b></p>
+<p>Work in progress.</p>
+</center>
+</div>
+<hr>
 
 # Usage
 
@@ -44,9 +46,9 @@ Auto-builder will also run test suite.
 # Documentation
 
 [Read documentation](https://docs.laurelang.org)  
-[Current updates and notes](/docs/index.md)
+[Recent updates and notes](/docs/index.md)
 
-# [Contributing](/contributing.md)
+# [Contributing](https://laurelang.org/contrib)
 # License
 
 Laurelang is [MIT licensed](/LICENSE)  
