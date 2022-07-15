@@ -3,7 +3,7 @@
 
 #include "laureimage.h"
 #include "laurelang.h"
-#include "predicates.h"
+#include "standard.h"
 
 Instance builtin_integer();
 Instance builtin_char();

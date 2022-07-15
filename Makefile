@@ -1,9 +1,8 @@
 TARGET = laure
-SOURCES = src
 PREFIX = /usr/local
 WS_FLAGS = 
-CFLAGS = -Isrc -Icompiler -I/usr/local/include -g $(LIBFLAG) -fPIC ${ADDFLAGS} ${WS_FLAGS} -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers
-LDFLAGS = -L/usr/local/lib -lreadline -lm -g -ldl
+CFLAGS = -Isrc -Istandard -Icompiler -I/usr/local/include -g $(LIBFLAG) -fPIC ${ADDFLAGS} ${WS_FLAGS} -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers
+LDFLAGS = -L/usr/local/lib -Isrc -lreadline -lm -g -ldl
 
 .PHONY: all clean
 
@@ -16,14 +15,15 @@ LIB = src/parser.o \
 	  src/domain.o \
 	  src/bigint.o \
 	  src/builtin.o \
-	  src/predicates.o  \
 	  src/apply.o \
 	  src/error.o \
 	  src/backtrace.o \
 	  compiler/compiler.o \
 	  compiler/cli.o \
 	  compiler/runtime.o \
-	  src/weight.o
+	  src/weight.o \
+	  standard/integer.c \
+	  standard/utility.c
 
 OBJECTS = laure.o $(LIB)
 
@@ -55,7 +55,7 @@ packages: shared
 	python3 utility/build_pkg.py
 
 clean:
-	rm -f $(TARGET) *.o src/*.o src/*.so *.so lib/*.so lib/*/*.so lib/*/src/*.o compiler/*.o
+	rm -f $(TARGET) *.o src/*.o src/*.so *.so lib/*.so std_predicate/*.o lib/*/*.so lib/*/src/*.o compiler/*.o
 	find . -name "*.dSYM" -prune -exec rm -rf {} \;
 
 package: shared
@@ -93,7 +93,6 @@ src/bigint.o: src/bigint.h src/bigint.c
 src/domain.o: src/domain.h src/domain.c
 src/query.o: src/laurelang.h src/laureimage.h src/query.c
 src/builtin.o: src/laurelang.h src/laureimage.h src/builtin.h src/builtin.c
-src/predicates.o: src/laurelang.h src/laureimage.h src/predicates.h src/predicates.c
 src/apply.o: src/laurelang.h src/apply.c
 src/error.o: src/laurelang.h src/error.c
 src/backtrace.o: src/laurelang.h src/backtrace.c
