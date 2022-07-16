@@ -1,0 +1,10 @@
+: ?person(string, natural) -> ID.
+?person("Anya", 21).
+?person("Nick", 19).
+?person("John", 43).
+
+: ?predicate(person, person).
+?predicate(person p1, person(name, _) p2) {
+    p1 = person(_, age);
+    // ...
+}

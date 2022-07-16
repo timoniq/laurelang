@@ -4,6 +4,8 @@
 #include "laurelang.h"
 #include "laureimage.h"
 
+uint HEAP_RUNTIME_ID = 0;
+
 #ifdef SCOPE_LINKED
 
 linked_scope_t *laure_scope_insert(
@@ -468,4 +470,16 @@ ulong laure_set_heap_value(Instance *value, uint id) {
     assert(id < ID_MAX);
     HEAP_TABLE[id] = value;
     return (ulong)(VAR_LINK_LIMIT + id);
+}
+
+Instance *laure_search_heap_value_by_name(string name) {
+    for (uint i = LAURE_COMPILER_ID_OFFSET; i < ID_MAX; i++) {
+        if (! HEAP_TABLE[i]) continue;
+        else if (str_eq(HEAP_TABLE[i]->name, name)) return HEAP_TABLE[i];
+    }
+    return NULL;
+}
+
+void laure_heap_add_value(Instance *value) {
+    HEAP_TABLE[LAURE_COMPILER_ID_OFFSET + HEAP_RUNTIME_ID++] = value;
 }

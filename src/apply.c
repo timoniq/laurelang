@@ -185,6 +185,9 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
             // atomic type
             // (variable must be known)
             laure_typeset_push_decl(args_set, "@");
+        } else if (aexp->t == let_auto) {
+            printf("Auto cannot be used in arguments\n");
+            return NULL;
         //} else if (str_eq(aexp->s, "_")) {
         //    laure_typeset_push_instance(args_set, NULL);
         } else {
@@ -218,6 +221,8 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
         resp_nesting = rexp->flag;
         if (rexp->t == let_singlq) {
             resp = laure_typedecl_generic_create(rexp->s);
+        } else if (rexp->t == let_auto) {
+            resp = laure_typedecl_auto_create((laure_auto_type)rexp->flag);
         } else {
             string tname;
             if (resp_nesting) {

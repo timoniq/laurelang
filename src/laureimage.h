@@ -4,6 +4,7 @@
 #include "laurelang.h"
 #include "bigint.h"
 #include "domain.h"
+#include <uuid/uuid.h>
 
 // U (0) - not instantiated
 // I (1) - instantiated
@@ -22,6 +23,8 @@ enum ImageT {
     CONSTRAINT_FACT,
     STRUCTURE,
     IMG_CUSTOM_T,
+    UNION,
+    UUID
 };
 
 typedef struct {
@@ -57,6 +60,7 @@ typedef struct {
 typedef enum laure_typedecl_t {
     td_instance,
     td_generic,
+    td_auto
 } laure_typedecl_t;
 
 typedef struct laure_typedecl {
@@ -64,6 +68,7 @@ typedef struct laure_typedecl {
     union {
         Instance *instance;
         string generic;
+        laure_auto_type auto_type;
     };
 } laure_typedecl;
 
@@ -75,10 +80,13 @@ typedef struct laure_typeset {
 laure_typeset *laure_typeset_new();
 void laure_typeset_push_instance(laure_typeset *ts, Instance *instance);
 void laure_typeset_push_decl(laure_typeset *ts, string generic_name);
+void laure_typeset_push_auto(laure_typeset *ts, laure_auto_type auto_type);
+
 bool laure_typeset_all_instances(laure_typeset *ts);
 
 laure_typedecl *laure_typedecl_instance_create(Instance *instance);
 laure_typedecl *laure_typedecl_generic_create(string generic_name);
+laure_typedecl *laure_typedecl_auto_create(laure_auto_type auto_type);
 
 #define MULTIPLICITY_CAPACITY 8
 
@@ -148,6 +156,10 @@ typedef struct StructureImage {
         laure_structure_t          structure;
     };
 } laure_structure;
+
+typedef struct UnionImage {
+    struct InstanceSet *united_set;
+} laure_union_image;
 
 typedef struct array_linked {
     Instance *data;
@@ -289,6 +301,12 @@ struct PredicateImage {
     struct PredicateImageVariationSet *variations;
 };
 
+typedef struct UUIDImage {
+    IMAGE_HEAD
+    string bound;
+    uuid_t uuid;
+} laure_uuid_image;
+
 struct ConstraintImage {
     IMAGE_HEAD
     struct PredicateHeaderImage header;
@@ -312,12 +330,17 @@ struct PredicateFinalC {
 struct PredicateFinalInterior {
     string* argn;
     int     argc;
-    string respn;
+    bool resp_auto;
+    union {
+        string respn;
+        laure_auto_type auto_type;
+    };
     laure_expression_set *body;
 };
 
 typedef struct PredicateFinal {
     enum PredicateFinalT t;
+    uuid_t uu;
     union {
         struct PredicateFinalInterior interior;
         struct PredicateFinalC c;
@@ -352,6 +375,8 @@ struct ArrayImage *laure_create_array_u(Instance *el_t);
 struct AtomImage *laure_atom_universum_create(multiplicity *mult);
 
 struct PredicateImage *predicate_header_new(laure_typeset *args, laure_typedecl *resp, bool is_constraint);
+
+laure_uuid_image *laure_create_uuid(string bound, uuid_t uu);
 
 void *image_deepcopy(laure_scope_t *scope, void *img);
 
@@ -469,6 +494,7 @@ string string_repr(Instance *ins);
 string predicate_repr(Instance*);
 string constraint_repr(Instance*);
 string atom_repr(Instance*);
+string uuid_repr(Instance*);
 // --
 
 bool image_equals(void*, void*);

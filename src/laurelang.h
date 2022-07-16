@@ -53,8 +53,12 @@ var is accessed from heap with ID = var->flag2 - VAR_LINK_LIMIT
 */
 Instance *HEAP_TABLE[ID_MAX];
 
+extern uint HEAP_RUNTIME_ID;
+
 // returns link to access from scope
 ulong laure_set_heap_value(Instance *value, uint id);
+Instance *laure_search_heap_value_by_name(string name);
+void laure_heap_add_value(Instance *value);
 
 #ifdef SCOPE_LINKED
 
@@ -215,6 +219,7 @@ laure_expression_set *laure_expression_compose(laure_expression_set *set);
 
 typedef struct {
     bool is_ok;
+    uint flag;
     union {
         char *err;
         laure_expression_t *exp;
@@ -234,6 +239,8 @@ laure_parse_many_result laure_parse_many(const string query_, char divisor, laur
 bool laure_parser_needs_continuation(char *query);
 bool laure_is_silent(control_ctx *cctx);
 Instance *laure_scope_find_var(laure_scope_t *scope, laure_expression_t *var, bool search_glob);
+
+void rough_strip_string(string s);
 
 /* =-----------=
     String
@@ -479,6 +486,8 @@ void laure_restore_transistions(laure_ws *ws, size_t to_sz);
 // math
 optimality_t laure_ws_soften(optimality_t o);
 
+#endif
+
 /* Compiler
 */
 
@@ -491,7 +500,5 @@ void laure_consult_bytecode(laure_session_t *session, FILE *file);
 int laure_compiler_cli(laure_session_t *comp_session, int argc, char *argv[]);
 extern Instance *_TEMP_PREDCONSULT_LAST;
 extern uint      LAURE_COMPILER_ID_OFFSET;
-
-#endif
 
 #endif

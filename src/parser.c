@@ -27,7 +27,7 @@ string ELLIPSIS = NULL;
 #define GENERIC_OPEN '<'
 #define GENERIC_CLOSE '>'
 
-char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Structure Definition", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Atom", "Command", "Generic DT/Char", "Atom Sign", "[Nope]"};
+char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Structure Definition", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Atom", "Command", "Generic DT/Char", "Atom Sign", "Auto", "[Nope]"};
 
 laure_expression_t *laure_expression_create(
     laure_expression_type t, 
@@ -145,6 +145,14 @@ void laure_expression_destroy(laure_expression_t *expression) {
         free(expression->ba);
     }
     free(expression);
+}
+
+void rough_strip_string(string s) {
+    if (str_starts(s, "\"") && lastc(s) == '"') {
+        s++;
+        lastc(s) = 0;
+        rough_strip_string(s);
+    }
 }
 
 void laure_expression_set_destroy(laure_expression_set *root) {
@@ -407,6 +415,7 @@ uint pop_nestings(string s) {
 
 uint pop_generic(string* name, string *tname, string *query) {
     string generic_before = read_til(*name, GENERIC_OPEN);
+    printf("%s|%s\n", *name, generic_before);
     uint t_nest = 0;
     if (generic_before && strlen(generic_before)) {
         string generic = (*name) + strlen(generic_before) + 1;
@@ -578,6 +587,11 @@ laure_parse_result laure_parse(string query) {
         laure_parse_result lpr;
         lpr.is_ok = true;
         lpr.exp = laure_expression_create(let_ref, NULL, 0, NULL, 0, NULL, query);
+        return lpr;
+    } else if (str_eq(query, "ID")) {
+        laure_parse_result lpr;
+        lpr.is_ok = true;
+        lpr.exp = laure_expression_create(let_auto, NULL, 0, NULL, AUTO_ID, NULL, query);
         return lpr;
     }
     
@@ -1196,8 +1210,8 @@ laure_parse_result laure_parse(string query) {
                             // `length of Something`
 
                             // add generic if needed
-                            string t_name = NULL;
-                            uint t_nest = pop_generic(&el1->s, &t_name, NULL);
+                            string t_name = el1->ba ? el1->ba->set->expression->s : NULL;
+                            uint t_nest = el1->ba ? res1.flag : 0;
 
                             laure_expression_set *set = laure_expression_set_link(NULL, el3);
                             laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 1, 0);
@@ -1208,8 +1222,8 @@ laure_parse_result laure_parse(string query) {
                             // `A + 1`
 
                             // add generic if needed
-                            string t_name = NULL;
-                            uint t_nest = pop_generic(&el2->s, &t_name, NULL);
+                            string t_name = el2->ba ? el2->ba->set->expression->s : NULL;
+                            uint t_nest = el2->ba ? res2.flag : 0;
                             
                             laure_expression_set *set = laure_expression_set_link(NULL, el1);
                             set = laure_expression_set_link(set, el3);
@@ -1372,13 +1386,33 @@ laure_parse_result laure_parse(string query) {
                 }
 
                 uint nesting = 0;
+                uint gnestings = 0;
                 while (strlen(dup) > 2 && str_eq(dup + strlen(dup) - 2, "[]")) {
                     nesting++;
                     dup[strlen(dup) - 2] = 0;
                 }
 
                 if (is_fine_name_for_var(dup)) {
-                    lpr.exp = laure_expression_create(let_var, "", false, dup, nesting, NULL, query);
+                    laure_expression_compact_bodyargs *ba = NULL;
+                    if (lastc(dup) == '>' && strstr(dup, "<") > dup) {
+                        string clarif = strstr(dup, "<") + 1;
+                        lastc(clarif) = 0;
+                        *(clarif - 1) = 0;
+                        gnestings = pop_nestings(clarif);
+                        laure_parse_many_result lpr = laure_parse_many(clarif, ',', NULL);
+                        if (! lpr.is_ok) {
+                            error_format("error parsing clarification: %s", lpr.err);
+                        }
+                        laure_expression_t *ptr;
+                        EXPSET_ITER(lpr.exps, ptr, {
+                            if (! (ptr->t == let_var || ptr->t == let_singlq)) {
+                                error_format("invalid clarification, clarificator can't be %s", EXPT_NAMES[ptr->t]);
+                            }
+                        });
+                        ba = laure_bodyargs_create(lpr.exps, laure_expression_get_count(lpr.exps), 0);
+                    }
+                    lpr.exp = laure_expression_create(let_var, "", false, dup, nesting, ba, query);
+                    lpr.flag = gnestings;
                     return lpr;
                 }
 
@@ -1466,6 +1500,8 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
         case let_pred_call: {
             printindent(indent);
             printf("call pred %s [\n", exp->s);
+            printindent(indent + 2);
+            printf("docstring: %s; nesting: %d\n", exp->docstring, exp->flag);
             laure_expression_t *ptr = NULL;
             EXPSET_ITER(exp->ba->set, ptr, {
                 laure_expression_show(ptr, indent + 2);

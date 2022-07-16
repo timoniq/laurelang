@@ -28,6 +28,7 @@ typedef enum {
     let_command,
     let_singlq,
     let_atom_sign,
+    let_auto,
     let_nope
 } laure_expression_type;
 
@@ -37,6 +38,10 @@ typedef enum laure_command_type {
     command_useso,
     command_error
 } laure_command_type;
+
+typedef enum laure_auto_type {
+    AUTO_ID,
+} laure_auto_type;
 
 typedef enum laure_compact_predicate_flag {
     pred_flag_none,

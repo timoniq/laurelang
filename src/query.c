@@ -938,6 +938,10 @@ qresp laure_eval_var(_laure_eval_sub_args) {
     assert(e->t == let_var);
     UNPACK_CCTX(cctx);
 
+    if (e->ba) {
+        RESPOND_ERROR(internal_err, e, "invalid usage of template");
+    }
+
     if (!vpk) return RESPOND_TRUE;
 
     string vname = e->s;
@@ -1289,6 +1293,54 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
     laure_scope_t *init_scope = laure_scope_create_copy(cctx, scope);
     for (uint variation_idx = 0; variation_idx < pred_img->variations->len; variation_idx++) {
         predfinal *pf = pred_img->variations->finals[variation_idx];
+        Instance *uuid_instance = NULL;
+
+        if (pf->t == PF_INTERIOR && pred_img->header.resp && pred_img->header.resp->t == td_auto) {
+            if (e->ba->has_resp) {
+                // variation is known by uuid
+                laure_expression_t *resp_expression = (
+                    laure_expression_set_get_by_idx(
+                        e->ba->set,
+                        laure_expression_get_count(e->ba->set)
+                        - e->ba->body_len + 1
+                    )
+                );
+                rough_strip_string(
+                    resp_expression->s
+                );
+                uuid_t uu;
+                if (resp_expression->t == let_var) {
+                    Instance *uuid_ins = laure_scope_find_var(scope, resp_expression, true);
+                    if (uuid_ins) {
+                        if (read_head(uuid_ins->image).t != UUID)
+                            RESPOND_ERROR(instance_err, resp_expression, "%s is not instance of UUID", resp_expression->s);
+                        
+                        laure_uuid_image *uu_image = (laure_uuid_image*)uuid_ins->image;
+                        if (! str_eq(uu_image->bound, predicate_name)) return RESPOND_FALSE;
+                        uuid_copy(uu, uu_image->uuid);
+                    } else {
+                        uuid_ins = instance_new(resp_expression->s, NULL, laure_create_uuid(predicate_name, pf->uu));
+                        uuid_ins->repr = uuid_repr;
+                        uuid_copy(uu, pf->uu);
+                    }
+                    uuid_instance = uuid_ins;
+                    
+                } else if (resp_expression->t == let_custom) {
+                    if (uuid_parse(resp_expression->s, uu) != 0)
+                        RESPOND_ERROR(syntaxic_err, resp_expression, "cannot parse UUID");
+                } else
+                    RESPOND_ERROR(
+                        syntaxic_err, 
+                        resp_expression, 
+                        "cannot use %s as ID", 
+                        EXPT_NAMES[resp_expression->t]
+                    );
+                
+                int cmp = uuid_compare(uu, pf->uu);
+                if (cmp != 0) continue;
+            }
+        }
+
         laure_scope_t *prev = laure_scope_create_copy(cctx, init_scope);
         qresp resp;
         bool do_continue = true;
@@ -1428,7 +1480,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                         strcat(dname, predicate_name);
                         string Tdefault = get_dflag(dname);
                         free(dname);
-                        if (dname) {
+                        if (Tdefault) {
                             T = laure_scope_find_by_key(scope, Tdefault, true);
                             T = instance_shallow_copy(T);
                             if (! T)
@@ -1494,7 +1546,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 arg_l = arg_l->next;
             }
 
-            if (pf->interior.respn) {
+            if (pf->interior.respn && pred_img->header.resp->t != td_auto) {
                 if (! arg_l) {
                     Instance *hint = NULL;
                     if (pred_img->header.resp) {
@@ -1535,8 +1587,25 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                         err);
                 }
             }
-
+            
             if (T) free(T);
+            
+            if (uuid_instance) {
+                ulong l[1];
+                *l = 0;
+                if (prev->idx == 1) {
+                    Instance *glob = laure_scope_find_by_key_l(cctx->tmp_answer_scope, uuid_instance->name, l, false);
+                    if (! glob) {
+                        Instance *nins = instance_shallow_copy(uuid_instance);
+                        nins->image = NULL;
+                        ulong lin = laure_scope_generate_link();
+                        laure_scope_insert_l(cctx->tmp_answer_scope, nins, lin);
+                        *l = lin;
+                    }
+                }
+                if (! *l) *l = laure_scope_generate_link();
+                laure_scope_insert_l(prev, uuid_instance, *l);
+            }
             
             laure_expression_set *body = pf->interior.body;
             body = laure_expression_compose(body);

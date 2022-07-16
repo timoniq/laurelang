@@ -1,4 +1,5 @@
 #include "laureimage.h"
+#include <uuid/uuid.h>
 
 struct Translator *INT_TRANSLATOR, 
                   *CHAR_TRANSLATOR, 
@@ -9,6 +10,8 @@ struct Translator *INT_TRANSLATOR,
 string MOCK_NAME;
 qresp  MOCK_QRESP;
 string DEFAULT_ANONVAR = NULL;
+
+char *AUTO_ID_NAME = NULL;
 char* IMG_NAMES[] = {"Integer", "Char", "Array", "Atom", "Predicate", "Constraint", "Structure", "", "[External]"};
 
 #define REC_TYPE(rec) gen_resp (*rec)(void*, void*)
@@ -374,7 +377,11 @@ bool array_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope)
 
             void *img;
             if (el_exp->t == let_var) {
-                Instance *el = laure_scope_find_by_key(scope, el_exp->s, true);
+                Instance *el;
+                if (str_eq(el_exp->s, "_")) {
+                    el = array->arr_el;
+                } else
+                    el = laure_scope_find_by_key(scope, el_exp->s, true);
                 if (! el) {
                     return false;
                 }
@@ -1268,6 +1275,54 @@ gen_resp atom_generate(
 }
 
 /*
+   Working with uuids
+*/
+
+// eq
+bool uuid_eq(laure_uuid_image *im1, laure_uuid_image *im2) {
+    if (! str_eq(im1->bound, im2->bound)) return false;
+    return uuid_compare(im1->uuid, im2->uuid);
+}
+
+// repr
+string uuid_repr(Instance *ins) {
+    char uuid_str[37]; // should fit
+    laure_uuid_image *im = (laure_uuid_image*) ins->image;
+    uuid_unparse_lower(im->uuid, uuid_str);
+    return strdup(uuid_str);
+}
+
+// deepcopy
+laure_uuid_image *uuid_deepcopy(laure_uuid_image *img) {
+    laure_uuid_image *nimg = malloc(sizeof(laure_uuid_image));
+    *nimg = *img;
+    return nimg;
+}
+//   free
+void uuid_free(laure_uuid_image *img) {
+    free(img);
+}
+
+// generate
+gen_resp uuid_generate_image(
+    laure_scope_t *scope, 
+    struct UUIDImage *im, 
+    REC_TYPE(rec), 
+    void *external_ctx
+) {
+    return rec(im, external_ctx);
+}
+
+laure_uuid_image *laure_create_uuid(string bound, uuid_t uu) {
+    laure_uuid_image *im = malloc(sizeof(laure_uuid_image));
+    im->bound = bound;
+    uuid_copy(im->uuid, uu);
+    im->t = UUID;
+    im->translator = NULL;
+    return im;
+}
+
+/*
    Global methods
 */
 
@@ -1283,6 +1338,7 @@ void laure_set_translators() {
     MOCK_QRESP.state = q_true;
     MOCK_QRESP.payload = 0;
     DEFAULT_ANONVAR = strdup( "_" );
+    AUTO_ID_NAME = strdup( "ID" );
 }
 
 // Image eq
@@ -1305,6 +1361,9 @@ bool image_equals(void* img1, void* img2) {
         }
         case ATOM: {
             return atom_eq((struct AtomImage*) img1, (struct AtomImage*) img2);
+        }
+        case UUID: {
+            return uuid_eq((laure_uuid_image*) img1, (laure_uuid_image*) img2);
         }
         default:
             return false;
@@ -1330,6 +1389,9 @@ gen_resp image_generate(laure_scope_t *scope, void *img, REC_TYPE(rec), void *ex
         }
         case ATOM: {
             return atom_generate(scope, (struct AtomImage*) img, rec, external_ctx);
+        }
+        case UUID: {
+            return uuid_generate_image(scope, (laure_uuid_image*) img, rec, external_ctx);
         }
         default: {
             char error[128];
@@ -1358,6 +1420,9 @@ void *image_deepcopy(laure_scope_t *stack, void *img) {
         case ATOM: {
             return atom_deepcopy((struct AtomImage*) img);
         }
+        case UUID: {
+            return uuid_deepcopy((laure_uuid_image*) img);
+        }
         case CONSTRAINT_FACT:
         case PREDICATE_FACT: {
             return img;
@@ -1385,6 +1450,7 @@ bool instantiated(Instance *ins) {
             }
             return true;
         }
+        case UUID: return true;
         case ATOM:
             return ((struct AtomImage*)ins->image)->single;
         case CONSTRAINT_FACT:
@@ -1412,6 +1478,10 @@ void image_free(void *image) {
         }
         case ATOM: {
             atom_free((struct AtomImage*)image);
+            break;
+        }
+        case UUID: {
+            uuid_free((laure_uuid_image*)image);
             break;
         }
         default: break;
@@ -1526,6 +1596,7 @@ predfinal
 predfinal *get_pred_final(struct PredicateImageVariation pv) {
     predfinal *pf = malloc(sizeof(predfinal));
     pf->t = PF_INTERIOR;
+    uuid_generate_random(pf->uu);
     
     if (pv.t == PREDICATE_NORMAL) {
         // bodied (conditions in args + conditions in body)
@@ -1682,6 +1753,13 @@ void laure_typeset_push_decl(laure_typeset *ts, string generic_name) {
     ts->data[ts->length - 1].generic = generic_name;
 }
 
+void laure_typeset_push_auto(laure_typeset *ts, laure_auto_type auto_type) {
+    ts->length++;
+    ts->data = realloc(ts->data, sizeof(laure_typedecl) * ts->length);
+    ts->data[ts->length - 1].t = td_auto;
+    ts->data[ts->length - 1].auto_type = auto_type;
+}
+
 bool laure_typeset_all_instances(laure_typeset *ts) {
     for (uint i = 0; i < ts->length; i++) {
         if (ts->data[i].t != td_instance) return false;
@@ -1700,6 +1778,13 @@ laure_typedecl *laure_typedecl_generic_create(string generic_name) {
     laure_typedecl *td = malloc(sizeof(laure_typedecl));
     td->t = td_generic;
     td->generic = generic_name;
+    return td;
+}
+
+laure_typedecl *laure_typedecl_auto_create(laure_auto_type auto_type) {
+    laure_typedecl *td = malloc(sizeof(laure_typedecl));
+    td->t = td_auto;
+    td->auto_type = auto_type;
     return td;
 }
 
@@ -1772,11 +1857,15 @@ string predicate_repr(Instance *ins) {
     }
 
     if (img->header.resp != NULL) {
-        string rs;
+        string rs = NULL;
         if (img->header.resp->t == td_instance) {
             rs = img->header.resp->instance->name;
-        } else {
+        } else if (img->header.resp->t == td_generic) {
             rs = img->header.resp->generic;
+        } else if (img->header.resp->t == td_auto) {
+            switch (img->header.resp->auto_type) {
+                case AUTO_ID: rs = AUTO_ID_NAME; break;
+            }
         }
         snprintf(respbuff, 64, " -> %s", rs);
         uint remaining_length = 64 - strlen(respbuff);
