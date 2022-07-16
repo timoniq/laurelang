@@ -240,7 +240,7 @@ bool laure_parser_needs_continuation(char *query);
 bool laure_is_silent(control_ctx *cctx);
 Instance *laure_scope_find_var(laure_scope_t *scope, laure_expression_t *var, bool search_glob);
 
-void rough_strip_string(string s);
+string rough_strip_string(string s);
 
 /* =-----------=
     String

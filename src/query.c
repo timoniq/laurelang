@@ -889,7 +889,7 @@ qresp laure_eval_name(_laure_eval_sub_args) {
     Instance *v2 = laure_scope_find_by_key_l(scope, v2_exp->s, link2, false);
 
     if (!v1 && !v2) {
-        return respond(q_error, "naming impossible, neither left nor right is known");
+        return RESPOND_TRUE;
     } else if (v1 && v2) {
         if (v1 == v2) return RESPOND_TRUE;
         else if (instantiated(v1) || instantiated(v2)) {
@@ -1183,6 +1183,7 @@ ARGPROC_RES pred_call_procvar(
             
             if (! arg->image)
                 return_str_fmt("specification of %s is needed", argn);
+            
             bool result = read_head(arg->image).translator->invoke(exp, arg->image, prev_scope);
 
             if (! result) {
@@ -1190,6 +1191,16 @@ ARGPROC_RES pred_call_procvar(
                 free(arg);
                 return ARGPROC_RET_FALSE;
             }
+            
+            if (read_head(arg->image).t == PREDICATE_FACT) {
+                free(arg);
+                if (recorder) {
+                    Instance *uu_ins = laure_create_uuid_instance(argn, hint->name, exp->s);
+                    recorder(uu_ins, laure_scope_generate_link(), ctx);
+                }
+                break;
+            }
+
             if (recorder)
                 recorder(arg, laure_scope_generate_link(), ctx);
             else {
@@ -1301,11 +1312,10 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 laure_expression_t *resp_expression = (
                     laure_expression_set_get_by_idx(
                         e->ba->set,
-                        laure_expression_get_count(e->ba->set)
-                        - e->ba->body_len + 1
+                        e->ba->body_len
                     )
                 );
-                rough_strip_string(
+                resp_expression->s = rough_strip_string(
                     resp_expression->s
                 );
                 uuid_t uu;
@@ -1589,7 +1599,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             }
             
             if (T) free(T);
-            
+
             if (uuid_instance) {
                 ulong l[1];
                 *l = 0;

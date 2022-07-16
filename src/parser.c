@@ -147,12 +147,15 @@ void laure_expression_destroy(laure_expression_t *expression) {
     free(expression);
 }
 
-void rough_strip_string(string s) {
+string rough_strip_string(string s) {
     if (str_starts(s, "\"") && lastc(s) == '"') {
-        s++;
+        char n[40];
+        strcpy(n, s+1);
+        strcpy(s, n);
         lastc(s) = 0;
-        rough_strip_string(s);
+        s = rough_strip_string(s);
     }
+    return s;
 }
 
 void laure_expression_set_destroy(laure_expression_set *root) {

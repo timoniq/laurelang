@@ -4,7 +4,7 @@
 ?person("John", 43).
 
 : ?predicate(person, person).
-?predicate(person p1, person(name, _) p2) {
+?predicate(p1, person(name, _)) {
     p1 = person(_, age);
-    // ...
+    name; age;
 }

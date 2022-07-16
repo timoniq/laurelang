@@ -377,6 +377,7 @@ struct AtomImage *laure_atom_universum_create(multiplicity *mult);
 struct PredicateImage *predicate_header_new(laure_typeset *args, laure_typedecl *resp, bool is_constraint);
 
 laure_uuid_image *laure_create_uuid(string bound, uuid_t uu);
+Instance *laure_create_uuid_instance(string name, string bound, string uu_str);
 
 void *image_deepcopy(laure_scope_t *scope, void *img);
 

@@ -5,7 +5,8 @@ struct Translator *INT_TRANSLATOR,
                   *CHAR_TRANSLATOR, 
                   *STRING_TRANSLATOR,
                   *ARRAY_TRANSLATOR,
-                  *ATOM_TRANSLATOR;
+                  *ATOM_TRANSLATOR,
+                  *PREDICATE_AUTO_TRANSLATOR;
 
 string MOCK_NAME;
 qresp  MOCK_QRESP;
@@ -1322,6 +1323,36 @@ laure_uuid_image *laure_create_uuid(string bound, uuid_t uu) {
     return im;
 }
 
+/* auto */
+
+bool predicate_auto_translator(laure_expression_t *expr, struct PredicateImage *img, laure_scope_t *scope) {
+    string uu_str = expr->s;
+    uu_str = rough_strip_string(uu_str);
+    uuid_t uu;
+    if (uuid_parse(uu_str, uu) != 0) return false;
+
+    if (! img->header.resp || img->header.resp->t != td_auto) return false;
+    switch (img->header.resp->auto_type) {
+        case AUTO_ID: {
+            // check exists
+            assert(img->variations->finals);
+            for (uint i = 0; i < img->variations->len; i++) {
+                if (uuid_compare(img->variations->finals[i]->uu, uu))
+                    return true;
+            }
+            return false;
+        }
+    }
+}
+
+Instance *laure_create_uuid_instance(string name, string bound, string uu_str) {
+    uuid_t uu;
+    if (uuid_parse(uu_str, uu) != 0) return NULL;
+    Instance *ins = instance_new(name, NULL, laure_create_uuid(bound, uu));
+    ins->repr = uuid_repr;
+    return ins;
+}
+
 /*
    Global methods
 */
@@ -1334,6 +1365,7 @@ void laure_set_translators() {
     ARRAY_TRANSLATOR = new_translator('a', array_translator);
     STRING_TRANSLATOR = new_translator('s', string_translator);
     ATOM_TRANSLATOR = new_translator('@', atom_translator);
+    PREDICATE_AUTO_TRANSLATOR = new_translator('p', predicate_auto_translator);
     MOCK_NAME = strdup( "$mock_name" );
     MOCK_QRESP.state = q_true;
     MOCK_QRESP.payload = 0;
@@ -1803,7 +1835,7 @@ struct PredicateImage *predicate_header_new(laure_typeset *args, laure_typedecl 
     header.nestings = 0;
     header.response_nesting = 0;
     
-    img->translator = NULL;
+    img->translator = PREDICATE_AUTO_TRANSLATOR;
     img->header = header;
     img->variations = pvs_new();
     img->is_primitive = false;
