@@ -12,6 +12,6 @@
 : #test_abstract_nesting(int[]).
 #test_abstract_nesting(x) {
     p > 0;
-    arr ~ p[];
+    arr ~ p[][];
     abstract_nesting(x) = arr;
 }

@@ -243,7 +243,7 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
         resp = NULL;
     }
 
-    struct PredicateImage *img = predicate_header_new(args_set, resp, predicate_exp->t == let_constraint);
+    struct PredicateImage *img = predicate_header_new(predicate_exp->s, args_set, resp, predicate_exp->t == let_constraint);
     img->header.nestings = nestings;
     img->header.response_nesting = resp_nesting;
     return img;

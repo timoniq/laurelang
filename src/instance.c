@@ -13,7 +13,7 @@ qresp  MOCK_QRESP;
 string DEFAULT_ANONVAR = NULL;
 
 char *AUTO_ID_NAME = NULL;
-char* IMG_NAMES[] = {"Integer", "Char", "Array", "Atom", "Predicate", "Constraint", "Structure", "", "[External]"};
+char* IMG_NAMES[] = {"Integer", "Char", "Array", "Atom", "Predicate", "Constraint", "Structure", "", "[External]", "Union", "UUID"};
 
 #define REC_TYPE(rec) gen_resp (*rec)(void*, void*)
 
@@ -1281,14 +1281,30 @@ gen_resp atom_generate(
 
 // eq
 bool uuid_eq(laure_uuid_image *im1, laure_uuid_image *im2) {
+    if (im1->unset && im2->unset) 
+        return true;
+    
+    if (im1->unset || im2->unset) {
+        if (im1->unset) {
+            uuid_copy(im1->uuid, im2->uuid);
+            im1->unset = false;
+        } else {
+            uuid_copy(im2->uuid, im1->uuid);
+            im2->unset = false;
+        }
+        return true;
+    }
+
     if (! str_eq(im1->bound, im2->bound)) return false;
-    return uuid_compare(im1->uuid, im2->uuid);
+    return uuid_compare(im1->uuid, im2->uuid) == 0;
 }
 
 // repr
 string uuid_repr(Instance *ins) {
-    char uuid_str[37]; // should fit
     laure_uuid_image *im = (laure_uuid_image*) ins->image;
+    if (im->unset)
+        return strdup("unset UUID");
+    char uuid_str[37]; // should fit
     uuid_unparse_lower(im->uuid, uuid_str);
     return strdup(uuid_str);
 }
@@ -1317,9 +1333,14 @@ gen_resp uuid_generate_image(
 laure_uuid_image *laure_create_uuid(string bound, uuid_t uu) {
     laure_uuid_image *im = malloc(sizeof(laure_uuid_image));
     im->bound = bound;
-    uuid_copy(im->uuid, uu);
     im->t = UUID;
     im->translator = NULL;
+    if (uu[0] != 0) {
+        uuid_copy(im->uuid, uu);
+        im->unset = false;
+    } else {
+        im->unset = true;
+    }
     return im;
 }
 
@@ -1337,17 +1358,35 @@ bool predicate_auto_translator(laure_expression_t *expr, struct PredicateImage *
             // check exists
             assert(img->variations->finals);
             for (uint i = 0; i < img->variations->len; i++) {
-                if (uuid_compare(img->variations->finals[i]->uu, uu))
+                if (uuid_compare(img->variations->finals[i]->uu, uu)) {
+                    string bound = img->bound;
+                    struct UUIDImage *uu_image = realloc(img, sizeof(laure_uuid_image));
+                    uu_image->t = UUID;
+                    uu_image->bound = bound;
+                    uu_image->translator = NULL;
+                    uu_image->unset = false;
+                    uuid_copy(uu_image->uuid, uu);
                     return true;
+                }
             }
             return false;
         }
     }
 }
 
+void force_predicate_to_uuid(struct PredicateImage *predicate_img) {
+    string bound = predicate_img->bound;
+    struct UUIDImage *uu_image = realloc(predicate_img, sizeof(laure_uuid_image));
+    uu_image->t = UUID;
+    uu_image->bound = bound;
+    uu_image->translator = NULL;
+    uu_image->unset = true;
+}
+
 Instance *laure_create_uuid_instance(string name, string bound, string uu_str) {
     uuid_t uu;
-    if (uuid_parse(uu_str, uu) != 0) return NULL;
+    if (uu_str && uuid_parse(uu_str, uu) != 0) return NULL;
+    else if (! uu_str) uu[0] = 0;
     Instance *ins = instance_new(name, NULL, laure_create_uuid(bound, uu));
     ins->repr = uuid_repr;
     return ins;
@@ -1457,7 +1496,9 @@ void *image_deepcopy(laure_scope_t *stack, void *img) {
         }
         case CONSTRAINT_FACT:
         case PREDICATE_FACT: {
-            return img;
+            struct PredicateImage *nimg = malloc(sizeof(struct PredicateImage));
+            *nimg = *(struct PredicateImage*)img;
+            return nimg;
         }
         default:
             break;
@@ -1824,8 +1865,9 @@ laure_typedecl *laure_typedecl_auto_create(laure_auto_type auto_type) {
 Working with 
 predicate variations 
 ================= */
-struct PredicateImage *predicate_header_new(laure_typeset *args, laure_typedecl *resp, bool is_constraint) {
+struct PredicateImage *predicate_header_new(string bound_name, laure_typeset *args, laure_typedecl *resp, bool is_constraint) {
     struct PredicateImage *img = malloc(sizeof(struct PredicateImage));
+    img->bound = bound_name;
 
     img->t = !is_constraint ? PREDICATE_FACT : CONSTRAINT_FACT;
     

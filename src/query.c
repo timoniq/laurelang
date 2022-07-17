@@ -727,11 +727,23 @@ qresp laure_eval_assert(
         else {
             // Expression is sent to image translator
             struct ImageHead head = read_head(to->image);
+
+            if (head.t == PREDICATE_FACT) {
+                struct PredicateImage *pim = (struct PredicateImage*)to->image;
+                if (! pim->header.resp || pim->header.resp->t != td_auto)
+                    RESPOND_ERROR(signature_err, e, "predicate response argument should be auto");
+            }
+
             if (! head.translator) {
                 RESPOND_ERROR(internal_err, e, "%s is not assignable. Cannot assign to `%s`", vname, rexpression->s);
             }
             bool result = head.translator->invoke(rexpression, to->image, scope);
             if (!result) return RESPOND_FALSE;
+
+            if (head.t == PREDICATE_FACT) {
+                laure_uuid_image *pim = (laure_uuid_image*)to->image;
+                to->repr = uuid_repr;
+            }
             return RESPOND_TRUE;
         }
     } else
@@ -1081,7 +1093,8 @@ ARGPROC_RES pred_call_procvar(
     bool                create_copy,
 
     Instance *T,
-    uint nesting
+    uint nesting,
+    struct PredicateImage *pred_img
 ) {
     switch (exp->t) {
         case let_var: {
@@ -1104,11 +1117,21 @@ ARGPROC_RES pred_call_procvar(
                         hint = get_nested_instance(T, nesting, prev_scope);
                     } else {
                         hint = hint_opt->instance;
+
+                        if (hint && hint->image && read_head(hint->image).t == PREDICATE_FACT) {
+                            struct PredicateImage *pim = (struct PredicateImage*)hint->image;
+                            if (pim->header.resp && pim->header.resp->t == td_auto) {
+                                // hint is uuid
+                                arg = laure_create_uuid_instance(argn, pim->bound, NULL);
+                                goto linking;
+                            }
+                        }
                     }
                     arg = instance_deepcopy(prev_scope, argn, hint);
                 } else {
                     return_str_fmt("specification of %s is needed", vname);
                 }
+                linking: {};
                 ulong preset_link = 0;
                 if (prev_scope->idx == 1) {
                     ulong l[1];
@@ -1140,10 +1163,26 @@ ARGPROC_RES pred_call_procvar(
                 }
                 if (! new_scope) arg = prev_ins;
             } else {
+                if (hint_opt && pf->t == PF_INTERIOR) {
+                    // check variable corresponds the type
+                    Instance *hint;
+                    if (hint_opt->t == td_generic) {
+                        assert(T);
+                        hint = get_nested_instance(T, nesting, prev_scope);
+                    } else
+                        hint = hint_opt->instance;
+                    
+                    if (hint && hint->image && arg->image) {
+                        void *Tim_copy = image_deepcopy(prev_scope, hint->image);
+                        if (!image_equals(arg->image, Tim_copy))
+                            return ARGPROC_RET_FALSE;
+                        image_free(Tim_copy);
+                    }
+                }
                 Instance *existing_same = new_scope ? laure_scope_find_by_link(new_scope, *link, false) : NULL;
-                if (existing_same && recorder)
-                    arg = instance_new(argn, MARKER_NODELETE, existing_same->image);
-                else if (create_copy && recorder)
+                if (existing_same && recorder) {
+                     arg = instance_new(argn, MARKER_NODELETE, existing_same->image);
+                } else if (create_copy && recorder)
                     arg = instance_deepcopy(new_scope, argn, arg);
             }
             ulong lin;
@@ -1305,6 +1344,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
     for (uint variation_idx = 0; variation_idx < pred_img->variations->len; variation_idx++) {
         predfinal *pf = pred_img->variations->finals[variation_idx];
         Instance *uuid_instance = NULL;
+        laure_scope_t *prev = laure_scope_create_copy(cctx, init_scope);
 
         if (pf->t == PF_INTERIOR && pred_img->header.resp && pred_img->header.resp->t == td_auto) {
             if (e->ba->has_resp) {
@@ -1320,15 +1360,31 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 );
                 uuid_t uu;
                 if (resp_expression->t == let_var) {
-                    Instance *uuid_ins = laure_scope_find_var(scope, resp_expression, true);
+                    Instance *uuid_ins = laure_scope_find_var(prev, resp_expression, true);
                     if (uuid_ins) {
-                        if (read_head(uuid_ins->image).t != UUID)
-                            RESPOND_ERROR(instance_err, resp_expression, "%s is not instance of UUID", resp_expression->s);
+                        enum ImageT uuid_imt = read_head(uuid_ins->image).t;
+                        if (uuid_imt == PREDICATE_FACT) {
+                            // bound but not set
+                            struct PredicateImage *pim = (struct PredicateImage*)uuid_ins->image;
+                            if (! str_eq(pim->bound, predicate_name)) return RESPOND_FALSE;
+                            force_predicate_to_uuid(pim);
+                            goto with_instance;
+                        } else {
+                            if (uuid_imt != UUID)
+                                RESPOND_ERROR(instance_err, resp_expression, "%s is not instance of UUID / Predicate (but of %s)", resp_expression->s, IMG_NAMES[read_head(uuid_ins->image).t]);
                         
-                        laure_uuid_image *uu_image = (laure_uuid_image*)uuid_ins->image;
-                        if (! str_eq(uu_image->bound, predicate_name)) return RESPOND_FALSE;
-                        uuid_copy(uu, uu_image->uuid);
+                            laure_uuid_image *uu_image = (laure_uuid_image*)uuid_ins->image;
+                            if (! str_eq(uu_image->bound, predicate_name)) return RESPOND_FALSE;
+                            if (uu_image->unset) {
+                                uuid_copy(uu_image->uuid, pf->uu);
+                                uuid_copy(uu, pf->uu);
+                                uu_image->unset = false;
+                            } else {
+                                uuid_copy(uu, uu_image->uuid);
+                            }
+                        }
                     } else {
+                        with_instance:
                         uuid_ins = instance_new(resp_expression->s, NULL, laure_create_uuid(predicate_name, pf->uu));
                         uuid_ins->repr = uuid_repr;
                         uuid_copy(uu, pf->uu);
@@ -1351,7 +1407,6 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             }
         }
 
-        laure_scope_t *prev = laure_scope_create_copy(cctx, init_scope);
         qresp resp;
         bool do_continue = true;
         ulong cut_store = cctx->cut;
@@ -1385,7 +1440,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     argexp->s, 
                     pf->c.hints[idx] ? decl : NULL, 
                     argexp, cpred_arg_recorder, 
-                    actx, false, NULL, 0);
+                    actx, false, NULL, 0, pred_img);
 
                 ARGPROC_RES_(
                     res, 
@@ -1420,7 +1475,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                         exp->s,
                         pf->c.resp_hint ? decl : NULL,
                         exp, cpred_resp_recorder,
-                        actx, false, NULL, 0);
+                        actx, false, NULL, 0, pred_img);
                     
                     ARGPROC_RES_(
                         res, 
@@ -1544,7 +1599,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     laure_get_argn(idx), 
                     &pred_img->header.args->data[idx], 
                     argexp, rec, 
-                    actx, true, T, pred_img->header.nestings[idx]);
+                    actx, true, T, pred_img->header.nestings[idx], pred_img);
 
                 ARGPROC_RES_(
                     res, 
@@ -1587,7 +1642,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                         laure_get_respn(),
                         pred_img->header.resp,
                         exp, rec,
-                        actx, true, T, pred_img->header.response_nesting);
+                        actx, true, T, pred_img->header.response_nesting, pred_img);
                     
                     ARGPROC_RES_(
                         res,

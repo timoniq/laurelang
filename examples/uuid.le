@@ -2,9 +2,16 @@
 ?person("Anya", 21).
 ?person("Nick", 19).
 ?person("John", 43).
+?person("Helena", 19).
 
 : ?predicate(person, person).
 ?predicate(p1, person(name, _)) {
     p1 = person(_, age);
-    name; age;
+    // ^ here age of p1 resolved
+    p2 = person(name, some_age);
+    // ^ p2 points to person with specific name
 }
+
+: ?marriage(person, person).
+?marriage(person("Anya", _), person("John", _)).
+?marriage(person("Nick", _), person("Helena", _)).

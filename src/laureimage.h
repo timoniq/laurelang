@@ -297,6 +297,7 @@ struct PredicateHeaderImage {
 struct PredicateImage {
     IMAGE_HEAD
     bool is_primitive;
+    string bound;
     struct PredicateHeaderImage header;
     struct PredicateImageVariationSet *variations;
 };
@@ -305,7 +306,10 @@ typedef struct UUIDImage {
     IMAGE_HEAD
     string bound;
     uuid_t uuid;
+    bool unset;
 } laure_uuid_image;
+
+void force_predicate_to_uuid(struct PredicateImage *predicate_img);
 
 struct ConstraintImage {
     IMAGE_HEAD
@@ -374,7 +378,7 @@ struct ArrayImage *laure_create_array_u(Instance *el_t);
 
 struct AtomImage *laure_atom_universum_create(multiplicity *mult);
 
-struct PredicateImage *predicate_header_new(laure_typeset *args, laure_typedecl *resp, bool is_constraint);
+struct PredicateImage *predicate_header_new(string bound_name, laure_typeset *args, laure_typedecl *resp, bool is_constraint);
 
 laure_uuid_image *laure_create_uuid(string bound, uuid_t uu);
 Instance *laure_create_uuid_instance(string name, string bound, string uu_str);

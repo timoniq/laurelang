@@ -1484,7 +1484,7 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
 
         case let_var: {
             printindent(indent);
-            printf("var %s\n", exp->s);
+            printf("var %s : nesting %d\n", exp->s, exp->flag);
             break;
         }
 
