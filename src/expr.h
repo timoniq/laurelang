@@ -29,6 +29,7 @@ typedef enum {
     let_singlq,
     let_atom_sign,
     let_auto,
+    let_nested,
     let_nope
 } laure_expression_type;
 

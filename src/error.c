@@ -70,7 +70,7 @@ void laure_error_write(
     string buff, 
     size_t buff_sz
 ) {
-    uint lnpos = err->reason->flag2 > 127 ? 127 : err->reason->flag2;
+    uint lnpos = err->reason ? (err->reason->flag2 > 127 ? 127 : err->reason->flag2) : 0;
     char place_pointer[128];
     memset(place_pointer, ' ', 128);
     place_pointer[lnpos] = 0;
@@ -81,7 +81,7 @@ void laure_error_write(
         buff,
         buff_sz, 
         "  %s\n  %s%s╰%s error%s: %s", 
-        err->reason->fullstring, 
+        err->reason ? err->reason->fullstring : "(internal)", 
         place_pointer, 
         GREEN_COLOR, RED_COLOR, NO_COLOR,
         msg

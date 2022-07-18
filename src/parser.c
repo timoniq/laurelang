@@ -27,7 +27,7 @@ string ELLIPSIS = NULL;
 #define GENERIC_OPEN '<'
 #define GENERIC_CLOSE '>'
 
-char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Structure Definition", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Atom", "Command", "Generic DT/Char", "Atom Sign", "Auto", "[Nope]"};
+char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Structure Definition", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Atom", "Command", "Generic DT/Char", "Atom Sign", "Auto", "Nested", "[Nope]"};
 
 laure_expression_t *laure_expression_create(
     laure_expression_type t, 
@@ -1419,6 +1419,15 @@ laure_parse_result laure_parse(string query) {
                     return lpr;
                 }
 
+                if (nesting > 0) {
+                    laure_parse_result lpr = laure_parse(dup);
+                    if (! lpr.is_ok) return lpr;
+                    laure_expression_t *e = lpr.exp;
+                    lpr.exp = laure_expression_create(let_nested, NULL, false, NULL, nesting, NULL, query);
+                    lpr.exp->link = e;
+                    return lpr;
+                }
+
                 // custom
                 // integer/string/custom image macros
                 laure_parse_result lpr;
@@ -1597,6 +1606,15 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
                 }
             }
             printf("\n");
+            break;
+        }
+
+        case let_nested: {
+            printindent(indent);
+            printf("Nested (%d) [\n", exp->flag);
+            laure_expression_show(exp->link, indent + 2);
+            printindent(indent); 
+            printf("]\n");
             break;
         }
     

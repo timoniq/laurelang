@@ -1,24 +1,24 @@
 #include "standard.h"
 
-qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
+DECLARE(laure_predicate_integer_plus) {
     Instance *var1 = pd_get_arg(pd, 0);
     Instance *var2 = pd_get_arg(pd, 1);
     Instance *sum = pd->resp;
 
-    struct IntImage *var1_im = (struct IntImage*)var1->image;
-    struct IntImage *var2_im = (struct IntImage*)var2->image;
-    struct IntImage *sum_im =  (struct IntImage*)sum->image;
+    cast_image(var1_im, struct IntImage) var1->image;
+    cast_image(var2_im, struct IntImage) var2->image;
+    cast_image(sum_im, struct IntImage) sum->image;
 
-    int var1_i = var1_im->state == I;
-    int var2_i = var2_im->state == I;
-    int sum_i  = sum_im->state  == I;
+    bool var1_i = var1_im->state == I;
+    bool var2_i = var2_im->state == I;
+    bool sum_i  = sum_im->state  == I;
 
     if (var1_i && var2_i && sum_i) {
         // 3 = 1 + 2
         bigint real_sum[1];
         bigint_init(real_sum);
         bigint_add(real_sum, var1_im->i_data, var2_im->i_data);
-        return respond((qresp_state)(bigint_cmp(real_sum, sum_im->i_data) == 0), NULL);
+        return from_boolean(bigint_cmp(real_sum, sum_im->i_data) == 0);
 
     } else if (var1_i && var2_i && !sum_i) {
         // X = 1 + 2
@@ -26,7 +26,7 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
         bigint_init(bi_sum);
         bigint_add(bi_sum, var1_im->i_data, var2_im->i_data);
         INT_ASSIGN(sum_im, bi_sum);
-        return respond(q_true, NULL);
+        return True;
 
     } else if (var1_i && !var2_i && sum_i) {
         // 3 = 1 + X
@@ -34,7 +34,7 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
         bigint_init(bi);
         bigint_sub(bi, sum_im->i_data, var1_im->i_data);
         INT_ASSIGN(var2_im, bi);
-        return respond(q_true, NULL);
+        return True;
         
     } else if (!var1_i && var2_i && sum_i) {
         // 3 = X + 2
@@ -42,22 +42,22 @@ qresp laure_predicate_integer_plus(preddata *pd, control_ctx* cctx) {
         bigint_init(bi);
         bigint_sub(bi, sum_im->i_data, var2_im->i_data);
         INT_ASSIGN(var1_im, bi);
-        return respond(q_true, NULL);
+        return True;
 
     } else {
         return respond(q_error, "op. int +|-: too ambiguative; unify");
     }
 }
 
-qresp laure_constraint_gt(preddata *pd, control_ctx* cctx) {
+DECLARE(laure_constraint_gt) {
     Instance *i = pd_get_arg(pd, 0);
     Instance *gt = pd_get_arg(pd, 1);
 
     if (read_head(i->image).t == ATOM) {
         assert(read_head(gt->image).t == ATOM);
         // check size
-        struct AtomImage *l = (struct AtomImage*)i->image;
-        struct AtomImage *r = (struct AtomImage*)gt->image;
+        cast_image(l,  struct AtomImage) i->image;
+        cast_image(r,  struct AtomImage) gt->image;
         
         uint l_sz, r_sz;
         if (l->single) l_sz = 1;
@@ -65,52 +65,55 @@ qresp laure_constraint_gt(preddata *pd, control_ctx* cctx) {
         if (r->single) r_sz = 1;
         else r_sz = r->mult->amount;
 
-        return respond((l_sz > r_sz) ? q_true : q_false, 0);
+        return from_boolean(l_sz > r_sz);
     }
 
-    struct IntImage *i_im = (struct IntImage*)i->image;
-    struct IntImage *gt_im = (struct IntImage*)gt->image;
+    cast_image(i_im, struct IntImage) i->image;
+    cast_image(gt_im, struct IntImage) gt->image;
 
-    int i_i = i_im->state == 1;
-    int gt_i = gt_im->state == 1;
+    bool i_i = i_im->state == 1;
+    bool gt_i = gt_im->state == 1;
 
     if (i_i && gt_i) {
-        return bigint_cmp(i_im->i_data, gt_im->i_data) > 0 ? respond(q_true, 0) : respond(q_false, 0);
+        return from_boolean(bigint_cmp(i_im->i_data, gt_im->i_data) > 0);
     } else if (!i_i && gt_i) {
-        if (i_im->u_data->lborder.t == SECLUDED && bigint_cmp(gt_im->i_data, i_im->u_data->lborder.data) == 0) return respond(q_true, 0);
+        if (i_im->u_data->lborder.t == SECLUDED && bigint_cmp(gt_im->i_data, i_im->u_data->lborder.data) == 0) 
+            return True;
         if (i_im->u_data->rborder.t != INFINITE) {
             if (i_im->u_data->rborder.t == INCLUDED) {
-                if (bigint_cmp(i_im->u_data->rborder.data, gt_im->i_data) <= 0) return respond(q_false, 0);
+                if (bigint_cmp(i_im->u_data->rborder.data, gt_im->i_data) <= 0)
+                    return False;
             } else {
-                if (bigint_cmp(i_im->u_data->rborder.data, gt_im->i_data) < 0) return respond(q_false, 0);
+                if (bigint_cmp(i_im->u_data->rborder.data, gt_im->i_data) < 0)
+                    return False;
             }
         }
         struct IntValue v;
         v.t = SECLUDED;
         v.data = bigint_copy(gt_im->i_data);
         int_domain_gt(i_im->u_data, v);
-        return respond(q_true, 0);
+        return True;
     } else if (i_i && !gt_i) {
         struct IntValue v;
         v.t = SECLUDED;
         v.data = bigint_copy(i_im->i_data);
         int_domain_lt(gt_im->u_data, v);
-        return respond(q_true, 0);
+        return True;
     } else {
         printf("todo gt indefinite\n");
-        return respond(q_false, 0);
+        return True;
     }
 }
 
-qresp laure_constraint_gte(preddata *pd, control_ctx* cctx) {
+DECLARE(laure_constraint_gte) {
     Instance *i = pd_get_arg(pd, 0);
     Instance *gt = pd_get_arg(pd, 1);
 
     if (read_head(i->image).t == ATOM) {
         assert(read_head(gt->image).t == ATOM);
         // check size
-        struct AtomImage *l = (struct AtomImage*)i->image;
-        struct AtomImage *r = (struct AtomImage*)gt->image;
+        cast_image(l, struct AtomImage) i->image;
+        cast_image(r, struct AtomImage) gt->image;
         
         uint l_sz, r_sz;
         if (l->single) l_sz = 1;
@@ -118,51 +121,51 @@ qresp laure_constraint_gte(preddata *pd, control_ctx* cctx) {
         if (r->single) r_sz = 1;
         else r_sz = r->mult->amount;
 
-        return respond((l_sz >= r_sz) ? q_true : q_false, 0);
+        return from_boolean(l_sz >= r_sz);
     }
 
-    struct IntImage *i_im = (struct IntImage*)i->image;
-    struct IntImage *gt_im = (struct IntImage*)gt->image;
+    cast_image(i_im, struct IntImage) i->image;
+    cast_image(gt_im, struct IntImage) gt->image;
 
-    int i_i = i_im->state == I;
-    int gt_i = gt_im->state == I;
+    bool i_i = i_im->state == I;
+    bool gt_i = gt_im->state == I;
 
     if (i_i && gt_i) {
-        return bigint_cmp(i_im->i_data, gt_im->i_data) >= 0 ? respond(q_true, 0) : respond(q_false, 0);
+        return from_boolean(bigint_cmp(i_im->i_data, gt_im->i_data) >= 0);
     } else if (!i_i && gt_i) {
         if (i_im->u_data->rborder.t != INFINITE) {
-            if (bigint_cmp(i_im->u_data->rborder.data, gt_im->i_data) < 0) return respond(q_false, 0);
+            if (bigint_cmp(i_im->u_data->rborder.data, gt_im->i_data) < 0) return False;
         }
         struct IntValue v;
         v.t = INCLUDED;
         v.data = bigint_copy(gt_im->i_data);
         int_domain_gt(i_im->u_data, v);
-        return respond(q_true, 0);
+        return True;
     } else if (i_i && !gt_i) {
-        if (!int_check(gt_im, i_im->i_data)) return respond(q_false, 0);
+        if (!int_check(gt_im, i_im->i_data)) return False;
         struct IntValue v;
         v.t = INCLUDED;
         v.data = bigint_copy(i_im->i_data);
         int_domain_lt(gt_im->u_data, v);
-        return respond(q_true, 0);
+        return True;
     } else {
         printf("todo gte indefinite\n");
-        return respond(q_true, 0);
+        return True;
     }
 }
 
-qresp laure_predicate_integer_multiply(preddata *pd, control_ctx* cctx) {
+DECLARE(laure_predicate_integer_multiply) {
     Instance *var1 = pd_get_arg(pd, 0);
     Instance *var2 = pd_get_arg(pd, 1);
     Instance *prod = pd->resp;
 
-    struct IntImage *var1_im = (struct IntImage*)var1->image;
-    struct IntImage *var2_im = (struct IntImage*)var2->image;
-    struct IntImage *prod_im = (struct IntImage*)prod->image;
+    cast_image(var1_im, struct IntImage) var1->image;
+    cast_image(var2_im, struct IntImage) var2->image;
+    cast_image(prod_im, struct IntImage) prod->image;
 
-    int var1_i = var1_im->state == I;
-    int var2_i = var2_im->state == I;
-    int prod_i  = prod_im->state == I;
+    bool var1_i = var1_im->state == I;
+    bool var2_i = var2_im->state == I;
+    bool prod_i  = prod_im->state == I;
 
     if (var1_i && var2_i && prod_i) {
         bigint real_prod[1];
@@ -170,14 +173,14 @@ qresp laure_predicate_integer_multiply(preddata *pd, control_ctx* cctx) {
         bigint_mul(real_prod, var1_im->i_data, var2_im->i_data);
         bool cmp = bigint_cmp(real_prod, prod_im->i_data) == 0;
         bigint_free(real_prod);
-        return respond((qresp_state)cmp, NULL);
+        return from_boolean(cmp);
 
     } else if (var1_i && var2_i && !prod_i) {
         bigint *bi_prod = malloc(sizeof(bigint));
         bigint_init(bi_prod);
         bigint_mul(bi_prod, var1_im->i_data, var2_im->i_data);
         INT_ASSIGN(prod_im, bi_prod);
-        return respond(q_true, NULL);
+        return True;
 
     } else if (var1_i && !var2_i && prod_i) {
         bigint *bi = malloc(sizeof(bigint));
@@ -185,7 +188,7 @@ qresp laure_predicate_integer_multiply(preddata *pd, control_ctx* cctx) {
         void *success = bigint_div(bi, prod_im->i_data, var1_im->i_data, true);
         if (success == NULL) return respond(q_false, NULL);
         INT_ASSIGN(var2_im, bi);
-        return respond(q_true, NULL);
+        return True;
 
     } else if (!var1_i && var2_i && prod_i) {
         bigint *bi = malloc(sizeof(bigint));
@@ -193,34 +196,36 @@ qresp laure_predicate_integer_multiply(preddata *pd, control_ctx* cctx) {
         void *success = bigint_div(bi, prod_im->i_data, var2_im->i_data, true);
         if (success == NULL) return respond(q_false, NULL);
         INT_ASSIGN(var1_im, bi);
-        return respond(q_true, NULL);
+        return True;
     } else {
         return respond(q_error, "op. int *|/: too ambiguative; unify");
     }
 }
 
-qresp laure_predicate_sqrt(preddata *pd, control_ctx *cctx) {
+DECLARE(laure_predicate_sqrt) {
     Instance *n = pd_get_arg(pd, 0);
     Instance *s = pd->resp;
-    struct IntImage *n_img = (struct IntImage*) n->image;
-    struct IntImage *s_img = (struct IntImage*) s->image;
+
+    cast_image(n_img, struct IntImage)  n->image;
+    cast_image(s_img, struct IntImage)  s->image;
+
     if (instantiated(n) && instantiated(s)) {
         bigint bi[1];
         bigint_init(bi);
         bigint_sqrt(bi, n_img->i_data);
-        return respond((bigint_cmp(bi, s_img->i_data) == 0) ? q_true : q_false, 0);
+        return from_boolean(bigint_cmp(bi, s_img->i_data) == 0);
     } else if (instantiated(n)) {
         bigint *bi = malloc(sizeof(bigint));
         bigint_init(bi);
         bigint_sqrt(bi, n_img->i_data);
         INT_ASSIGN(s_img, bi);
-        return respond(q_true, 0);
+        return True;
     } else if (instantiated(s)) {
         bigint *bi = malloc(sizeof(bigint));
         bigint_init(bi);
         bigint_mul(bi, s_img->i_data, s_img->i_data);
         INT_ASSIGN(n_img, bi);
-        return respond(q_true, 0);
+        return True;
     } else {
         return respond(q_error, "sqrt: too ambiguative; unify");
     }

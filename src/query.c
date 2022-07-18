@@ -1094,7 +1094,8 @@ ARGPROC_RES pred_call_procvar(
 
     Instance *T,
     uint nesting,
-    struct PredicateImage *pred_img
+    struct PredicateImage *pred_img,
+    bool allow_locked_mutability
 ) {
     switch (exp->t) {
         case let_var: {
@@ -1107,7 +1108,7 @@ ARGPROC_RES pred_call_procvar(
             link[0] = 0;
             Instance *arg = laure_scope_find_by_key_l(prev_scope, vname, link, true);
 
-            if (arg && arg->locked) {
+            if (arg && arg->locked && ! allow_locked_mutability) {
                 return_str_fmt("%s is locked", arg->name);
             } else if (! arg) {
                 if (hint_opt) {
@@ -1440,7 +1441,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     argexp->s, 
                     pf->c.hints[idx] ? decl : NULL, 
                     argexp, cpred_arg_recorder, 
-                    actx, false, NULL, 0, pred_img);
+                    actx, false, NULL, 0, pred_img, true);
 
                 ARGPROC_RES_(
                     res, 
@@ -1475,7 +1476,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                         exp->s,
                         pf->c.resp_hint ? decl : NULL,
                         exp, cpred_resp_recorder,
-                        actx, false, NULL, 0, pred_img);
+                        actx, false, NULL, 0, pred_img, true);
                     
                     ARGPROC_RES_(
                         res, 
@@ -1599,7 +1600,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     laure_get_argn(idx), 
                     &pred_img->header.args->data[idx], 
                     argexp, rec, 
-                    actx, true, T, pred_img->header.nestings[idx], pred_img);
+                    actx, true, T, pred_img->header.nestings[idx], pred_img, false);
 
                 ARGPROC_RES_(
                     res, 
@@ -1642,7 +1643,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                         laure_get_respn(),
                         pred_img->header.resp,
                         exp, rec,
-                        actx, true, T, pred_img->header.response_nesting, pred_img);
+                        actx, true, T, pred_img->header.response_nesting, pred_img, false);
                     
                     ARGPROC_RES_(
                         res,

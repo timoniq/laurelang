@@ -1996,3 +1996,18 @@ Instance *laure_unwrap_nestings(Instance *wrapped, uint redundant_nestings) {
     }
     return unwrapped;
 }
+
+struct ArrayIData convert_string(string unicode_string, laure_scope_t *scope) {
+    struct ArrayIData i_data;
+    i_data.length = 0;
+    i_data.linked = NULL;
+    for (size_t i = laure_string_strlen(unicode_string); i > 0; --i) {
+        int ch = laure_string_char_at_pos(unicode_string, strlen(unicode_string), i - 1);
+        i_data.length++;
+        array_linked_t *linked = malloc(sizeof(array_linked_t));
+        linked->next = i_data.linked;
+        linked->data = instance_new(MOCK_NAME, NULL, laure_create_char_i(ch));
+        i_data.linked = linked;
+    }
+    return i_data;
+}

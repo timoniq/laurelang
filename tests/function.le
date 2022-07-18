@@ -89,3 +89,26 @@
     n = between(3, 20);
     prime(n);
 }
+
+// "<-inf..inf>"
+// "?test_repr(string)"
+// "101"
+: ?test_repr(string).
+?test_repr(x) {
+    repr of int = x;
+}
+?test_repr(repr of test_repr).
+?test_repr(x) {
+    int a = 101;
+    repr of a = x;
+}
+
+// 125
+// 42
+: ?test_repr_inverted(int).
+?test_repr_inverted(x) {
+    repr of x = "125";
+}
+?test_repr_inverted(x) {
+    repr of x = "42";
+}

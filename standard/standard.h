@@ -12,10 +12,19 @@ qresp laure_constraint_gte(preddata*, control_ctx*);
 qresp laure_predicate_sqrt(preddata*, control_ctx*);
 
 qresp laure_predicate_message(preddata*, control_ctx*);
-/*
 qresp laure_predicate_repr(preddata*, control_ctx*);
-*/
 
+#define DECLARE(name) \
+        qresp name(preddata *pd, control_ctx *cctx) 
+
+#define from_boolean(boolean) respond(boolean ? q_true : q_false, NULL)
+#define True respond(q_true, NULL)
+#define False respond(q_false, NULL)
+#define cast_image(name, type) type *name = (type*)
+#define array_assign(ary_im, i_data) \
+        
+
+#define out(...) printf(__VA_ARGS__)
 
 struct BuiltinPred {
     string name;

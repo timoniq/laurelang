@@ -408,7 +408,7 @@ gen_resp image_generate(laure_scope_t*, void*, gen_resp (*rec)(void*, void*), vo
 
 // miscellanous
 
-struct ArrayIData convert_string(string str, laure_scope_t* scope);
+struct ArrayIData convert_string(string unicode_str, laure_scope_t* scope);
 
 // translators
 
