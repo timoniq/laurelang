@@ -134,6 +134,16 @@ Instance builtin_string() {
     return instance;
 }
 
+Instance builtin_formatting() {
+    Instance instance;
+    instance.name = strdup("formatting");
+    instance.doc = NULL;
+    instance.locked = true;
+    instance.repr = formatting_repr;
+    instance.image = laure_create_formatting_image(NULL);
+    return instance;
+}
+
 /* API */
 
 Instance *laure_api_add_predicate(

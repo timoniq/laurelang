@@ -24,7 +24,8 @@ enum ImageT {
     STRUCTURE,
     IMG_CUSTOM_T,
     UNION,
-    UUID
+    UUID,
+    FORMATTING
 };
 
 typedef struct {
@@ -203,6 +204,27 @@ struct AtomImage {
         multiplicity *mult;
     };
 };
+
+struct FormattingPart {
+    string before;
+    string name;
+    struct FormattingPart *prev, *next;
+};
+
+struct FormattingImage {
+    IMAGE_HEAD
+    struct FormattingPart *last, *first;
+};
+
+struct FormattingImage *laure_create_formatting_image(struct FormattingPart *linked);
+struct FormattingPart *laure_parse_formatting(string fmt);
+string formatting_repr(Instance *instance);
+int formatting_to_pattern(
+    struct FormattingPart *first, 
+    pattern_element **elements,
+    size_t sz,
+    size_t *count
+);
 
 struct StructureElement {
     string key;
@@ -409,6 +431,7 @@ gen_resp image_generate(laure_scope_t*, void*, gen_resp (*rec)(void*, void*), vo
 // miscellanous
 
 struct ArrayIData convert_string(string unicode_str, laure_scope_t* scope);
+int convert_to_string(struct ArrayIData i_data, string buff);
 
 // translators
 

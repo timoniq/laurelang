@@ -262,9 +262,10 @@ size_t laure_string_offset_at_pos(const char *buff, size_t buff_len, size_t i);
 typedef struct pattern_element {
     int c;
     short any_count;
+    bool group;
 } pattern_element;
 
-int laure_string_pattern_parse(char s[], pattern_element *pattern[]);
+int laure_string_pattern_parse(char s[], pattern_element *pattern[], string *group_buff);
 bool laure_string_pattern_match(char *s, char *p);
 
 #ifndef DISABLE_COLORING

@@ -149,9 +149,10 @@ void laure_expression_destroy(laure_expression_t *expression) {
 
 string rough_strip_string(string s) {
     if (str_starts(s, "\"") && lastc(s) == '"') {
-        char n[40];
+        string n = malloc(strlen(s));
         strcpy(n, s+1);
         strcpy(s, n);
+        free(n);
         lastc(s) = 0;
         s = rough_strip_string(s);
     }

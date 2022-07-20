@@ -3,6 +3,7 @@
 ?person("Nick", 19).
 ?person("John", 43).
 ?person("Helena", 19).
+?person("Max", 9).
 
 : ?predicate(person, person).
 ?predicate(p1, person(name, _)) {
@@ -15,3 +16,19 @@
 : ?marriage(person, person).
 ?marriage(person("Anya", _), person("John", _)).
 ?marriage(person("Nick", _), person("Helena", _)).
+
+: ?predicate2(person) -> natural.
+?predicate2(person(_, age)) -> 0 when age < 10.%
+?predicate2(person(_, age)) -> age - 10.
+
+: ?statement(string).
+
+?statement(name) {
+    age = predicate2(person(name, _));
+    age > 0;
+    message(format("10 years ago {name} was {age}"));
+}%
+
+?statement(name) {
+    message(format("{name} wasn't even born!"));
+}

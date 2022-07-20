@@ -1175,8 +1175,9 @@ ARGPROC_RES pred_call_procvar(
                     
                     if (hint && hint->image && arg->image) {
                         void *Tim_copy = image_deepcopy(prev_scope, hint->image);
-                        if (!image_equals(arg->image, Tim_copy))
-                            return ARGPROC_RET_FALSE;
+                        if (! (read_head(arg->image).t == UUID && read_head(Tim_copy).t == PREDICATE_FACT))
+                            if (! image_equals(arg->image, Tim_copy))
+                                return ARGPROC_RET_FALSE;
                         image_free(Tim_copy);
                     }
                 }

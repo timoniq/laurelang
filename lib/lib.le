@@ -109,3 +109,6 @@ int natural* = 0...
 #..(a, b) -> c when c >= a, c <= b.
 
 cons ~ never.
+
+: ?format(formatting) -> string.
+?format(fmt) -> __format(fmt).

@@ -208,12 +208,14 @@ size_t laure_string_offset_at_pos(const string buff, size_t buff_len, size_t i) 
     return s - buff;
 }
 
-int laure_string_pattern_parse(char s[], pattern_element *pattern[]) {
+int laure_string_pattern_parse(char s[], pattern_element *pattern[], string *group_buff) {
 
     if (!pattern[0]) return !(strlen(s));
 
     while (pattern[0]) {
         pattern_element *pe = pattern[0];
+        char buff[128] = {0};
+        uint b_pos = 0;
 
         if (!strlen(s)) {
             while (pattern[0]) {
@@ -222,14 +224,20 @@ int laure_string_pattern_parse(char s[], pattern_element *pattern[]) {
                 }
                 pattern++;
             }
+            if (group_buff)
+                *group_buff = strdup(buff);
+            
             return 1;
         }
 
         char c = s[0];
 
         if (pe->any_count) {
+            uint was_b_pos = b_pos;
 
             for (int j = 0; j < strlen(s) + 1; j++) {
+                buff[b_pos++] = s[j];
+                buff[b_pos] = '\0';
 
                 if (!pattern[1] && strlen(s + j)) {
                     if (!pe->any_count) {
@@ -237,11 +245,17 @@ int laure_string_pattern_parse(char s[], pattern_element *pattern[]) {
                     }
                 }
 
-                if (laure_string_pattern_parse(s + j, pattern + 1)) {
+                if (laure_string_pattern_parse(s + j, pattern + 1, group_buff + 1)) {
+                    if (group_buff) {
+                        buff[b_pos-1] = '\0';
+                        *group_buff = strdup(buff);
+                    }
                     return 1;
                 }
 
                 if (pe->c && s[j] != pe->c) {
+                    b_pos = was_b_pos;
+                    buff[b_pos] = '\0';
                     s--;
                     goto end;
                 }
@@ -293,7 +307,7 @@ bool laure_string_pattern_match(char *s, char *p) {
         }
     }
 
-    bool result =  (bool) laure_string_pattern_parse(s, pattern);
+    bool result =  (bool) laure_string_pattern_parse(s, pattern, NULL);
 	for (uint i = 0; i < idx; i++)
 		free(pattern[idx]);
 	return result;

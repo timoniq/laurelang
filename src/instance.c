@@ -6,7 +6,8 @@ struct Translator *INT_TRANSLATOR,
                   *STRING_TRANSLATOR,
                   *ARRAY_TRANSLATOR,
                   *ATOM_TRANSLATOR,
-                  *PREDICATE_AUTO_TRANSLATOR;
+                  *PREDICATE_AUTO_TRANSLATOR,
+                  *FORMATTING_TRANSLATOR;
 
 string MOCK_NAME;
 qresp  MOCK_QRESP;
@@ -1392,6 +1393,162 @@ Instance *laure_create_uuid_instance(string name, string bound, string uu_str) {
     return ins;
 }
 
+/* String manipulation
+   (formatting)
+*/
+
+struct FormattingPart *formatting_part_get_first(struct FormattingPart *part) {
+    if (! part) return NULL;
+    while (part->prev) {
+        part = part->prev;
+    }
+    return part;
+}
+
+struct FormattingImage *laure_create_formatting_image(struct FormattingPart *linked) {
+    struct FormattingImage *im = malloc(sizeof(struct FormattingImage));
+    im->t = FORMATTING;
+    im->translator = FORMATTING_TRANSLATOR;
+    im->first = formatting_part_get_first(linked);
+    im->last = linked;
+    return im;
+}
+
+#define FMT_L '{'
+#define FMT_R '}'
+
+struct FormattingPart *laure_parse_formatting(string fmt) {
+    string src = fmt;
+
+    char before[256];
+    size_t before_idx = 0;
+
+    struct FormattingPart *part = NULL;
+
+    for (uint i = 0; laure_string_strlen(src) > 0; i++) {
+        int ch = laure_string_get_char(&src);
+
+        if (ch == FMT_L) {
+            char name[128];
+            size_t name_idx = 0;
+            ch = laure_string_get_char(&src);
+            do {
+                name_idx += laure_string_put_char(name + name_idx, ch);
+                ch = laure_string_get_char(&src);
+            } while (ch != FMT_R && name_idx < 128);
+            struct FormattingPart *npart = malloc(sizeof(struct FormattingPart));
+            npart->before = before_idx ? strdup(before) : NULL;
+            npart->name = strdup(name);
+            npart->next = NULL;
+            npart->prev = part;
+            if (part)
+                part->next = npart;
+            part = npart;
+            before[0] = 0;
+            before_idx = 0;
+        } else {
+            if (before_idx < 256)
+                before_idx += laure_string_put_char(before + before_idx, ch);
+        }
+    }
+    if (laure_string_strlen(before)) {
+        struct FormattingPart *npart = malloc(sizeof(struct FormattingPart));
+        npart->before = strdup(before);
+        npart->name = NULL;
+        npart->next = NULL;
+        npart->prev = part;
+        if (part)
+            part->next = npart;
+        part = npart;
+    }
+    return part;
+}
+
+//   translator
+bool formatting_translator(laure_expression_t *expr, struct FormattingImage *im, laure_scope_t *scope) {
+    if (! expr->s) return false;
+    else if (im->first || ! laure_string_strlen(expr->s)) return false;
+    rough_strip_string(expr->s);
+    struct FormattingPart *part = laure_parse_formatting(expr->s);
+    im->first = formatting_part_get_first(part);
+    im->last = part;
+    return true;
+}
+
+int formatting_to_pattern(
+    struct FormattingPart *first, 
+    pattern_element **elements,
+    size_t sz,
+    size_t *count
+) {
+    assert(first);
+    do {
+        string before = first->before;
+        if (before)
+            for (uint i = 0; laure_string_strlen(before) > 0; i++) {
+                int ch = laure_string_get_char(&before);
+                pattern_element *element = malloc(sizeof(pattern_element));
+                element->any_count = 0;
+                element->c = ch;
+                element->group = false;
+                *elements++ = element;
+                (*count)++;
+            }
+        if (first->name) {
+            pattern_element *element = malloc(sizeof(pattern_element));
+            element->any_count = 1;
+            element->c = 0;
+            element->group = true;
+            *elements++ = element;
+            (*count)++;
+        }
+        first = first->next;
+    } while (first);
+    return 0;
+}
+
+//   repr
+string formatting_repr(Instance *instance) {
+    struct FormattingImage *im = (struct FormattingImage*)instance->image;
+    struct FormattingPart *linked = im->first;
+    if (! im->first) {
+        return strdup("(formatting)");
+    }
+    char buff[1024];
+    strcpy(buff, "\"");
+    while (linked) {
+        if (linked->before)
+            strcat(buff, linked->before);
+        if (linked->name) {
+            char lr[2];
+            lr[0] = FMT_L;
+            lr[1] = '\0';
+            strcat(buff, LAURUS_NOBILIS);
+            strcat(buff, lr);
+            strcat(buff, NO_COLOR);
+            strcat(buff, linked->name);
+            lr[0] = FMT_R;
+            strcat(buff, LAURUS_NOBILIS);
+            strcat(buff, lr);
+            strcat(buff, NO_COLOR);
+        }
+        linked = linked->next;
+    }
+    strcat(buff, "\"");
+    return strdup(buff);
+}
+
+struct FormattingImage *formatting_deepcopy(struct FormattingImage *im) {
+    if (! im->first) {
+        struct FormattingImage *nim = malloc(sizeof(struct FormattingImage));
+        nim->first = NULL;
+        nim->t = FORMATTING;
+        nim->translator = im->translator;
+        return nim;
+    } else
+        return im;
+}
+
 /*
    Global methods
 */
@@ -1404,6 +1561,7 @@ void laure_set_translators() {
     ARRAY_TRANSLATOR = new_translator('a', array_translator);
     STRING_TRANSLATOR = new_translator('s', string_translator);
     ATOM_TRANSLATOR = new_translator('@', atom_translator);
+    FORMATTING_TRANSLATOR = new_translator('f', formatting_translator);
     PREDICATE_AUTO_TRANSLATOR = new_translator('p', predicate_auto_translator);
     MOCK_NAME = strdup( "$mock_name" );
     MOCK_QRESP.state = q_true;
@@ -1493,6 +1651,9 @@ void *image_deepcopy(laure_scope_t *stack, void *img) {
         }
         case UUID: {
             return uuid_deepcopy((laure_uuid_image*) img);
+        }
+        case FORMATTING: {
+            return formatting_deepcopy((struct FormattingImage*) img);
         }
         case CONSTRAINT_FACT:
         case PREDICATE_FACT: {
@@ -2010,4 +2171,16 @@ struct ArrayIData convert_string(string unicode_string, laure_scope_t *scope) {
         i_data.linked = linked;
     }
     return i_data;
+}
+
+int convert_to_string(struct ArrayIData i_data, string buff) {
+    array_linked_t *linked = i_data.linked;
+    uint i = 0;
+    while (linked) {
+        struct CharImage *cim = (struct CharImage*) linked->data->image;
+        i += laure_string_put_char_bare(buff + i, cim->c);
+        buff[i] = '\0';
+        linked = linked->next;
+    }
+    return 0;
 }

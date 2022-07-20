@@ -169,3 +169,134 @@ DECLARE(laure_predicate_repr) {
     printf("err\n");
     return False;
 }
+
+size_t groups_count(struct FormattingPart *first) {
+    size_t sz = 0;
+    while (first) {
+        if (first->name) sz++;
+        first = first->next;
+    }
+    return sz;
+}
+
+DECLARE(laure_predicate_format) {
+    Instance *formatting_instance = pd_get_arg(pd, 0);
+    Instance *string_instance = pd->resp;
+
+    cast_image(fim, struct FormattingImage) formatting_instance->image;
+    cast_image(sim, struct ArrayImage) string_instance->image;
+
+    bool string_inst = sim->state == I;
+
+    if (string_inst) {
+        // resolve variables if matches
+        pattern_element *pattern[128];
+        size_t count = 0;
+        if (formatting_to_pattern(fim->first, pattern, 128, &count) != 0)
+            RESPOND_ERROR(internal_err, NULL, "unable to convert formatting to pattern");
+        pattern[count] = 0;
+        string buff = malloc(sim->i_data.length + 1);
+        if (convert_to_string(sim->i_data, buff) != 0)
+            RESPOND_ERROR(internal_err, NULL, "unable to convert string");
+        size_t group_count = groups_count(fim->first);
+        string *groups = malloc(sizeof(void*) * group_count);
+        int result = laure_string_pattern_parse(buff, pattern, groups);
+        free(buff);
+        for (uint i = 0; i < count; i++)
+            free(pattern[i]);
+        if (! result) {
+            free(groups);
+            return False;
+        } else {
+            struct FormattingPart *part = fim->first;
+            uint i = 0;
+            laure_scope_t *parent_scope = cctx->scope->next;
+            laure_scope_t *parent_scope_owner = parent_scope;
+            while (part && part->name) {
+                string name = part->name;
+                string group = groups[i];
+                printf("%s = %s\n", name, group);
+
+                Instance *instance = laure_scope_find_by_key(
+                    parent_scope, 
+                    name, 
+                    false
+                );
+                if (! instance) {
+                    struct ArrayImage *cpy = image_deepcopy(parent_scope_owner, sim);
+                    cpy->i_data = convert_string(group, parent_scope_owner);
+                    Instance *new_instance = instance_new(name, NULL, cpy);
+                    new_instance->repr = string_instance->repr;
+                    laure_scope_insert(parent_scope_owner, new_instance);
+                } else if (instance->locked) {
+                    goto format_jmp_instantiated_instance;
+                } else {
+                    if (instantiated(instance)) {
+                        format_jmp_instantiated_instance: {};
+                        string repr = instance->repr(instance);
+                        if (str_eq(repr, group)) {
+                            free(groups);
+                            return False;
+                        }
+                    } else {
+                        laure_expression_t exp[1];
+                        exp->t = let_custom;
+                        bool should_free = false;
+                        if (read_head(instance->image).translator->invoke == string_translator) {
+                            char buff[128];
+                            should_free = true;
+                            snprintf(buff, 128, "\"%s\"", group);
+                            exp->s = strdup(buff);
+                        } else {
+                            //! add support for arrays
+                            exp->s = group;
+                        }
+                        bool result = read_head(instance->image).translator->invoke(exp, instance->image, parent_scope);
+                        if (should_free)
+                            free(exp->s);
+                        if (! result) {
+                            free(groups);
+                            return False;
+                        }
+                    }
+                }
+                part = part->next;
+                i++;
+            }
+            free(groups);
+            return True;
+        }
+    } else {
+        // form string; variables must be known
+        struct FormattingPart *part = fim->first;
+        char formatted[256];
+        strcpy(formatted, "\"");
+        while (part) {
+            if (part->before) {
+                strcat(formatted, part->before);
+            }
+            if (part->name) {
+                Instance *instance = laure_scope_find_by_key(cctx->scope->next, part->name, true);
+                if (! instance)
+                    RESPOND_ERROR(undefined_err, NULL, "formatting variable %s is undefined", part->name);
+                string repr;
+                if (instance->repr != string_repr || ! instantiated(instance))
+                    repr = instance->repr(instance);
+                else {
+                    repr = malloc(((struct ArrayImage*)instance->image)->i_data.length + 1);
+                    convert_to_string(((struct ArrayImage*)instance->image)->i_data, repr);
+                }
+                strcat(formatted, repr);
+                free(repr);
+            }
+            part = part->next;
+        }
+        strcat(formatted, "\"");
+        laure_expression_t exp[1];
+        exp->t = let_custom;
+        exp->s = formatted;
+        bool result = sim->translator->invoke(exp, sim, cctx->scope);
+        return from_boolean(result);
+    }
+    return False;
+}
