@@ -1420,6 +1420,10 @@ struct FormattingImage *laure_create_formatting_image(struct FormattingPart *lin
 struct FormattingPart *laure_parse_formatting(string fmt) {
     string src = fmt;
 
+    if (strlen(src) == 0) {
+        return NULL;
+    }
+
     char before[256];
     size_t before_idx = 0;
 
