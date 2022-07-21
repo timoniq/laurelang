@@ -1467,7 +1467,7 @@ struct FormattingPart *laure_parse_formatting(string fmt) {
 //   translator
 bool formatting_translator(laure_expression_t *expr, struct FormattingImage *im, laure_scope_t *scope) {
     if (! expr->s) return false;
-    else if (im->first || ! laure_string_strlen(expr->s)) return false;
+    else if (im->first) return false;
     rough_strip_string(expr->s);
     struct FormattingPart *part = laure_parse_formatting(expr->s);
     im->first = formatting_part_get_first(part);
