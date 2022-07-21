@@ -215,7 +215,6 @@ DECLARE(laure_predicate_format) {
             while (part && part->name) {
                 string name = part->name;
                 string group = groups[i];
-                printf("%s = %s\n", name, group);
 
                 Instance *instance = laure_scope_find_by_key(
                     parent_scope, 

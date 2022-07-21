@@ -1594,6 +1594,10 @@ bool image_equals(void* img1, void* img2) {
         case UUID: {
             return uuid_eq((laure_uuid_image*) img1, (laure_uuid_image*) img2);
         }
+        case FORMATTING: {
+            //! todo add formatting eq
+            return true;
+        }
         default:
             return false;
     }

@@ -11,5 +11,6 @@
     "isolated_set.le",
     "quantors.le",
     "generic.le",
-    "abstract.le"
+    "abstract.le",
+    "formatting.le"
 ).
