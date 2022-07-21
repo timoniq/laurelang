@@ -1,14 +1,6 @@
 name: Build and test
 
-on:
-  push:
-    branches:
-      - main
-      - refactor
-  pull_request:
-     branches:
-      - main
-      - refactor
+on: [push, pull_request]
 
 jobs:
   build:
