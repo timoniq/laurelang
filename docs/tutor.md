@@ -78,6 +78,42 @@ Second variation can be rewritten with `when` keyword:
 ?pair(x) -> x when x > 10.
 ```
 
+# Auto predicate
+
+Auto predicate header is declared with `ID` particle.
+
+```
+: ?autopred(string) -> ID.
+```
+
+After declaration predicate response is generated automatically for each predicate case. In standard implementation it has a form of UUID.
+
+```
+id ~ autopred;
+```
+
+instance of auto predicate copy can be asserted to exact UUID (in string representation):
+
+```
+id = "2b7b9cff-335d-4d1d-9073-7c99b6fe8923"
+```
+
+id cannot be asserted to uuid which is not bound to declared predicate, so uuid assertion operation can be also used as existance check.
+
+UUID can be used as a pointer to specific predicate case:
+
+```
+id = autopred(x);
+```
+
+## Case break
+
+Monotonicity of predicate case search can be broken with `%` break char.
+
+It is placed right after predicate case declaration (usually after `}` or `.`).
+
+It basically means: do not search other cases if this one succeeds.
+
 ## Predicate notation
 
 > **Infix arity** - arity of predicate excluding response argument

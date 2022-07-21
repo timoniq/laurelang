@@ -1,0 +1,16 @@
+: ?user(string, natural) -> ID.
+
+?user("Arseny", 17).
+?user("Nicolai", 19).
+
+: ?event(string) -> ID.
+
+?event("Ishome Concert").
+
+: ?ticket(user, event) -> ID.
+
+?ticket(user("Arseny", _), event("Ishome Concert")).
+?ticket(user("Nicolai", _), event("Ishome Concert")).
+
+: ?who_goes(event) -> user.
+?who_goes(e) -> u when ticket(u, e).
