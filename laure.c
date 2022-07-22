@@ -648,12 +648,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (FLAG_NOREPL) return 0;
-
     init_backtrace();
-
-    printf("\n  ♦ %sYou are in interactive enviroment.\n", GRAY_COLOR);
-    printf("  Use %s.help%s to see commands\n", LAURUS_NOBILIS, GRAY_COLOR);
-    printf("  and %s.quit%s to quit it.%s\n\n", LAURUS_NOBILIS, GRAY_COLOR, NO_COLOR);
 
     if (setjmp(JUMPBUF)) {
         printf("  ↳ %sjumped off %s\n", YELLOW_COLOR, NO_COLOR);

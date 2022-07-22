@@ -45,6 +45,10 @@ DECLARE(laure_predicate_repr) {
     Instance *instance = pd_get_arg(pd, 0);
     Instance *representation = pd->resp;
 
+    if (instance->image == NULL) {
+        RESPOND_ERROR(internal_err, NULL, "instance is unknown");
+    }
+
     cast_image(repr_ary, struct ArrayImage) representation->image;
     bool instance_inst = instantiated(instance);
     bool repr_known = repr_ary->state == I;

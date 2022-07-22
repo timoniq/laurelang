@@ -470,14 +470,18 @@ qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
 
             // passing control
             laure_scope_t *nscope = laure_scope_create_copy(cctx, pd->scope);
-            nscope->repeat++;
 
             laure_scope_t *old_sc = pd->scope;
+
+            qcontext temp[1];
+            temp->next = cctx->qctx->next;
+            temp->expset = NULL;
+
             qcontext *old_qc = cctx->qctx;
-            cctx->qctx = cctx->qctx->next;
+            cctx->qctx = temp;
             cctx->scope = nscope;
-            
-            qresp result = laure_start(cctx, cctx->qctx ? cctx->qctx->expset : NULL);
+
+            qresp result = laure_start(cctx, NULL);
             if (result.state == q_true || (result.state == q_yield && result.payload == (void*)1)) found = true;
 
             cctx->scope = old_sc;
