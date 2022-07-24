@@ -1277,7 +1277,7 @@ laure_parse_result laure_parse(string query) {
                             t_name = strdup(type_name);
                             t_nest = pop_nestings(t_name);
                             name = strdup(generic_before);
-                            query += strlen(generic) + 1 + (t_nest * 2);
+                            query += strlen(generic) + 1;
                         }
                     }
 
@@ -1840,6 +1840,24 @@ laure_expression_set *laure_expression_compose(laure_expression_set *set) {
             new_set = laure_expression_set_link(new_set, ptr);
     });
     return new_set;
+}
+
+laure_expression_set *laure_expression_set_copy(laure_expression_set *old) {
+    laure_expression_set *new = NULL;
+    laure_expression_t *ptr;
+    EXPSET_ITER(old, ptr, {
+        new = laure_expression_set_link(new, ptr);
+    });
+    return new;
+}
+
+void expression_set_show(laure_expression_set *set) {
+    printf("expression set (%u) {\n", laure_expression_get_count(set));
+    laure_expression_t *ptr;
+    EXPSET_ITER(set, ptr, {
+        laure_expression_show(ptr, 2);
+    });
+    printf("}\n");
 }
 
 #endif

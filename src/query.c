@@ -1095,7 +1095,8 @@ ARGPROC_RES pred_call_procvar(
     Instance *T,
     uint nesting,
     struct PredicateImage *pred_img,
-    bool allow_locked_mutability
+    bool allow_locked_mutability,
+    bool *is_inst
 ) {
     switch (exp->t) {
         case let_var: {
@@ -1187,6 +1188,10 @@ ARGPROC_RES pred_call_procvar(
                 } else if (create_copy && recorder)
                     arg = instance_deepcopy(new_scope, argn, arg);
             }
+
+            if (arg && is_inst)
+                *is_inst = instantiated(arg);
+            
             ulong lin;
             if (link[0])
                 lin = link[0];
@@ -1226,6 +1231,8 @@ ARGPROC_RES pred_call_procvar(
                 return_str_fmt("specification of %s is needed", argn);
             
             bool result = read_head(arg->image).translator->invoke(exp, arg->image, prev_scope);
+            if (is_inst)
+                *is_inst = true;
 
             if (! result) {
                 image_free(arg->image);
@@ -1442,7 +1449,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     argexp->s, 
                     pf->c.hints[idx] ? decl : NULL, 
                     argexp, cpred_arg_recorder, 
-                    actx, false, NULL, 0, pred_img, true);
+                    actx, false, NULL, 0, pred_img, true, NULL);
 
                 ARGPROC_RES_(
                     res, 
@@ -1477,7 +1484,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                         exp->s,
                         pf->c.resp_hint ? decl : NULL,
                         exp, cpred_resp_recorder,
-                        actx, false, NULL, 0, pred_img, true);
+                        actx, false, NULL, 0, pred_img, true, NULL);
                     
                     ARGPROC_RES_(
                         res, 
@@ -1585,6 +1592,8 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             struct arg_rec_ctx actx[1];
             actx->new_scope = nscope;
 
+            bool argi[32], respi;
+
             laure_expression_set *arg_l = e->ba->set;
             for (uint idx = 0; idx < e->ba->body_len; idx++) {
                 actx->idx_pd = idx;
@@ -1601,7 +1610,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     laure_get_argn(idx), 
                     &pred_img->header.args->data[idx], 
                     argexp, rec, 
-                    actx, true, T, pred_img->header.nestings[idx], pred_img, false);
+                    actx, true, T, pred_img->header.nestings[idx], pred_img, false, argi + idx);
 
                 ARGPROC_RES_(
                     res, 
@@ -1644,7 +1653,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                         laure_get_respn(),
                         pred_img->header.resp,
                         exp, rec,
-                        actx, true, T, pred_img->header.response_nesting, pred_img, false);
+                        actx, true, T, pred_img->header.response_nesting, pred_img, false, &respi);
                     
                     ARGPROC_RES_(
                         res,
@@ -1653,7 +1662,8 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                         {pred_call_cleanup; return RESPOND_FALSE;},
                         err);
                 }
-            }
+            } else
+                respi = false;
             
             if (T) free(T);
 
@@ -1673,9 +1683,17 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 if (! *l) *l = laure_scope_generate_link();
                 laure_scope_insert_l(prev, uuid_instance, *l);
             }
-            
+            /*
             laure_expression_set *body = pf->interior.body;
             body = laure_expression_compose(body);
+            */
+            laure_expression_set *body =
+            #ifdef USE_ORDERED
+            laure_get_ordered_predicate_body(pf->interior.plp, e->ba->body_len, argi, respi);
+            #else
+            pf->interior.body;
+            #endif
+            
             laure_expression_t *ptr;
 
             qcontext *nqctx = qcontext_new(body);
@@ -2196,5 +2214,24 @@ void *pd_get_arg(preddata *pd, int index) {
     for (int i = 0; i < pd->argc; i++)
         if (pd->argv[i].index == index)
             return pd->argv[i].arg;
+    return NULL;
+}
+
+string get_final_name(predfinal *pf, string shorthand) {
+    if (! str_starts(shorthand, "$"))
+        return shorthand;
+    shorthand++;
+    int id = atoi(shorthand);
+    assert(id < pf->interior.argc);
+    return pf->interior.argn[id];
+}
+
+string get_default_name(predfinal *pf, string final_name) {
+    for (uint i = 0; i < pf->interior.argc; i++) {
+        if (str_eq(pf->interior.argn[i], final_name))
+            return laure_get_argn(i);
+    }
+    if (str_eq(pf->interior.respn, final_name))
+        return laure_get_respn();
     return NULL;
 }

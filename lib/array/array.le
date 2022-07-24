@@ -10,7 +10,7 @@
 : ?no_repeat('T'[]).
 
 ?no_repeat([]).
-?no_repeat(arr) when length of arr = 1.
+?no_repeat(arr) when length of arr = 1, arr?.
 
 ?no_repeat(arr) {
     i > 0;
@@ -38,8 +38,18 @@
 : ?flatten('T'[][]) -> 'T'[].
 
 ?flatten([]) -> [].
+?flatten([x]) -> x.
 
 ?flatten(array) -> flattened {
     linked(head, tail) = array;
     flattened = head:append(tail:flatten());
+}
+
+: ?flatten_nt(int[][]) -> int[].
+?flatten_nt([]) -> [].
+?flatten_nt([x]) -> x.
+?flatten_nt(array) -> flattened {
+    flattened = append<int>(x, y);
+    y = flatten_nt(t);
+    append([x], t) = array;
 }

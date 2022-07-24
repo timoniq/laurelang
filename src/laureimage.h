@@ -353,6 +353,33 @@ struct PredicateFinalC {
     Instance* resp_hint;
 };
 
+typedef struct bintree_permut {
+    laure_expression_set *set; // is set if terminal
+    struct bintree_permut *_0;
+    struct bintree_permut *_1;
+} bintree_permut;
+
+typedef struct predicate_linked_permutations {
+    bool fixed;
+    union {
+        bintree_permut *tree;
+        laure_expression_set *fixed_set;
+    };
+} predicate_linked_permutations;
+
+predicate_linked_permutations laure_generate_final_permututations(
+    laure_expression_set *unlinked,
+    size_t argc,
+    bool has_resp
+);
+
+laure_expression_set *laure_get_ordered_predicate_body(
+    predicate_linked_permutations plp, 
+    size_t argc,
+    bool *argi,
+    bool resi
+);
+
 struct PredicateFinalInterior {
     string* argn;
     int     argc;
@@ -361,6 +388,7 @@ struct PredicateFinalInterior {
         string respn;
         laure_auto_type auto_type;
     };
+    predicate_linked_permutations plp;
     laure_expression_set *body;
 };
 
@@ -544,6 +572,8 @@ int laure_convert_ch_esc(int c);
 
 Instance *get_nested_instance(Instance *atom, uint nesting, laure_scope_t *scope);
 Instance *laure_unwrap_nestings(Instance *wrapped, uint redundant_nestings);
+string get_final_name(predfinal *pf, string shorthand);
+string get_default_name(predfinal *pf, string final_name);
 
 /* API */
 

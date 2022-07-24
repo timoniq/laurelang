@@ -208,6 +208,7 @@ uint laure_expression_get_count(laure_expression_set *root);
 void laure_expression_destroy(laure_expression_t *expression);
 void laure_expression_set_destroy(laure_expression_set *root);
 laure_expression_t *laure_expression_set_get_by_idx(laure_expression_set *root, uint idx);
+laure_expression_set *laure_expression_set_copy(laure_expression_set *old);
 laure_expression_compact_bodyargs *laure_bodyargs_create(laure_expression_set *set, uint body_len, bool has_resp);
 void laure_expression_show(laure_expression_t *exp, uint indent);
 laure_expression_t *laure_expression_create(laure_expression_type t, char *docstring, bool is_header, char *s, uint flag, laure_expression_compact_bodyargs *ba, string q);
@@ -241,6 +242,7 @@ bool laure_is_silent(control_ctx *cctx);
 Instance *laure_scope_find_var(laure_scope_t *scope, laure_expression_t *var, bool search_glob);
 
 string rough_strip_string(string s);
+void expression_set_show(laure_expression_set *set);
 
 /* =-----------=
     String

@@ -22,6 +22,7 @@ LIB = src/parser.o \
 	  compiler/cli.o \
 	  compiler/runtime.o \
 	  src/weight.o \
+	  src/order.o \
 	  standard/integer.c \
 	  standard/utility.c
 
@@ -97,3 +98,4 @@ src/apply.o: src/laurelang.h src/apply.c
 src/error.o: src/laurelang.h src/error.c
 src/backtrace.o: src/laurelang.h src/backtrace.c
 src/weight.o: src/laurelang.h src/weight.c
+src/order.o: src/laurelang.h src/laureimage.h src/order.c

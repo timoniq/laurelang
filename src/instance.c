@@ -1870,24 +1870,22 @@ predfinal *get_pred_final(struct PredicateImageVariation pv) {
             }
 
             // changing arg names
-            char argn[32];
-
-            snprintf(argn, 32, "$%d", i);
-            pf->interior.argn[i] = strdup(argn);
+            char *argn = laure_get_argn(i);
 
             if (arg->t == let_var) {
                 // |  cast naming |
                 // |   var to var |
-                laure_expression_t *old_name_var = laure_expression_create(let_var, "", false, pf->interior.argn[i], 0, NULL, arg->fullstring);
+                laure_expression_t *old_name_var = laure_expression_create(let_var, "", false, argn, 0, NULL, arg->fullstring);
                 laure_expression_set *set = laure_expression_set_link(NULL, old_name_var);
                 set = laure_expression_set_link(set, arg);
                 laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
                 laure_expression_t *name_expression = laure_expression_create(let_name, "", false, NULL, 0, ba, arg->fullstring);
                 nset = laure_expression_set_link(nset, name_expression);
+                argn = arg->s;
             } else {
                 // |  cast assert |
                 // | var to value |
-                laure_expression_t *var = laure_expression_create(let_var, "", false, pf->interior.argn[i], 0, NULL, arg->fullstring);
+                laure_expression_t *var = laure_expression_create(let_var, "", false, argn, 0, NULL, arg->fullstring);
                 laure_expression_set *set = laure_expression_set_link(NULL, var);
                 set = laure_expression_set_link(set, arg);
                 laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
@@ -1895,6 +1893,7 @@ predfinal *get_pred_final(struct PredicateImageVariation pv) {
                 complicated_nset = laure_expression_set_link_branch(complicated_nset, laure_expression_compose_one(assert_expression));
             }
 
+            pf->interior.argn[i] = strdup(argn);
             pos++;
         }
 
@@ -1939,7 +1938,9 @@ predfinal *get_pred_final(struct PredicateImageVariation pv) {
         }
 
         laure_expression_set *body = laure_expression_set_link_branch(nset, last);
-        pf->interior.body = body;
+        pf->interior.body = laure_expression_compose(body);
+        pf->interior.plp = laure_generate_final_permututations(pf->interior.body, pf->interior.argc, pf->interior.respn != NULL);
+
     } else if (pv.t == PREDICATE_C) {
         pf->t = PF_C;
         pf->c.pred = pv.c.pred;
