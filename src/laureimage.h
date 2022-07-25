@@ -313,6 +313,7 @@ struct PredicateHeaderImage {
     uint *nestings;
     laure_typedecl* resp;
     uint response_nesting;
+    bool do_ordering;
 };
 
 
@@ -371,6 +372,10 @@ predicate_linked_permutations laure_generate_final_permututations(
     laure_expression_set *unlinked,
     size_t argc,
     bool has_resp
+);
+
+predicate_linked_permutations laure_generate_final_fixed(
+    laure_expression_set *set
 );
 
 laure_expression_set *laure_get_ordered_predicate_body(
@@ -447,7 +452,7 @@ struct PredicateImageVariationSet *pvs_new();
 void pvs_push(struct PredicateImageVariationSet*, struct PredicateImageVariation);
 
 // create predfinal (final predicate wrapper)
-predfinal *get_pred_final(struct PredicateImageVariation);
+predfinal *get_pred_final(struct PredicateImage*, struct PredicateImageVariation);
 
 // used to generate instantiated images
 // [0] Image*: not instantiated image to generate from

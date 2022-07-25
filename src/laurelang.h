@@ -349,6 +349,7 @@ extern char              *LAURE_CURRENT_ADDRESS;
 extern char              *LAURE_DOC_BUFF;
 extern short int          LAURE_ASK_IGNORE;
 extern bool               LAURE_WS;
+extern bool               LAURE_FLAG_NEXT_ORDERING;
 
 extern Instance *CHAR_PTR;
 extern struct Translator 

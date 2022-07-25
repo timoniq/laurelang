@@ -30,5 +30,6 @@
 }%
 
 ?statement(name) {
+    person(name, _);
     message(format("{name} wasn't even born!"));
 }

@@ -1835,7 +1835,7 @@ void preddata_free(preddata *pd) {
 predfinal
 =----= */
 
-predfinal *get_pred_final(struct PredicateImageVariation pv) {
+predfinal *get_pred_final(struct PredicateImage *pred, struct PredicateImageVariation pv) {
     predfinal *pf = malloc(sizeof(predfinal));
     pf->t = PF_INTERIOR;
     uuid_generate_random(pf->uu);
@@ -1939,7 +1939,11 @@ predfinal *get_pred_final(struct PredicateImageVariation pv) {
 
         laure_expression_set *body = laure_expression_set_link_branch(nset, last);
         pf->interior.body = laure_expression_compose(body);
-        pf->interior.plp = laure_generate_final_permututations(pf->interior.body, pf->interior.argc, pf->interior.respn != NULL);
+        
+        if (pred->header.do_ordering)
+            pf->interior.plp = laure_generate_final_permututations(pf->interior.body, pf->interior.argc, pf->interior.respn != NULL);
+        else
+            pf->interior.plp = laure_generate_final_fixed(pf->interior.body);
 
     } else if (pv.t == PREDICATE_C) {
         pf->t = PF_C;
@@ -2046,6 +2050,8 @@ struct PredicateImage *predicate_header_new(string bound_name, laure_typeset *ar
     header.resp = resp;
     header.nestings = 0;
     header.response_nesting = 0;
+    header.do_ordering = LAURE_FLAG_NEXT_ORDERING;
+    LAURE_FLAG_NEXT_ORDERING = false;
     
     img->translator = PREDICATE_AUTO_TRANSLATOR;
     img->header = header;

@@ -1339,7 +1339,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
         void **pfs = malloc(sizeof(void*) * pred_img->variations->len);
         for (uint i = 0; i < pred_img->variations->len; i++) {
             struct PredicateImageVariation pv = pred_img->variations->set[i];
-            predfinal *pf = get_pred_final(pv);
+            predfinal *pf = get_pred_final(pred_img, pv);
             pfs[i] = pf;
         }
         pred_img->variations->finals = (predfinal**)pfs;
@@ -1688,8 +1688,12 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             body = laure_expression_compose(body);
             */
             laure_expression_set *body =
-            #ifdef USE_ORDERED
+            #ifndef DISABLE_ORDERING
             laure_get_ordered_predicate_body(pf->interior.plp, e->ba->body_len, argi, respi);
+            #ifdef DEBUG
+            printf("DEBUG: reordered body\n");
+            expression_set_show(body);
+            #endif
             #else
             pf->interior.body;
             #endif
@@ -2093,6 +2097,10 @@ qresp laure_eval_command(_laure_eval_sub_args) {
                 return RESPOND_TRUE;
             }
             #endif
+            else if (str_eq(n, "ordering")) {
+                LAURE_FLAG_NEXT_ORDERING = true;
+                return RESPOND_TRUE;
+            }
 
             if (! v) {
                 v = DUMMY_FLAGV;

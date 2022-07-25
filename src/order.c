@@ -74,22 +74,22 @@ bool link_name(ordering_scope_mock *mock, string link1, string link2) {
     return false;
 }
 
-size_t get_broadness(ordering_scope_mock *mock, laure_expression_t *expr) {
+double get_initialization(ordering_scope_mock *mock, laure_expression_t *expr) {
     switch (expr->t) {
         case let_pred_call: {
-            size_t b = 0;
+            double b = 0;
             laure_expression_t *argptr;
             EXPSET_ITER(expr->ba->set, argptr, {
                 if (argptr->t == let_var) {
-                    if (!get_mock_var_is_instantiated(mock, argptr->s))
+                    if (get_mock_var_is_instantiated(mock, argptr->s))
                         b++;
                 }
             });
-            return b;
+            return b / (double)laure_expression_get_count(expr->ba->set);
         }
         default: break;
     }
-    return 0;
+    return 1;
 }
 
 laure_expression_t *get_most_initted(
@@ -108,34 +108,34 @@ laure_expression_t *get_most_initted(
         return expr;
     }
 
-    size_t min_broadness = 0;
-    laure_expression_t *min_exp = NULL;
-    size_t min_idx = 0;
+    double max_initialization = 0;
+    laure_expression_t *max_exp = NULL;
+    size_t max_idx = 0;
 
     laure_expression_t *ptr;
     size_t idx = 0;
     EXPSET_ITER(set, ptr, {
-        size_t b = get_broadness(mock, ptr);
-        if (min_exp == NULL || b < min_broadness) {
-            min_broadness = b;
-            min_exp = ptr;
-            min_idx = idx;
+        double b = get_initialization(mock, ptr);
+        if (max_exp == NULL || b > max_initialization) {
+            max_initialization = b;
+            max_exp = ptr;
+            max_idx = idx;
         }
         idx++;
     });
-    if (! min_exp) return NULL;
+    if (! max_exp) return NULL;
 
     // minimal found, unlinking from set
-    if (min_idx == 0) {
+    if (max_idx == 0) {
         *set_ptr = set->next;
     } else {
         laure_expression_set *p = set;
         laure_expression_set *s = set->next;
-        for (size_t i = 1; i < min_idx; i++) {s = s->next; p = p->next;};
+        for (size_t i = 1; i < max_idx; i++) {s = s->next; p = p->next;};
         free(s);
         p->next = s->next;
     }
-    return min_exp;
+    return max_exp;
 }
 
 void apply_knowledge_to_mock(ordering_scope_mock *mock, laure_expression_t *expr) {
@@ -174,6 +174,16 @@ void apply_knowledge_to_mock(ordering_scope_mock *mock, laure_expression_t *expr
 
 void mock_init_with_mask(ordering_scope_mock *mock, laure_mask mask) {
     mock->count = 0;
+    if (mask.response) {
+        set_initted_variable(mock, laure_get_respn());
+    } else {
+        mock_variable var;
+        var.instantiated = false;
+        var.names = malloc(sizeof(string*));
+        var.names[0] = laure_get_respn();
+        var.names_n = 1;
+        mock->variables[mock->count++] = var;
+    }
     for (size_t i = 0; i < mask.argc; i++) {
         bool is_instantiated = mask.mask[i];
         mock_variable var;
@@ -251,10 +261,17 @@ predicate_linked_permutations laure_generate_final_permututations(
         btree->_1 = NULL;
     }
     btree->_0 = malloc(sizeof(bintree_permut));
-    go_binary_tree(argc, 0, mask, true, btree->_0, unlinked);
+    go_binary_tree(argc, 0, mask, false, btree->_0, unlinked);
     predicate_linked_permutations plp;
     plp.fixed = false;
     plp.tree = btree;
+    return plp;
+}
+
+predicate_linked_permutations laure_generate_final_fixed(laure_expression_set *set) {
+    predicate_linked_permutations plp;
+    plp.fixed = true;
+    plp.fixed_set = set;
     return plp;
 }
 

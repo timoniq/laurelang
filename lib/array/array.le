@@ -35,6 +35,7 @@
 
 // flattens array to one dimension
 // `flatten<int>([[1,2], [], [3], [4, 5]]) = x`
+!ordering.
 : ?flatten('T'[][]) -> 'T'[].
 
 ?flatten([]) -> [].
@@ -43,13 +44,4 @@
 ?flatten(array) -> flattened {
     linked(head, tail) = array;
     flattened = head:append(tail:flatten());
-}
-
-: ?flatten_nt(int[][]) -> int[].
-?flatten_nt([]) -> [].
-?flatten_nt([x]) -> x.
-?flatten_nt(array) -> flattened {
-    flattened = append<int>(x, y);
-    y = flatten_nt(t);
-    append([x], t) = array;
 }
