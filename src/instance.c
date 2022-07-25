@@ -1027,6 +1027,7 @@ string string_repr(Instance *ins) {
 }
 
 bool string_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
+    if (exp->t == let_array) return array_translator(exp, img_, scope);
     if (exp->t != let_custom) return false;
     struct ArrayImage *strarr = (struct ArrayImage*)img_;
     if (! str_starts(exp->s, "\"") && lastc(exp->s) == '\"') return false;

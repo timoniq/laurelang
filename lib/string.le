@@ -10,7 +10,7 @@
 : ?join_two(string, string, string) -> string.
 ?join_two(_, a, "") -> a.
 ?join_two(_, "", b) -> b.
-?join_two(joiner, a, b) -> append(append(a, joiner), b).
+?join_two(joiner, a, b) -> flatten([a, joiner, b]).
 
 // join strings by joiner
 // try:

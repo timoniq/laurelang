@@ -342,9 +342,11 @@ qresp check_interactive(string cmd, string showcast) {
     else if (strlen(cmd) == 0) {
         up;
         erase;
+        string ptr = showcast;
         showcast = crop_showcast(showcast);
         printf("%s;\n", showcast);
-        free(showcast);
+        if (strlen(ptr))
+            free(ptr);
         return respond(q_continue, NULL);
     }
     else if (str_eq(cmd, ";")) {
