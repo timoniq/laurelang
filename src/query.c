@@ -535,6 +535,7 @@ qresp laure_eval_imply(_laure_eval_sub_args);
 qresp laure_eval_choice(_laure_eval_sub_args);
 qresp laure_eval_cut(_laure_eval_sub_args);
 qresp laure_eval_set(_laure_eval_sub_args);
+qresp laure_eval_atom_sign(_laure_eval_sub_args);
 qresp laure_eval_command(_laure_eval_sub_args);
 
 qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set *expset) {
@@ -587,6 +588,9 @@ qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set 
         }
         case let_set: {
             return laure_eval_set(cctx, e, expset);
+        }
+        case let_atom_sign: {
+            return laure_eval_atom_sign(cctx, e, expset);
         }
         #ifndef FORBID_COMMAND
         case let_command: {
@@ -2073,6 +2077,35 @@ qresp laure_eval_set(_laure_eval_sub_args) {
         cctx->qctx = qctx;
         return response;
     }
+}
+
+/* =----------=
+Instantiate all
+=----------= */
+qresp laure_eval_atom_sign(_laure_eval_sub_args) {
+    assert(e->t == let_atom_sign);
+    UNPACK_CCTX(cctx);
+
+    laure_scope_iter(scope, cell, {
+        Instance *instance = cell->ptr;
+        if (! instantiated(instance)) {
+            laure_expression_set set[1];
+            set->next = expset;
+            set->expression = e;
+            void *img = instance->image;
+            struct img_rec_ctx *ctx = img_rec_ctx_create(instance, cctx, set, qr_process_default);
+            gen_resp gr = image_generate(scope, instance->image, image_rec_default, ctx);
+            free(ctx);
+            instance->image = img;
+
+            if (gr.r == 0) {
+                return gr.qr;
+            }
+
+            return gen_resp_process(gr);
+        }
+    });
+    return RESPOND_TRUE;
 }
 
 string string_clean(string s);
