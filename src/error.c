@@ -56,6 +56,10 @@ string laure_error_msg(laure_error *err) {
             strcpy(buff, "runtime");
             break;
         }
+        case not_implemented_err: {
+            strcpy(buff, "not_implemented");
+            break;
+        }
     }
     strcat(buff, "( ");
     strcat(buff, RED_COLOR);

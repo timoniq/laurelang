@@ -225,9 +225,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         laure_expression_set *expset = laure_expression_compose_one(res.exp);
 
         qcontext nqctx[1];
-        nqctx->expset = expset;
-        nqctx->next = NULL;
-        nqctx->constraint_mode = false;
+        *nqctx = qcontext_temp(NULL, expset);
 
         control_ctx ncctx[1];
         ncctx->data = NULL;

@@ -336,10 +336,10 @@ void *crop_showcast(string showcast) {
 }
 
 qresp check_interactive(string cmd, string showcast) {
-    if (str_eq(cmd, ".")) {
+    if (cmd && str_eq(cmd, ".")) {
         return respond(q_stop, 0);
     }
-    else if (strlen(cmd) == 0) {
+    else if (! cmd || strlen(cmd) == 0) {
         up;
         erase;
         string ptr = showcast;
@@ -756,6 +756,88 @@ qresp laure_eval_assert(
         RESPOND_ERROR(instance_err, e, "can't assert %s with %s", lvar->s, rvar->s);
 }
 
+Instance *get_nested_fixed(Instance *atom, uint length, laure_scope_t *scope) {
+    struct ArrayImage *im = laure_create_array_u(atom);
+    free(im->u_data.length);
+    im->state = I;
+    im->i_data.length = length;
+    array_linked_t *first = NULL, *linked = NULL;
+    for (uint i = 0; i < length; i++) {
+        array_linked_t *new = malloc(sizeof(array_linked_t));
+        new->data = instance_deepcopy(scope, MOCK_NAME, atom);
+        new->next = linked;
+        if (linked)
+            linked->next = new;
+        linked = new;
+        if (! first)
+            first = linked;
+    }
+    im->i_data.linked = first;
+    Instance *ins = instance_new(MOCK_NAME, NULL, im);
+    ins->repr = array_repr;
+    return ins;
+}
+
+Instance *ready_instance(laure_scope_t *scope, laure_expression_t *expr) {
+    if (expr->t == let_var) {
+        Instance *ins = laure_scope_find_by_key(scope, expr->s, true);
+        if (! ins) return NULL;
+        return instance_deepcopy(scope, ins->name, ins);
+    } else if (expr->t == let_nested) {
+        Instance *atom = ready_instance(scope, expr->link);
+        if (! atom) return NULL;
+        return get_nested_instance(atom, expr->flag, scope);
+    } else if (expr->t == let_pred_call) {
+        if (str_eq(expr->s, "by_idx")) {
+            laure_expression_t *typevar_expr = expr->ba->set->expression;
+            laure_expression_t *idx_expr = expr->ba->set->next->expression;
+            Instance *typevar = ready_instance(scope, typevar_expr);
+
+            if (! typevar) return NULL;
+            switch (idx_expr->t) {
+                case let_var: {
+                    unsigned long link[1];
+                    Instance *ins = laure_scope_find_by_key_l(scope, idx_expr->s, link, true);
+                    if (! ins) {
+                        ins = instance_new(idx_expr->s, NULL, laure_create_integer_u(
+                            int_domain_new()
+                        ));
+                        ins->repr = int_repr;
+                        *link = laure_scope_generate_link();
+                        laure_scope_insert_l(scope, ins, *link);
+                    } else {
+                        //! todo handle locked
+                        if (read_head(ins->image).t != INTEGER) {
+                            return NULL;
+                        }
+                        if (instantiated(ins)) {
+                            uint length = (uint)((struct IntImage*)(ins->image))->i_data->words[0];
+                            goto known_length;
+                        }
+                    }
+                    Instance *nested = get_nested_instance(typevar, 1, scope);
+                    assert(nested);
+                    struct ArrayImage *ary = (struct ArrayImage*)nested->image;
+                    ary->length_lid = *link;
+                    return nested;
+                }
+                case let_custom: {
+                    uint length = (uint)atoi(idx_expr->s);
+                    known_length: {};
+                    Instance *nested = get_nested_fixed(typevar, length, scope);
+                    return nested;
+                }
+                default: {
+                    image_free(typevar->image);
+                    free(typevar);
+                    return NULL;
+                }
+            }
+        }
+    }
+    return NULL;
+}
+
 /* =-------=
 Imaging.
 * Never creates a choicepoint
@@ -882,7 +964,22 @@ qresp laure_eval_image(
             return RESPOND_TRUE;
         } else
             RESPOND_ERROR(undefined_err, e, "both variables %s and %s are unknown", exp1->s, exp2->s);
-        
+    } else if (exp1->t == let_var && (exp2->t == let_pred_call || exp2->t == let_nested)) {
+        // valid nested:
+        // `arr ~ int[i][]
+        // valid predcall:
+        // `arr ~ by_idx(int[], i)`
+        // `arr ~ int[][i]`
+        string vname = exp1->s;
+        Instance *ins = ready_instance(scope, exp2);
+        if (! ins)
+            RESPOND_ERROR(internal_err, exp2, "invalid nested imaging");
+        if (laure_scope_find_by_key(scope, vname, true))
+            RESPOND_ERROR(not_implemented_err, exp2, "imaging nested on known instance");
+        ins->name = vname;
+        laure_scope_insert(scope, ins);
+        return RESPOND_TRUE;
+
     } else {
         RESPOND_ERROR(instance_err, e, "invalid imaging %s to %s", EXPT_NAMES[exp1->t], EXPT_NAMES[exp2->t]);
     }
@@ -1051,7 +1148,7 @@ Instance *resolve_generic_T(
         if (header.args->data[i].t == td_generic) {
             laure_expression_t *exp = laure_expression_set_get_by_idx(set, i);
             if (exp->t == let_var) {
-                Instance *resolved = laure_scope_find_by_key(scope, exp->s, false);
+                Instance *resolved = laure_scope_find_by_key(scope, exp->s, true);
                 if (resolved) {
                     uint nesting = header.nestings[i];
                     debug("T resolved by argument %u\n", i);
@@ -1519,6 +1616,9 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 pred_call_cleanup;
                 return resp;
             } else if (resp.state == q_yield) {
+                if (resp.payload == YIELD_OK) {
+                    found = true;
+                }
                 continue;
             }
 
@@ -1537,6 +1637,8 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
 
             laure_expression_t *exp = pred_img->variations->set[variation_idx].exp;
             cut_case = PREDFLAG_IS_CUT(exp->flag);
+            if (cut_case)
+                debug("predicate variation will result in global cut if succeed");
 
             // resolve generic type
             Instance *T = NULL;
@@ -1697,7 +1799,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             #ifndef DISABLE_ORDERING
             laure_get_ordered_predicate_body(pf->interior.plp, e->ba->body_len, argi, respi);
             #ifdef DEBUG
-            printf("DEBUG: reordered body\n");
+            printf("DEBUG: ordered body\n");
             expression_set_show(body);
             #endif
             #else
@@ -1848,9 +1950,7 @@ qresp laure_eval_quant(_laure_eval_sub_args) {
     bool dp = cctx->vpk->do_process;
     
     qcontext nqctx[1];
-    nqctx->constraint_mode = qctx->constraint_mode;
-    nqctx->expset = set;
-    nqctx->next = NULL;
+    *nqctx = qcontext_temp(NULL, set);
 
     cctx->qctx = nqctx;
 
@@ -1916,20 +2016,16 @@ qresp laure_eval_imply(_laure_eval_sub_args) {
     // fact_set -> implies_for
 
     qcontext current[1];
+    *current = qcontext_temp(qctx->next, expset);
     current->constraint_mode = qctx->constraint_mode;
-    current->expset = expset;
-    current->next = qctx->next;
 
     qcontext if_qctx[1];
+    *if_qctx = qcontext_temp(current, implies_for);
     if_qctx->constraint_mode = true;
-    if_qctx->expset = implies_for;
-    if_qctx->next = current;
 
     qcontext fact_qctx[1];
+    *fact_qctx = qcontext_temp(if_qctx, fact_set);
     fact_qctx->constraint_mode = true;
-    fact_qctx->expset = fact_set;
-    fact_qctx->next = if_qctx;
-    fact_qctx->flagme = false;
 
     laure_scope_t *nscope = laure_scope_create_copy(cctx, scope);
     nscope->repeat += 2;
@@ -1975,9 +2071,9 @@ qresp laure_eval_choice(_laure_eval_sub_args) {
         laure_expression_set *old = qctx->expset;
 
         qcontext nqctx[1];
+        *nqctx = qcontext_temp(qctx, choice);
         nqctx->constraint_mode = qctx->constraint_mode;
-        nqctx->expset = choice;
-        nqctx->next = qctx;
+
         qctx->expset = expset;
 
         cctx->qctx = nqctx;
@@ -2037,9 +2133,8 @@ qresp laure_eval_set(_laure_eval_sub_args) {
         qctx->expset = qctx->expset->next;
 
         qcontext nqctx[1];
+        *nqctx = qcontext_temp(NULL, e->ba->set);
         nqctx->constraint_mode = qctx->constraint_mode;
-        nqctx->expset = e->ba->set;
-        nqctx->next = NULL;
 
         vpk->do_process = false;
         cctx->qctx = nqctx;
@@ -2064,10 +2159,8 @@ qresp laure_eval_set(_laure_eval_sub_args) {
         qctx->expset = qctx->expset->next;
 
         qcontext nqctx[1];
+        *nqctx = qcontext_temp(qctx, e->ba->set);
         nqctx->constraint_mode = qctx->constraint_mode;
-        nqctx->expset = e->ba->set;
-        nqctx->flagme = false;
-        nqctx->next = qctx;
 
         cctx->qctx = nqctx;
 
@@ -2242,6 +2335,7 @@ qcontext *qcontext_new(laure_expression_set *expset) {
     qctx->expset = expset;
     qctx->next = NULL;
     qctx->flagme = false;
+    qctx->bag = NULL;
     return qctx;
 }
 
@@ -2257,6 +2351,13 @@ void *pd_get_arg(preddata *pd, int index) {
     for (int i = 0; i < pd->argc; i++)
         if (pd->argv[i].index == index)
             return pd->argv[i].arg;
+    return NULL;
+}
+
+unsigned long pd_get_arg_link(preddata *pd, int index) {
+    for (int i = 0; i < pd->argc; i++)
+        if (pd->argv[i].index == index)
+            return pd->argv[i].link_id;
     return NULL;
 }
 
@@ -2277,4 +2378,14 @@ string get_default_name(predfinal *pf, string final_name) {
     if (str_eq(pf->interior.respn, final_name))
         return laure_get_respn();
     return NULL;
+}
+
+qcontext qcontext_temp(qcontext *next, laure_expression_set *expset) {
+    qcontext qctx;
+    qctx.bag = NULL;
+    qctx.constraint_mode = false;
+    qctx.expset = expset;
+    qctx.flagme = false;
+    qctx.next = next;
+    return qctx;
 }

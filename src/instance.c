@@ -360,6 +360,7 @@ bool array_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope)
 
     if (array->state == U) {
         uint length = laure_expression_get_count(exp->ba->set);
+
         if (array->length_lid) {
             Instance *llen = laure_scope_find_by_link(scope, array->length_lid, true);
             if (llen && ! llen->locked) {
@@ -370,6 +371,8 @@ bool array_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope)
                 }
             }
         }
+        if (! int_domain_check_int(array->u_data.length, (int)length))
+            return false;
         
         array_linked_t *first = NULL;
         array_linked_t *linked = NULL;
@@ -421,13 +424,16 @@ bool array_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope)
         uint idx = 0;
         array_linked_t *linked = array->i_data.linked;
         while (idx < array->i_data.length && linked) {
-            Instance *el = linked->data;
-            bool res = read_head(el->image).translator->invoke(
-                laure_expression_set_get_by_idx(exp->ba->set, idx),
-                el->image,
-                scope
-            );
-            if (! res) return false;
+            laure_expression_t *expr = laure_expression_set_get_by_idx(exp->ba->set, idx);
+            if (! str_eq(expr->s, "_")) {
+                Instance *el = linked->data;
+                bool res = read_head(el->image).translator->invoke(
+                    expr,
+                    el->image,
+                    scope
+                );
+                if (! res) return false;
+            }
             linked = linked->next;
             idx++;
         }
@@ -464,10 +470,14 @@ string array_repr(Instance *ins) {
         strcat(buff, "]");
     } else if (img->state == U) {
         string arr_el_repr = img->arr_el->repr(img->arr_el);
-        string length_repr = int_domain_repr(img->u_data.length);
-        snprintf(buff, 512, "[%s x %s]", arr_el_repr, length_repr);
+        if (! img->length_lid) {
+            string length_repr = int_domain_repr(img->u_data.length);
+            snprintf(buff, 512, "[%s x %s]", arr_el_repr, length_repr);
+            free(length_repr);
+        } else {
+            snprintf(buff, 512, "[%s x $%lu]", arr_el_repr, img->length_lid);
+        }
         free(arr_el_repr);
-        free(length_repr);
     }
     return strdup( buff );
 }
@@ -2199,4 +2209,40 @@ int convert_to_string(struct ArrayIData i_data, string buff) {
         linked = linked->next;
     }
     return 0;
+}
+
+// bag
+
+void ensure_bag(qcontext *qctx) {
+    if (! qctx->bag) {
+        qctx->bag = malloc(sizeof(Bag));
+        qctx->bag->linked_pocket = NULL;
+    }
+}
+
+Pocket *empty_pocket(ulong variable) {
+    Pocket *pocket = malloc(sizeof(Pocket));
+    pocket->variable = variable;
+    pocket->first = NULL;
+    pocket->last = NULL;
+    return pocket;
+}
+
+Pocket *pocket_get_or_new(Bag *bag, unsigned long variable) {
+    assert(bag);
+    if (! bag->linked_pocket) {
+        Pocket *pocket = empty_pocket(variable);
+        bag->linked_pocket = pocket;
+        return pocket;
+    } else {
+        Pocket *pocket = bag->linked_pocket;
+        while (pocket) {
+            if (pocket->variable == variable)
+                return pocket;
+            if (! pocket->next) break;
+            pocket = pocket->next;
+        }
+        pocket->next = empty_pocket(variable);
+        return pocket->next;
+    }
 }

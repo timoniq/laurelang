@@ -167,6 +167,28 @@ typedef struct array_linked {
     struct array_linked *next;
 } array_linked_t;
 
+typedef struct Pocket {
+    ulong variable;
+    size_t size;
+    array_linked_t *first, *last;
+
+    struct Pocket *next;
+} Pocket;
+
+typedef struct Bag {
+    Pocket *linked_pocket;
+} Bag;
+
+typedef struct laure_qcontext {
+    laure_expression_set *expset;
+    struct laure_qcontext *next;
+    bool constraint_mode, flagme;
+    Bag *bag;
+} qcontext;
+
+void ensure_bag(qcontext *qctx);
+Pocket *pocket_get_or_new(Bag *bag, unsigned long variable);
+
 // instantiated array data
 struct ArrayIData {
     uint length;
@@ -184,7 +206,7 @@ struct ArrayImage {
     IMAGE_HEAD
     enum ImageState state;
     Instance *arr_el;
-    long length_lid;
+    unsigned long length_lid;
     uint ref_count;
     ref_element *ref;
     union {
@@ -245,7 +267,7 @@ typedef struct {
 } preddata;
 
 void *pd_get_arg(preddata *pd, int index);
-long pd_get_arg_link(preddata *pd, int index);
+unsigned long pd_get_arg_link(preddata *pd, int index);
 
 void preddata_free(preddata *pd);
 
@@ -487,7 +509,7 @@ struct predicate_arg {
     int index;
     void* arg;
     bool is_instance;
-    long link_id;
+    unsigned long link_id;
 };
 
 struct InstanceSet {

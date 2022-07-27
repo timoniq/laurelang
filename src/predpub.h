@@ -48,11 +48,9 @@ typedef struct laure_vpk var_process_kit;
 typedef struct bigint bigint;
 bool int_check(void *img, bigint *bi);
 
-typedef struct laure_qcontext {
-    laure_expression_set *expset;
-    struct laure_qcontext *next;
-    bool constraint_mode, flagme;
-} qcontext;
+typedef struct laure_qcontext qcontext;
+
+qcontext qcontext_temp(qcontext *next, laure_expression_set *expset);
 
 struct BuiltinPredHint {
     char *arg_types; // argname:typename splitted by ' ' (NULL if no args; typename == "_" means no typehint)

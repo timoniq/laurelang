@@ -112,3 +112,16 @@ cons ~ never.
 
 : ?format(formatting) -> string.
 ?format(fmt) -> __format(fmt).
+
+: ?-->('T', 'T'[]).
+?-->(from, to) when __bag(from, to).
+
+: ?<--('T'[], 'T').
+?<--(to, from) when __bag(from, to).
+
+: ?bagof('T') -> 'T'[].
+?bagof(from) -> to when __bag(from, to).
+
+: ?sized_bagof(natural, 'T') -> 'T'[].
+?sized_bagof(size, from) -> to when
+    __bag_sz(from, to, size).

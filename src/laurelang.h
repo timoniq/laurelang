@@ -424,6 +424,7 @@ typedef enum laure_error_kind {
     instance_err,
     signature_err,
     runtime_err,
+    not_implemented_err,
 } laure_error_kind;
 
 typedef struct laure_error {
@@ -461,6 +462,7 @@ typedef struct laure_backtrace {
 } laure_backtrace;
 
 extern laure_backtrace *LAURE_BACKTRACE;
+extern char            *MARKER_NODELETE;
 
 laure_backtrace laure_backtrace_new();
 void laure_backtrace_add(laure_backtrace *backtrace, laure_expression_t *e);

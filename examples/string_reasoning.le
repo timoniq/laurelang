@@ -1,0 +1,22 @@
+!use @/array.
+
+string lowers = "abcdefghijklmnopqrstuvwxyz".
+string uppers = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".
+
+: ?lower_letter(char) -> char.
+?lower_letter(uppers[i]) -> lowers[i].
+?lower_letter(lowers[i]) -> lowers[i].
+
+: ?upper_letter(char) -> char.
+?upper_letter(lowers[i]) -> uppers[i].
+?upper_letter(uppers[i]) -> uppers[i].
+
+: ?lower_char(char) -> char.
+?lower_char(c) -> lower_letter(c)%
+?lower_char(x) -> x.
+
+: ?lower(string) -> string.
+?lower(s) -> l {
+    c = lower_char(s[_]);
+    l = (length of s) sized_bagof c;
+}

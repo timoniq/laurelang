@@ -79,6 +79,8 @@ void int_domain_lt(Domain *dom, IntValue v) {
 }
 
 bool int_domain_check(Domain *dom, bigint* i) {
+    if (dom->t == SINGLE)
+        return bigint_cmp(dom->lborder.data, i) == 0;
     if (dom->lborder.t == INFINITE && dom->rborder.t == INFINITE) {
         return true;
     } else {
@@ -182,9 +184,9 @@ string int_domain_repr(Domain *dom) {
         case EMPTY:
             return strdup("∅");
         case SINGLE: {
-            char buff[10];
+            char buff[64];
             strcpy(buff, "{");
-            bigint_write(buff, 8, dom->lborder.data);
+            bigint_write(buff + 1, 62, dom->lborder.data);
             strcat(buff, "}");
             return strdup( buff );
         }

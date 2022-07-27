@@ -344,10 +344,7 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
     laure_expression_set *expset = laure_expression_compose_one(exp);
     
     qcontext qctx[1];
-    qctx->constraint_mode = false;
-    qctx->expset = expset;
-    qctx->next = NULL;
-    qctx->flagme = false;
+    *qctx = qcontext_temp(NULL, expset);
 
     control_ctx *cctx = control_new(session, session->scope, qctx, NULL, NULL, true);
     cctx->silent = true;

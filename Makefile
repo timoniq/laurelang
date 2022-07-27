@@ -24,7 +24,8 @@ LIB = src/parser.o \
 	  src/weight.o \
 	  src/order.o \
 	  standard/integer.c \
-	  standard/utility.c
+	  standard/utility.c \
+	  standard/bag.c 
 
 OBJECTS = laure.o $(LIB)
 

@@ -64,11 +64,13 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
                     el_ins->image = img_copy;
 
                     laure_scope_t *nscope = laure_scope_create_copy(cctx, pd->scope);
-                    nscope->repeat++;
+                    
+                    qcontext temp[1];
+                    *temp = qcontext_temp(cctx->qctx->next, NULL);
 
                     laure_scope_t *old_sc = pd->scope;
                     qcontext *old_qc = cctx->qctx;
-                    cctx->qctx = cctx->qctx->next;
+                    cctx->qctx = temp;
                     cctx->scope = nscope;
                     
                     qresp result = laure_start(cctx, cctx->qctx ? cctx->qctx->expset : NULL);
@@ -131,7 +133,7 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
     struct ArrayImage *arr_img = (struct ArrayImage*)arr_ins->image;
     void *el_img = el_ins->image;
 
-    if (instantiated(arr_ins)) {
+    if (arr_img->state == I) {
         uint len = arr_img->i_data.length;
         if (instantiated(idx_ins)) {
 
@@ -174,15 +176,27 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
                     found = true;
 
                     laure_scope_t *nscope = laure_scope_create_copy(cctx, pd->scope);
-                    nscope->repeat++;
+
+                    qcontext temp[1];
+                    *temp = qcontext_temp(cctx->qctx->next, NULL);
 
                     laure_scope_t *old_sc = pd->scope;
                     qcontext *old_qc = cctx->qctx;
-                    cctx->qctx = cctx->qctx->next;
+
+                    cctx->qctx = temp;
                     cctx->scope = nscope;
                     
-                    qresp result = laure_start(cctx, cctx->qctx ? cctx->qctx->expset : NULL);
+                    qresp result = laure_start(cctx, NULL);
                     if (result.state == q_true || (result.state == q_yield && result.payload == (void*)1)) found = true;
+                    else if (result.state == q_stop || result.state == q_error) {
+                        laure_scope_free(nscope);
+                        bigint_free(idx_bi);
+                        if (result.state == q_error) {
+                            image_free(idx_with_dom);
+                            return result;
+                        }
+                        break;
+                    }
 
                     cctx->scope = old_sc;
                     cctx->qctx = old_qc;
@@ -228,11 +242,13 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
                 idx_img->i_data = idx_bi;
 
                 laure_scope_t *nscope = laure_scope_create_copy(cctx, pd->scope);
-                nscope->repeat++;
+                
+                qcontext temp[1];
+                *temp = qcontext_temp(cctx->qctx->next, NULL);
 
                 laure_scope_t *old_sc = pd->scope;
                 qcontext *old_qc = cctx->qctx;
-                cctx->qctx = cctx->qctx->next;
+                cctx->qctx = temp;
                 cctx->scope = nscope;
                 
                 qresp result = laure_start(cctx, cctx->qctx ? cctx->qctx->expset : NULL);
@@ -474,8 +490,7 @@ qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
             laure_scope_t *old_sc = pd->scope;
 
             qcontext temp[1];
-            temp->next = cctx->qctx->next;
-            temp->expset = NULL;
+            *temp = qcontext_temp(cctx->qctx->next, NULL);
 
             qcontext *old_qc = cctx->qctx;
             cctx->qctx = temp;
