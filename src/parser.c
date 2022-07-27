@@ -1128,12 +1128,19 @@ laure_parse_result laure_parse(string query) {
                 // force unify operation
                 string vn = strdup(query);
                 lastc(vn) = 0;
-                if (!is_fine_name_for_var(vn)) {
-                    free(vn);
-                    error_result("something to unify should be var");
+                if (is_fine_name_for_var(vn)) {
+                    lpr.exp = laure_expression_create(let_unify, "", false, vn, 0, NULL, query);
+                    return lpr;
+                } else {
+                    laure_parse_result lpr = laure_parse(vn);
+                    if (! lpr.is_ok) {
+                        error_format("unify(%s)", lpr.err);
+                    }
+                    laure_expression_t *inner_expr = lpr.exp;
+                    lpr.exp = laure_expression_create(let_unify, NULL, false, NULL, 0, NULL, query);
+                    lpr.exp->link = inner_expr;
+                    return lpr;
                 }
-                lpr.exp = laure_expression_create(let_unify, "", false, vn, 0, NULL, query);
-                return lpr;
             }
 
             if (query[0] == '{') {
@@ -1538,7 +1545,14 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
 
         case let_unify: {
             printindent(indent);
-            printf("unify %s\n", exp->s);
+            if (exp->s)
+                printf("unify %s\n", exp->s);
+            else {
+                printf("unify [\n");
+                laure_expression_show(exp->link, indent + 2);
+                printindent(indent);
+                printf("]\n");
+            }
             break;
         }
 
@@ -1633,6 +1647,9 @@ laure_expression_set *laure_get_all_vars_in(laure_expression_t *exp, laure_expre
     case let_var:
     case let_unify:
     case let_decl: {
+        if (! exp->s) {
+            break;
+        }
         linked = laure_expression_set_link(linked, exp);
         break;
     }
@@ -1757,6 +1774,27 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
                 set = laure_expression_set_link_branch(set, laure_expression_compose_one(pc));
                 break;
             }
+            
+            if (left->t == let_unify || right->t == let_unify) {
+                if (left->t == let_unify && right->t == let_unify) {
+
+                } else {
+                    laure_expression_t *var, *unify;
+                    if (left->t == let_unify) {
+                        var = right;
+                        unify = left;
+                    } else {
+                        var = left;
+                        unify = right;
+                    }
+                    laure_expression_set *set_ = laure_expression_compose_one(unify);
+                    (*unify).t = let_var;
+                    laure_expression_t *last = laure_expression_set_get_by_idx(set_, laure_expression_get_count(set_) - 1);
+                    (*unify).s = last->s;
+                    set_ = laure_expression_set_link(set_, exp);
+                    set = set_;
+                }
+            }
             break;
         }
         case let_pred_call: {
@@ -1788,6 +1826,24 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
             
             exp->ba->set = args;
             set = laure_expression_set_link(set, exp);
+            break;
+        }
+        case let_unify: {
+            if (!exp->s) {
+                assert(exp->link);
+                string vname = laure_scope_generate_unique_name();
+                laure_expression_t *n = laure_expression_create(let_assert, NULL, false, NULL, 0, laure_bodyargs_create(
+                    laure_expression_set_link(
+                        laure_expression_set_link(
+                            NULL,
+                            laure_expression_create(let_var, NULL, false, vname, 0, NULL, exp->fullstring)
+                        ),
+                        exp->link
+                    ),
+                    2, false
+                ), exp->fullstring);
+                set = laure_expression_set_link(laure_expression_compose_one(n), laure_expression_create(let_unify, NULL, false, vname, 0, NULL, vname));
+            }
             break;
         }
         case let_choice_1: {

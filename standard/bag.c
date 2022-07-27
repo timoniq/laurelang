@@ -9,7 +9,50 @@ DECLARE(laure_predicate_bag) {
     if (! instantiated(from) && ! instantiated(to)) {
         RESPOND_ERROR(too_broad_err, NULL, "bag should have instantiated either `from` or `to`");
     } else if (instantiated(to)) {
-        RESPOND_ERROR(not_implemented_err, NULL, "inst case");
+        cast_image(ary_im, struct ArrayImage) to->image;
+        array_linked_t *linked = ary_im->i_data.linked;
+        size_t length = ary_im->i_data.length;
+        bool found = true;
+
+        while (linked && length) {
+            Instance *i = linked->data;
+            void *copy = image_deepcopy(cctx->scope, from->image);
+            bool r = image_equals(copy, i->image);
+            
+            if (! r) {
+                image_free(copy);
+                return False;
+            }
+            void *old = from->image;
+            from->image = copy;
+
+            laure_scope_t *nscope = laure_scope_create_copy(cctx, pd->scope);
+                    
+            qcontext temp[1];
+            *temp = qcontext_temp(cctx->qctx->next, NULL);
+
+            laure_scope_t *old_sc = pd->scope;
+            qcontext *old_qc = cctx->qctx;
+            cctx->qctx = temp;
+            cctx->scope = nscope;
+            
+            qresp result = laure_start(cctx, cctx->qctx ? cctx->qctx->expset : NULL);
+
+            laure_scope_free(nscope);
+            image_free(copy);
+            from->image = old;
+            cctx->scope = old_sc;
+            cctx->qctx = old_qc;
+
+            if (result.state == q_true || (result.state == q_yield && result.payload == (void*)1)) found = true;
+            else if (result.state == q_stop || result.state == q_error) {
+                return result;
+            }
+
+            linked = linked->next;
+            length--;
+        }
+        return RESPOND_YIELD((void*)found);
     } else {
 
         cast_image(to_img, struct ArrayImage) to->image;

@@ -477,6 +477,7 @@ int append_vars(string **vars, int vars_len, laure_expression_set *vars_exps) {
     laure_expression_t *exp = NULL;
     EXPSET_ITER(vars_exps, exp, {
         string n = exp->s;
+        assert(n);
         if (str_eq(n, ANONVAR_NAME)) {}
         else {
             bool exists = false;

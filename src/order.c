@@ -87,6 +87,9 @@ double get_initialization(ordering_scope_mock *mock, laure_expression_t *expr) {
             });
             return b / (double)laure_expression_get_count(expr->ba->set);
         }
+        case let_var: {
+            return get_mock_var_is_instantiated(mock, expr->s);
+        }
         default: break;
     }
     return 1;

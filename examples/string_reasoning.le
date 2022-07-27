@@ -15,8 +15,18 @@ string uppers = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".
 ?lower_char(c) -> lower_letter(c)%
 ?lower_char(x) -> x.
 
+: ?upper_char(char) -> char.
+?upper_char(c) -> upper_letter(c)%
+?upper_char(x) -> x.
+
 : ?lower(string) -> string.
 ?lower(s) -> l {
     c = lower_char(s[_]);
     l = (length of s) sized_bagof c;
+}
+
+: ?upper(string) -> string.
+?upper(s) -> u {
+    c = upper_char(s[_]);
+    u = (length of s) sized_bagof c;
 }
