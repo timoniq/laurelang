@@ -37,7 +37,7 @@ qresp respond(qresp_state s, string e);
 #define RESPOND_YIELD(code)          respond(q_yield, code)
 
 #define INT_ASSIGN(im, bi) do { \
-        if(! int_check(im, bi)) {free(bi->words); free(bi); return respond(q_false, 0);} \
+        if(! int_check(im, bi)) {laure_free(bi->words); laure_free(bi); return respond(q_false, 0);} \
         im->state = I; \
         im->i_data = bi; \
         } while (0)

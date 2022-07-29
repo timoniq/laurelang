@@ -30,16 +30,16 @@ typedef struct laure_optimality_vector {
 } laure_optimality_vector;
 
 laure_optimality_vector *vector_init() {
-    laure_optimality_vector *vec = malloc(sizeof(laure_optimality_vector));
+    laure_optimality_vector *vec = laure_alloc(sizeof(laure_optimality_vector));
     vec->capacity = INITIAL_CAPACITY;
     vec->length = 0;
-    vec->ptr = malloc(sizeof(void*) * vec->capacity);
+    vec->ptr = laure_alloc(sizeof(void*) * vec->capacity);
     return vec;
 }
 
 void vector_expand(laure_optimality_vector *vec) {
     vec->capacity = vec->capacity * 2;
-    vec->ptr = realloc(vec->ptr, vec->capacity);
+    vec->ptr = laure_realloc(vec->ptr, vec->capacity);
 }
 
 void vector_add(laure_optimality_vector *vec, optimality_t optim) {
@@ -50,8 +50,8 @@ void vector_add(laure_optimality_vector *vec, optimality_t optim) {
 }
 
 void vector_free(laure_optimality_vector* vec) {
-    free(vec->ptr);
-    free(vec);
+    laure_free(vec->ptr);
+    laure_free(vec);
 } 
 
 typedef struct laure_ws {
@@ -62,7 +62,7 @@ typedef struct laure_ws {
 } laure_ws;
 
 laure_ws *laure_ws_create(laure_ws *next) {
-    laure_ws *ws = malloc(sizeof(laure_ws));
+    laure_ws *ws = laure_alloc(sizeof(laure_ws));
     ws->next = next;
     ws->calc_w = next ? next->calc_w : DEFAULT_WSFUNC;
     ws->k = k;
@@ -72,7 +72,7 @@ laure_ws *laure_ws_create(laure_ws *next) {
 
 void laure_ws_free(laure_ws *ws) {
     vector_free(ws->vec);
-    free(ws);
+    laure_free(ws);
 }
 
 optimality_t round_o(optimality_t o) {

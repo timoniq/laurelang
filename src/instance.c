@@ -32,20 +32,20 @@ gen_resp form_gen_resp(bool state, qresp qr) {
 */
 
 multiplicity *multiplicity_create() {
-    multiplicity *mult = malloc(sizeof(multiplicity));
+    multiplicity *mult = laure_alloc(sizeof(multiplicity));
     mult->amount = 0;
     mult->capacity = MULTIPLICITY_CAPACITY;
-    mult->members = malloc(sizeof(void*) * mult->capacity);
+    mult->members = laure_alloc(sizeof(void*) * mult->capacity);
     memset(mult->members, 0, sizeof(void*) * mult->capacity);
     return mult;
 }
 
 multiplicity *multiplicity_deepcopy(multiplicity *mult) {
     if (mult == NULL) return NULL;
-    multiplicity *new = malloc(sizeof(multiplicity));
+    multiplicity *new = laure_alloc(sizeof(multiplicity));
     new->amount = mult->amount;
     new->capacity = mult->amount;
-    new->members = malloc(sizeof(void*) * mult->amount);
+    new->members = laure_alloc(sizeof(void*) * mult->amount);
     for (int i = 0; i < mult->amount; i++)
         new->members[i] = mult->members[i];
     return new;
@@ -54,15 +54,15 @@ multiplicity *multiplicity_deepcopy(multiplicity *mult) {
 void multiplicity_insert(multiplicity *mult, void *ptr) {
     if (mult->amount + 1 > mult->capacity) {
         mult->capacity = mult->capacity * 2;
-        mult->members = realloc(mult->members, sizeof(void*) * mult->capacity);
+        mult->members = laure_realloc(mult->members, sizeof(void*) * mult->capacity);
     }
     mult->members[mult->amount] = ptr;
     mult->amount++;
 }
 
 void multiplicity_free(multiplicity *mult) {
-    free(mult->members);
-    free(mult);
+    laure_free(mult->members);
+    laure_free(mult);
 }
 
 /* Read image head */
@@ -77,7 +77,7 @@ laure_image_head read_head(void *img) {
 
 // Enhanced image head reader;
 // for external images with special
-// copy, eq, free methods.
+// copy, eq, laure_free methods.
 laure_image_head_enh read_enhanced_head(void *img) {
     struct EnhancedImageHead head;
     memcpy(&head, img, sizeof(struct EnhancedImageHead));
@@ -89,7 +89,7 @@ laure_image_head_enh read_enhanced_head(void *img) {
 //   eq
 //   repr
 //   deepcopy
-//   free
+//   laure_free
 //   generate
 
 /*
@@ -98,7 +98,7 @@ laure_image_head_enh read_enhanced_head(void *img) {
 
 // creates image of definite instantiated integer.
 struct IntImage *laure_create_integer_i(int value) {
-    struct IntImage *image = malloc(sizeof(struct IntImage));
+    struct IntImage *image = laure_alloc(sizeof(struct IntImage));
     image->t = INTEGER;
     image->state = I;
     image->i_data = bigint_create(value);
@@ -108,7 +108,7 @@ struct IntImage *laure_create_integer_i(int value) {
 
 // creates image of indefinite integer.
 struct IntImage *laure_create_integer_u(Domain *dom) {
-    struct IntImage *image = malloc(sizeof(struct IntImage));
+    struct IntImage *image = laure_alloc(sizeof(struct IntImage));
     image->t = INTEGER;
     image->state = U;
     image->u_data = int_domain_new();
@@ -140,7 +140,7 @@ bool int_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
             raw++;
         }
 
-        string left = malloc(strlen(raw) - strlen(_temp));
+        string left = laure_alloc(strlen(raw) - strlen(_temp));
         strncpy(left, raw, strlen(raw) - strlen(_temp));
 
         _temp = _temp + 2;
@@ -158,25 +158,25 @@ bool int_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
             right_n--;
         }
 
-        string right = malloc(right_n);
+        string right = laure_alloc(right_n);
         strncpy(right, _temp, right_n);
 
         for (int i = 0; i < strlen(left); i++) 
             if (!char_isnumber(left[i])) {
-                free(left); free(right);
+                laure_free(left); laure_free(right);
                 return false;
             };
         
         for (int i = 0; i < strlen(right); i++) 
             if (!char_isnumber(right[i])) {
-                free(left); free(right);
+                laure_free(left); laure_free(right);
                 return false;
             };
 
         Domain *new_domain = int_domain_new();
 
         if (strlen(left)) {
-            bigint *bi_left = malloc(sizeof(bigint));
+            bigint *bi_left = laure_alloc(sizeof(bigint));
             bigint_init(bi_left);
             bigint_from_str(bi_left, left);
             if (left_minus) bigint_negate(bi_left);
@@ -185,7 +185,7 @@ bool int_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
         }
 
         if (strlen(right)) {
-            bigint *bi_right = malloc(sizeof(bigint));
+            bigint *bi_right = laure_alloc(sizeof(bigint));
             bigint_init(bi_right);
             bigint_from_str(bi_right, right);
             if (right_minus) bigint_negate(bi_right);
@@ -205,7 +205,7 @@ bool int_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
     for (int i = 0; i < strlen(raw); i++) 
         if (!char_isnumber(raw[i])) return false;
     
-    bigint *bi = malloc(sizeof(bigint));
+    bigint *bi = laure_alloc(sizeof(bigint));
     bigint_init(bi);
     bigint_from_str(bi, raw);
 
@@ -214,15 +214,15 @@ bool int_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
     if (img->state == U) {
         bool result = int_domain_check(img->u_data, bi);
         if (!result) {
-            free(bi->words);
-            free(bi);
+            laure_free(bi->words);
+            laure_free(bi);
             return false;
         }
         int_domain_free(img->u_data);
     } else {
         bool result = (bigint_cmp(img->i_data, bi) == 0);
-        free(bi->words);
-        free(bi);
+        laure_free(bi->words);
+        laure_free(bi);
         return result;
     }
 
@@ -283,7 +283,7 @@ bool int_eq(struct IntImage *img1_t, struct IntImage *img2_t) {
 }
 
 struct IntImage *int_deepcopy(struct IntImage *old_img) {
-    struct IntImage *new_img = malloc(sizeof(struct IntImage));
+    struct IntImage *new_img = laure_alloc(sizeof(struct IntImage));
 
     new_img->t = INTEGER;
     new_img->state = old_img->state;
@@ -297,13 +297,13 @@ struct IntImage *int_deepcopy(struct IntImage *old_img) {
 
 gen_resp int_generator(bigint* i, void *ctx_) {
     GenCtx *ctx = (GenCtx*)ctx_;
-    struct IntImage *img = malloc(sizeof(struct IntImage));
+    struct IntImage *img = laure_alloc(sizeof(struct IntImage));
     img->t = INTEGER;
     img->i_data = i;
     img->state = I;
     img->translator = INT_TRANSLATOR;
     gen_resp gr = (ctx->rec)(img, ctx->external_ctx);
-    free(img);
+    laure_free(img);
     return gr;
 }
 
@@ -313,12 +313,12 @@ gen_resp int_generate(laure_scope_t *scope, struct IntImage *im, REC_TYPE(rec), 
         return rec(im, external_ctx);
     } else {
         // choicepoint
-        GenCtx *gctx = malloc(sizeof(GenCtx));
+        GenCtx *gctx = laure_alloc(sizeof(GenCtx));
         gctx->scope = scope;
         gctx->external_ctx = external_ctx;
         gctx->rec = rec;
         gen_resp gr =  int_domain_generate(im->u_data, int_generator, gctx);
-        free(gctx);
+        laure_free(gctx);
         return gr;
     }
 }
@@ -326,11 +326,11 @@ gen_resp int_generate(laure_scope_t *scope, struct IntImage *im, REC_TYPE(rec), 
 void int_free(struct IntImage *im) {
     if (im->state == I) {
         bigint_free(im->i_data);
-        free(im->i_data);
+        laure_free(im->i_data);
     } else if (im->state == U) {
         int_domain_free(im->u_data);
     }
-    free(im);
+    laure_free(im);
 }
 
 /*
@@ -338,7 +338,7 @@ void int_free(struct IntImage *im) {
 */
 
 struct ArrayImage *laure_create_array_u(Instance *el_t) {
-    struct ArrayImage *img = malloc(sizeof(struct ArrayImage));
+    struct ArrayImage *img = laure_alloc(sizeof(struct ArrayImage));
     struct ArrayUData u_data;
     u_data.length = int_domain_new();
     IntValue zero = {INCLUDED, bigint_create(0)};
@@ -404,12 +404,12 @@ bool array_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope)
             ins->repr = array->arr_el->repr;
 
             if (i == 0) {
-                first = malloc(sizeof(array_linked_t));
+                first = laure_alloc(sizeof(array_linked_t));
                 first->data = ins;
                 first->next = NULL;
                 linked = first;
             } else {
-                array_linked_t *new = malloc(sizeof(array_linked_t));
+                array_linked_t *new = laure_alloc(sizeof(array_linked_t));
                 new->data = ins;
                 new->next = NULL;
                 linked->next = new;
@@ -453,13 +453,13 @@ string array_repr(Instance *ins) {
             Instance *el = linked->data;
             string repr = el->repr(el);
             if (len + strlen(repr) >= 500) {
-                free(repr);
+                laure_free(repr);
                 strcat(buff, "...");
                 break;
             }
             strcat(buff, repr);
             len += strlen(buff);
-            free(repr);
+            laure_free(repr);
             if (idx != img->i_data.length - 1) {
                 strcat(buff, ", ");
                 len += 2;
@@ -473,11 +473,11 @@ string array_repr(Instance *ins) {
         if (! img->length_lid) {
             string length_repr = int_domain_repr(img->u_data.length);
             snprintf(buff, 512, "[%s x %s]", arr_el_repr, length_repr);
-            free(length_repr);
+            laure_free(length_repr);
         } else {
             snprintf(buff, 512, "[%s x $%lu]", arr_el_repr, img->length_lid);
         }
-        free(arr_el_repr);
+        laure_free(arr_el_repr);
     }
     return strdup( buff );
 }
@@ -529,7 +529,7 @@ bool array_eq(struct ArrayImage *img1_t, struct ArrayImage *img2_t) {
 }
 
 struct ArrayImage *array_copy(struct ArrayImage *old_img) {
-    struct ArrayImage *image = malloc(sizeof(struct ArrayImage));
+    struct ArrayImage *image = laure_alloc(sizeof(struct ArrayImage));
     *image = *old_img;
     if (old_img->state == I) {
         image->i_data = old_img->i_data;
@@ -624,7 +624,7 @@ gen_resp array_length_receiver(
     uint i = length;
 
     while (i) {
-        array_linked_t *linked = malloc(sizeof(array_linked_t));
+        array_linked_t *linked = laure_alloc(sizeof(array_linked_t));
         linked->next = i_data.linked;
         linked->data = instance_deepcopy(ctx->scope, MOCK_NAME, ctx->im->arr_el);
         i_data.linked = linked;
@@ -647,6 +647,16 @@ gen_resp array_length_receiver(
     return GR;
 }
 
+ref_element get_ref_element(struct ArrayImage *array, uint idx) {
+    for (size_t i = 0; i < array->ref_count; i++) {
+        ref_element refel = array->ref[i];
+        if (refel.idx == idx) return refel;
+    }
+    ref_element empty;
+    empty.link_id = 0;
+    return empty;
+}
+
 gen_resp array_generate(
     laure_scope_t *scope, 
     struct ArrayImage *im, 
@@ -659,15 +669,23 @@ gen_resp array_generate(
         while (i < im->i_data.length && linked) {
             Instance *ins = linked->data;
             if (! instantiated(ins)) {
-                array_linker_ctx ctx[1];
-                ctx->final_rec = rec;
-                ctx->final_external_ctx = external_ctx;
-                ctx->linked_instance = ins;
-                ctx->remaining_length = im->i_data.length - i - 1;
-                ctx->tail = linked->next;
-                ctx->general_ary_img = im;
-                ctx->scope = scope;
-                return image_generate(scope, ins->image, array_tail_linker_generator, ctx);
+                ref_element refel_opt = get_ref_element(im, i);
+                if (refel_opt.link_id != 0) {
+                    Instance *refins = laure_scope_find_by_link(scope, refel_opt.link_id, false);
+                    bool result = image_equals(refins->image, ins->image);
+                    if (! result)
+                        return form_gen_resp(false, respond(q_false, NULL));
+                } else {
+                    array_linker_ctx ctx[1];
+                    ctx->final_rec = rec;
+                    ctx->final_external_ctx = external_ctx;
+                    ctx->linked_instance = ins;
+                    ctx->remaining_length = im->i_data.length - i - 1;
+                    ctx->tail = linked->next;
+                    ctx->general_ary_img = im;
+                    ctx->scope = scope;
+                    return image_generate(scope, ins->image, array_tail_linker_generator, ctx);
+                }
             }
             linked = linked->next;
             i++;
@@ -691,7 +709,7 @@ gen_resp array_generate(
 */
 
 struct CharImage *laure_create_char_u() {
-    struct CharImage *img = malloc(sizeof(struct CharImage));
+    struct CharImage *img = laure_alloc(sizeof(struct CharImage));
     img->t = CHAR;
     img->state = 0;
     img->translator = CHAR_TRANSLATOR;
@@ -699,7 +717,7 @@ struct CharImage *laure_create_char_u() {
 }
 
 struct CharImage *laure_create_char_i(int c) {
-    struct CharImage *img = malloc(sizeof(struct CharImage));
+    struct CharImage *img = laure_alloc(sizeof(struct CharImage));
     img->t = CHAR;
     img->state = 1;
     img->c = c;
@@ -708,7 +726,7 @@ struct CharImage *laure_create_char_i(int c) {
 }
 
 struct CharImage *laure_create_charset(string charset) {
-    struct CharImage *img = malloc(sizeof(struct CharImage));
+    struct CharImage *img = laure_alloc(sizeof(struct CharImage));
     img->t = CHAR;
     img->state = 2;
     img->charset = charset;
@@ -862,7 +880,7 @@ string char_repr(Instance *ins) {
         }
         case 2: {
             size_t sz = strlen(img->charset);
-            string buff = malloc((sz * 2) + 3);
+            string buff = laure_alloc((sz * 2) + 3);
             strcpy(buff, "\'");
             uint l = 1;
             for (uint idx = 0; idx < laure_string_strlen(img->charset); idx++) {
@@ -907,8 +925,8 @@ bool char_eq(struct CharImage *img1_t, struct CharImage *img2_t) {
                 }
             }
             if (! l) return false;
-            free(min->charset);
-            free(max->charset);
+            laure_free(min->charset);
+            laure_free(max->charset);
             min->charset = strdup(buff);
             max->charset = strdup(buff);
             return true;
@@ -947,7 +965,7 @@ bool char_eq(struct CharImage *img1_t, struct CharImage *img2_t) {
 }
 
 struct CharImage *char_deepcopy(struct CharImage *old_img) {
-    struct CharImage *image = malloc(sizeof(struct CharImage));
+    struct CharImage *image = laure_alloc(sizeof(struct CharImage));
     image->t = CHAR;
     image->translator = old_img->translator;
     image->state = old_img->state;
@@ -1002,9 +1020,9 @@ gen_resp char_generate(
 
 void char_free(struct CharImage *im) {
     if (im->state == 2) {
-        free(im->charset);
+        laure_free(im->charset);
     }
-    free(im);
+    laure_free(im);
 }
 
 /*
@@ -1015,7 +1033,7 @@ string string_repr(Instance *ins) {
     struct ArrayImage *image = (struct ArrayImage*) ins->image;
     if (image->state) {
         // unicode character can take up to 5 bytes
-        string buff = malloc((image->i_data.length * 5) + 3);
+        string buff = laure_alloc((image->i_data.length * 5) + 3);
         uint finlen = 2;
         strcpy(buff, "\"");
         array_linked_t *linked = image->i_data.linked;
@@ -1027,9 +1045,9 @@ string string_repr(Instance *ins) {
             linked = linked->next;
         }
         strcat(buff, "\"");
-        string final = malloc(finlen + 1);
+        string final = laure_alloc(finlen + 1);
         strcpy(final, buff);
-        free(buff);
+        laure_free(buff);
         return final;
     } else {
         return strdup("(string)");
@@ -1065,7 +1083,7 @@ bool string_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope
             int c = laure_string_char_at_pos(exp->s + 1, bufflen, idx);
             struct CharImage *ch = laure_create_char_i(c);
             Instance *chins = instance_new(MOCK_NAME, NULL, ch);
-            array_linked_t *l = malloc(sizeof(array_linked_t));
+            array_linked_t *l = laure_alloc(sizeof(array_linked_t));
             l->next = linked;
             l->data = chins;
             linked = l;
@@ -1085,7 +1103,7 @@ bool string_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope
 */
 
 struct AtomImage *laure_atom_universum_create(multiplicity *mult) {
-    struct AtomImage *img = malloc(sizeof(struct AtomImage));
+    struct AtomImage *img = laure_alloc(sizeof(struct AtomImage));
     img->t = ATOM;
     img->single = false;
     img->mult = mult;
@@ -1222,7 +1240,7 @@ string atom_repr(Instance *ins) {
     struct AtomImage *atom = ins->image;
     if (atom->single) {
         string r = single_atom_repr(atom);
-        string ns = malloc(strlen(r) + 2);
+        string ns = laure_alloc(strlen(r) + 2);
         ns[0] = '@';
         strcpy(ns + 1, r);
         ns[strlen(r) + 2] = 0;
@@ -1247,7 +1265,7 @@ string atom_repr(Instance *ins) {
 }
 
 struct AtomImage *atom_deepcopy(struct AtomImage *old_img) {
-    struct AtomImage *atom = malloc(sizeof(struct AtomImage));
+    struct AtomImage *atom = laure_alloc(sizeof(struct AtomImage));
     *atom = *old_img;
     if (! old_img->single) {
         atom->mult = multiplicity_deepcopy(old_img->mult);
@@ -1259,7 +1277,7 @@ void atom_free(struct AtomImage *im) {
     if (! im->single) {
         multiplicity_free(im->mult);
     }
-    free(im);
+    laure_free(im);
 }
 
 gen_resp atom_generate(
@@ -1323,13 +1341,13 @@ string uuid_repr(Instance *ins) {
 
 // deepcopy
 laure_uuid_image *uuid_deepcopy(laure_uuid_image *img) {
-    laure_uuid_image *nimg = malloc(sizeof(laure_uuid_image));
+    laure_uuid_image *nimg = laure_alloc(sizeof(laure_uuid_image));
     *nimg = *img;
     return nimg;
 }
-//   free
+//   laure_free
 void uuid_free(laure_uuid_image *img) {
-    free(img);
+    laure_free(img);
 }
 
 // generate
@@ -1343,7 +1361,7 @@ gen_resp uuid_generate_image(
 }
 
 laure_uuid_image *laure_create_uuid(string bound, uuid_t uu) {
-    laure_uuid_image *im = malloc(sizeof(laure_uuid_image));
+    laure_uuid_image *im = laure_alloc(sizeof(laure_uuid_image));
     im->bound = bound;
     im->t = UUID;
     im->translator = NULL;
@@ -1372,7 +1390,7 @@ bool predicate_auto_translator(laure_expression_t *expr, struct PredicateImage *
             for (uint i = 0; i < img->variations->len; i++) {
                 if (uuid_compare(img->variations->finals[i]->uu, uu)) {
                     string bound = img->bound;
-                    struct UUIDImage *uu_image = realloc(img, sizeof(laure_uuid_image));
+                    struct UUIDImage *uu_image = laure_realloc(img, sizeof(laure_uuid_image));
                     uu_image->t = UUID;
                     uu_image->bound = bound;
                     uu_image->translator = NULL;
@@ -1388,7 +1406,7 @@ bool predicate_auto_translator(laure_expression_t *expr, struct PredicateImage *
 
 void force_predicate_to_uuid(struct PredicateImage *predicate_img) {
     string bound = predicate_img->bound;
-    struct UUIDImage *uu_image = realloc(predicate_img, sizeof(laure_uuid_image));
+    struct UUIDImage *uu_image = laure_realloc(predicate_img, sizeof(laure_uuid_image));
     uu_image->t = UUID;
     uu_image->bound = bound;
     uu_image->translator = NULL;
@@ -1417,7 +1435,7 @@ struct FormattingPart *formatting_part_get_first(struct FormattingPart *part) {
 }
 
 struct FormattingImage *laure_create_formatting_image(struct FormattingPart *linked) {
-    struct FormattingImage *im = malloc(sizeof(struct FormattingImage));
+    struct FormattingImage *im = laure_alloc(sizeof(struct FormattingImage));
     im->t = FORMATTING;
     im->translator = FORMATTING_TRANSLATOR;
     im->first = formatting_part_get_first(linked);
@@ -1451,7 +1469,7 @@ struct FormattingPart *laure_parse_formatting(string fmt) {
                 name_idx += laure_string_put_char(name + name_idx, ch);
                 ch = laure_string_get_char(&src);
             } while (ch != FMT_R && name_idx < 128);
-            struct FormattingPart *npart = malloc(sizeof(struct FormattingPart));
+            struct FormattingPart *npart = laure_alloc(sizeof(struct FormattingPart));
             npart->before = before_idx ? strdup(before) : NULL;
             npart->name = strdup(name);
             npart->next = NULL;
@@ -1467,7 +1485,7 @@ struct FormattingPart *laure_parse_formatting(string fmt) {
         }
     }
     if (laure_string_strlen(before)) {
-        struct FormattingPart *npart = malloc(sizeof(struct FormattingPart));
+        struct FormattingPart *npart = laure_alloc(sizeof(struct FormattingPart));
         npart->before = strdup(before);
         npart->name = NULL;
         npart->next = NULL;
@@ -1502,7 +1520,7 @@ int formatting_to_pattern(
         if (before)
             for (uint i = 0; laure_string_strlen(before) > 0; i++) {
                 int ch = laure_string_get_char(&before);
-                pattern_element *element = malloc(sizeof(pattern_element));
+                pattern_element *element = laure_alloc(sizeof(pattern_element));
                 element->any_count = 0;
                 element->c = ch;
                 element->group = false;
@@ -1510,7 +1528,7 @@ int formatting_to_pattern(
                 (*count)++;
             }
         if (first->name) {
-            pattern_element *element = malloc(sizeof(pattern_element));
+            pattern_element *element = laure_alloc(sizeof(pattern_element));
             element->any_count = 1;
             element->c = 0;
             element->group = true;
@@ -1555,7 +1573,7 @@ string formatting_repr(Instance *instance) {
 
 struct FormattingImage *formatting_deepcopy(struct FormattingImage *im) {
     if (! im->first) {
-        struct FormattingImage *nim = malloc(sizeof(struct FormattingImage));
+        struct FormattingImage *nim = laure_alloc(sizeof(struct FormattingImage));
         nim->first = NULL;
         nim->t = FORMATTING;
         nim->translator = im->translator;
@@ -1676,7 +1694,7 @@ void *image_deepcopy(laure_scope_t *stack, void *img) {
         }
         case CONSTRAINT_FACT:
         case PREDICATE_FACT: {
-            struct PredicateImage *nimg = malloc(sizeof(struct PredicateImage));
+            struct PredicateImage *nimg = laure_alloc(sizeof(struct PredicateImage));
             *nimg = *(struct PredicateImage*)img;
             return nimg;
         }
@@ -1715,7 +1733,7 @@ bool instantiated(Instance *ins) {
     }
 }
 
-// Image free
+// Image laure_free
 
 void image_free(void *image) {
     if (! image) return;
@@ -1743,7 +1761,7 @@ void image_free(void *image) {
 
 Instance *instance_deepcopy(laure_scope_t *scope, string name, Instance *from_instance) {
     if (from_instance == NULL) return from_instance;
-    Instance *instance = malloc(sizeof(Instance));
+    Instance *instance = laure_alloc(sizeof(Instance));
     instance->doc = from_instance->doc;
     instance->image = image_deepcopy(scope, from_instance->image);
     instance->locked = false;
@@ -1754,7 +1772,7 @@ Instance *instance_deepcopy(laure_scope_t *scope, string name, Instance *from_in
 
 Instance *instance_shallow_copy(Instance *from_instance) {
     if (! from_instance) return NULL;
-    Instance *instance = malloc(sizeof(Instance));
+    Instance *instance = laure_alloc(sizeof(Instance));
     *instance = *from_instance;
     return instance;
 }
@@ -1767,7 +1785,7 @@ qresp respond(qresp_state s, string p) {
 };
 
 struct Translator *new_translator(char identificator, bool (*invoke)(string, void*, laure_scope_t*)) {
-    struct Translator *tr = malloc(sizeof(struct Translator));
+    struct Translator *tr = laure_alloc(sizeof(struct Translator));
     tr->invoke = invoke;
     tr->identificator = identificator;
     return tr;
@@ -1778,7 +1796,7 @@ string default_repr(Instance *ins) {
 };
 
 Instance *instance_new(string name, string doc, void *image) {
-    Instance *ins = malloc(sizeof(Instance));
+    Instance *ins = laure_alloc(sizeof(Instance));
     ins->name = name;
     ins->doc = doc;
     ins->repr = default_repr;
@@ -1788,7 +1806,7 @@ Instance *instance_new(string name, string doc, void *image) {
 };
 
 struct PredicateCImageHint *hint_new(string name, Instance* instance) {
-    struct PredicateCImageHint *hint = malloc(sizeof(struct PredicateCImageHint));
+    struct PredicateCImageHint *hint = laure_alloc(sizeof(struct PredicateCImageHint));
     hint->name = name;
     hint->hint = instance;
     return hint;
@@ -1799,8 +1817,8 @@ struct PredicateCImageHint *hint_new(string name, Instance* instance) {
 */
 
 struct PredicateImageVariationSet *pvs_new() {
-    struct PredicateImageVariationSet *pvs = malloc(sizeof(struct PredicateImageVariationSet));
-    pvs->set = malloc(sizeof(struct PredicateImageVariation));
+    struct PredicateImageVariationSet *pvs = laure_alloc(sizeof(struct PredicateImageVariationSet));
+    pvs->set = laure_alloc(sizeof(struct PredicateImageVariation));
     pvs->len = 0;
     pvs->finals = NULL;
     return pvs;
@@ -1808,7 +1826,7 @@ struct PredicateImageVariationSet *pvs_new() {
 
 void pvs_push(struct PredicateImageVariationSet *pvs, struct PredicateImageVariation pv) {
     pvs->len++;
-    pvs->set = realloc(pvs->set, sizeof(struct PredicateImageVariation) * pvs->len);
+    pvs->set = laure_realloc(pvs->set, sizeof(struct PredicateImageVariation) * pvs->len);
     struct PredicateImageVariation *set = pvs->set;
     set[pvs->len-1] = pv;
     pvs->set = set;
@@ -1822,24 +1840,24 @@ void pvs_push(struct PredicateImageVariationSet *pvs, struct PredicateImageVaria
 */
 
 preddata *preddata_new(laure_scope_t *scope) {
-    preddata *pd = malloc(sizeof(preddata));
+    preddata *pd = laure_alloc(sizeof(preddata));
     pd->argc = 0;
     pd->resp = NULL;
-    pd->argv = malloc(sizeof(struct predicate_arg));
+    pd->argv = laure_alloc(sizeof(struct predicate_arg));
     pd->scope = scope;
     return pd;
 };
 
 void preddata_push(preddata *pd, struct predicate_arg pa) {
     pd->argc++;
-    pd->argv = realloc(pd->argv, sizeof(struct predicate_arg) * pd->argc);
+    pd->argv = laure_realloc(pd->argv, sizeof(struct predicate_arg) * pd->argc);
     struct predicate_arg *pas = pd->argv;
     pas[pd->argc-1] = pa;
 };
 
 void preddata_free(preddata *pd) {
-    free(pd->argv);
-    free(pd);
+    laure_free(pd->argv);
+    laure_free(pd);
 };
 
 /* =----=
@@ -1847,7 +1865,7 @@ predfinal
 =----= */
 
 predfinal *get_pred_final(struct PredicateImage *pred, struct PredicateImageVariation pv) {
-    predfinal *pf = malloc(sizeof(predfinal));
+    predfinal *pf = laure_alloc(sizeof(predfinal));
     pf->t = PF_INTERIOR;
     uuid_generate_random(pf->uu);
     
@@ -1869,7 +1887,7 @@ predfinal *get_pred_final(struct PredicateImage *pred, struct PredicateImageVari
         int pos = body_len;
 
         pf->interior.argc = args_len;
-        pf->interior.argn = malloc(sizeof(string) * args_len);
+        pf->interior.argn = laure_alloc(sizeof(string) * args_len);
 
         for (int i = 0; i < args_len; i++) {
             laure_expression_t *arg = laure_expression_set_get_by_idx(exp_set, pos);
@@ -1913,7 +1931,7 @@ predfinal *get_pred_final(struct PredicateImage *pred, struct PredicateImageVari
             laure_expression_t *exp = laure_expression_set_get_by_idx(exp_set, pos);
 
             if (str_eq(exp->s, "_")) {
-                free(pf->interior.respn);
+                laure_free(pf->interior.respn);
                 pf->interior.respn = DEFAULT_ANONVAR;
             }
 
@@ -1972,15 +1990,15 @@ predfinal *get_pred_final(struct PredicateImage *pred, struct PredicateImageVari
 (stored on heap)
 ============= */
 struct InstanceSet *instance_set_new() {
-    struct InstanceSet *is = malloc(sizeof(struct InstanceSet));
-    is->data = malloc(sizeof(Instance*));
+    struct InstanceSet *is = laure_alloc(sizeof(struct InstanceSet));
+    is->data = laure_alloc(sizeof(Instance*));
     is->len = 0;
     return is;
 };
 
 void instance_set_push(struct InstanceSet* ins_set, Instance *ins) {
     ins_set->len++;
-    ins_set->data = realloc(ins_set->data, sizeof(Instance*) * ins_set->len);
+    ins_set->data = laure_realloc(ins_set->data, sizeof(Instance*) * ins_set->len);
     Instance** set = ins_set->data;
     set[ins_set->len - 1] = ins;
     ins_set->data = set;
@@ -1991,7 +2009,7 @@ Data type declaration set
 ============ */
 
 laure_typeset *laure_typeset_new() {
-    laure_typeset *typeset = malloc(sizeof(laure_typeset));
+    laure_typeset *typeset = laure_alloc(sizeof(laure_typeset));
     typeset->data = NULL;
     typeset->length = 0;
     return typeset;
@@ -1999,21 +2017,21 @@ laure_typeset *laure_typeset_new() {
 
 void laure_typeset_push_instance(laure_typeset *ts, Instance *instance) {
     ts->length++;
-    ts->data = realloc(ts->data, sizeof(laure_typedecl) * ts->length);
+    ts->data = laure_realloc(ts->data, sizeof(laure_typedecl) * ts->length);
     ts->data[ts->length - 1].t = td_instance;
     ts->data[ts->length - 1].instance = instance;
 }
 
 void laure_typeset_push_decl(laure_typeset *ts, string generic_name) {
     ts->length++;
-    ts->data = realloc(ts->data, sizeof(laure_typedecl) * ts->length);
+    ts->data = laure_realloc(ts->data, sizeof(laure_typedecl) * ts->length);
     ts->data[ts->length - 1].t = td_generic;
     ts->data[ts->length - 1].generic = generic_name;
 }
 
 void laure_typeset_push_auto(laure_typeset *ts, laure_auto_type auto_type) {
     ts->length++;
-    ts->data = realloc(ts->data, sizeof(laure_typedecl) * ts->length);
+    ts->data = laure_realloc(ts->data, sizeof(laure_typedecl) * ts->length);
     ts->data[ts->length - 1].t = td_auto;
     ts->data[ts->length - 1].auto_type = auto_type;
 }
@@ -2026,21 +2044,21 @@ bool laure_typeset_all_instances(laure_typeset *ts) {
 }
 
 laure_typedecl *laure_typedecl_instance_create(Instance *instance) {
-    laure_typedecl *td = malloc(sizeof(laure_typedecl));
+    laure_typedecl *td = laure_alloc(sizeof(laure_typedecl));
     td->t = td_instance;
     td->instance = instance;
     return td;
 }
 
 laure_typedecl *laure_typedecl_generic_create(string generic_name) {
-    laure_typedecl *td = malloc(sizeof(laure_typedecl));
+    laure_typedecl *td = laure_alloc(sizeof(laure_typedecl));
     td->t = td_generic;
     td->generic = generic_name;
     return td;
 }
 
 laure_typedecl *laure_typedecl_auto_create(laure_auto_type auto_type) {
-    laure_typedecl *td = malloc(sizeof(laure_typedecl));
+    laure_typedecl *td = laure_alloc(sizeof(laure_typedecl));
     td->t = td_auto;
     td->auto_type = auto_type;
     return td;
@@ -2051,7 +2069,7 @@ Working with
 predicate variations 
 ================= */
 struct PredicateImage *predicate_header_new(string bound_name, laure_typeset *args, laure_typedecl *resp, bool is_constraint) {
-    struct PredicateImage *img = malloc(sizeof(struct PredicateImage));
+    struct PredicateImage *img = laure_alloc(sizeof(struct PredicateImage));
     img->bound = bound_name;
 
     img->t = !is_constraint ? PREDICATE_FACT : CONSTRAINT_FACT;
@@ -2191,7 +2209,7 @@ struct ArrayIData convert_string(string unicode_string, laure_scope_t *scope) {
     for (size_t i = laure_string_strlen(unicode_string); i > 0; --i) {
         int ch = laure_string_char_at_pos(unicode_string, strlen(unicode_string), i - 1);
         i_data.length++;
-        array_linked_t *linked = malloc(sizeof(array_linked_t));
+        array_linked_t *linked = laure_alloc(sizeof(array_linked_t));
         linked->next = i_data.linked;
         linked->data = instance_new(MOCK_NAME, NULL, laure_create_char_i(ch));
         i_data.linked = linked;
@@ -2215,13 +2233,13 @@ int convert_to_string(struct ArrayIData i_data, string buff) {
 
 void ensure_bag(qcontext *qctx) {
     if (! qctx->bag) {
-        qctx->bag = malloc(sizeof(Bag));
+        qctx->bag = laure_alloc(sizeof(Bag));
         qctx->bag->linked_pocket = NULL;
     }
 }
 
 Pocket *empty_pocket(ulong variable) {
-    Pocket *pocket = malloc(sizeof(Pocket));
+    Pocket *pocket = laure_alloc(sizeof(Pocket));
     pocket->variable = variable;
     pocket->first = NULL;
     pocket->last = NULL;
@@ -2245,4 +2263,20 @@ Pocket *pocket_get_or_new(Bag *bag, unsigned long variable) {
         pocket->next = empty_pocket(variable);
         return pocket->next;
     }
+}
+
+void pocket_free(Pocket *pocket) {
+    laure_free(pocket);
+}
+
+void linked_pocket_free(Pocket *pocket) {
+    if (! pocket) return;
+    linked_pocket_free(pocket->next);
+    pocket_free(pocket);
+}
+
+void bag_free(Bag *bag) {
+    if (! bag) return;
+    linked_pocket_free(bag->linked_pocket);
+    laure_free(bag);
 }

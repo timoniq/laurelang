@@ -112,7 +112,7 @@ args_parsed args_parse(string str) {
     count += last_comma < (str + strlen(str) - 1);
     count++;
     
-    result = malloc(sizeof(string) * count);
+    result = laure_alloc(sizeof(string) * count);
 
     if (result) {
         size_t idx  = 0;
@@ -136,7 +136,7 @@ string convert_filepath(string filepath) {
     string new;
     if (str_starts(filepath, "@/")) {
         filepath++;
-        new = malloc(strlen(lib_path) + strlen(filepath));
+        new = laure_alloc(strlen(lib_path) + strlen(filepath));
         strcpy(new, lib_path);
         strcat(new, filepath);
     } else {
@@ -187,8 +187,8 @@ int laure_process_query(laure_session_t *session, string line) {
                 FILE *fs = fopen(path, "r");
                 if (! fs) {
                     printf("  %sUnable to open %s%s%s\n", RED_COLOR, BOLD_WHITE, path, NO_COLOR);
-                    free(path);
-                    free(args.argv);
+                    laure_free(path);
+                    laure_free(args.argv);
                     return 1;
                 }
 
@@ -199,7 +199,7 @@ int laure_process_query(laure_session_t *session, string line) {
                 laure_consult_recursive(session, full_path, (int*)failed);
                 if (! failed[0])
                     printf("  %s%s%s: consulted\n", GREEN_COLOR, args.argv[j], NO_COLOR);
-                free(path);
+                laure_free(path);
             }
             break;
         }
@@ -232,7 +232,7 @@ int laure_process_query(laure_session_t *session, string line) {
 
             if (!ins) {
                 printf("  %s%s is undefined%s\n", args.argv[1], RED_COLOR, NO_COLOR);
-                free(args.argv);
+                laure_free(args.argv);
                 return 1;
             }
 
@@ -374,7 +374,7 @@ int laure_process_query(laure_session_t *session, string line) {
         if (! found) {
             printf("  unknown command `%s%s%s`, use %s%s%s\n", colored(args.argv[0] + 1), colored(".help"));
         }
-        free(args.argv);
+        laure_free(args.argv);
         return 1;
     }
 
@@ -430,14 +430,14 @@ int laure_process_query(laure_session_t *session, string line) {
             }
         }
         laure_scope_free(cctx->tmp_answer_scope);
-        free(cctx);
+        laure_free(cctx);
     }
     return code;
 }
 
 void add_filename(string str) {
     struct filename_linked filename = {str, NULL};
-    struct filename_linked *ptr = malloc(sizeof(struct filename_linked));
+    struct filename_linked *ptr = laure_alloc(sizeof(struct filename_linked));
     *ptr = filename;
     if (! FILENAMES)
         FILENAMES = ptr;
@@ -635,7 +635,7 @@ int main(int argc, char *argv[]) {
             printf("  %s%s%s: consulted\n", GREEN_COLOR, filenames->filename, NO_COLOR);
         else
             printf("  %s%s%s: not consulted\n", RED_COLOR, filenames->filename, NO_COLOR);
-        free(path);
+        laure_free(path);
         filenames = filenames->next;
     }
 
@@ -674,7 +674,7 @@ int main(int argc, char *argv[]) {
             
             char nline[512];
             snprintf(nline, 512, "%s%s", line, continuation);
-            free(line);
+            laure_free(line);
             
             line = strdup( nline );
             lp = true;
@@ -685,7 +685,7 @@ int main(int argc, char *argv[]) {
         if (lp) {up; up; erase; printf("%s%s\n", DPROMPT, line); erase;}
         int res = laure_process_query(session, line);
         if (!res) break;
-        free(line);
+        laure_free(line);
     }
     
     return 0;

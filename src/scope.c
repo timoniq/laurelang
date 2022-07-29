@@ -12,7 +12,7 @@ linked_scope_t *laure_scope_insert(
     laure_scope_t *scope,
     Instance *ptr
 ) {
-    linked_scope_t *linked = malloc(sizeof(linked_scope_t));
+    linked_scope_t *linked = laure_alloc(sizeof(linked_scope_t));
     linked->next = scope->linked;
     linked->ptr = ptr;
     linked->link = laure_scope_generate_link();
@@ -146,7 +146,7 @@ void add_grab(ulong link, laure_scope_t *from, laure_scope_t *to) {
 // element will be copied from main scope
 // each time the request to find one appears
 laure_scope_t *laure_scope_create_copy(control_ctx *cctx, laure_scope_t *scope) {
-    laure_scope_t *nscope = malloc(sizeof(laure_scope_t));
+    laure_scope_t *nscope = laure_alloc(sizeof(laure_scope_t));
     nscope->idx = scope->idx + 1;
     nscope->repeat = scope->repeat;
     nscope->glob = scope->glob;
@@ -165,17 +165,17 @@ void laure_scope_show(laure_scope_t *scope) {
     laure_scope_iter(scope, element, {
         string repr = element->ptr->repr(element->ptr);
         printf("%lu: %s%s%s %s\n", element->link, BOLD_WHITE, element->ptr->name, NO_COLOR, repr);
-        free(repr);
+        laure_free(repr);
     });
     printf("---\n");
 }
 
 laure_scope_t *laure_scope_create_global() {
-    laure_scope_t *scope = malloc(sizeof(laure_scope_t));
+    laure_scope_t *scope = laure_alloc(sizeof(laure_scope_t));
     scope->idx = 1;
 
     if (! LAURE_LINK_ID) {
-        scope->nlink = malloc(sizeof(unsigned long));
+        scope->nlink = laure_alloc(sizeof(unsigned long));
         *scope->nlink = 1;
         LAURE_LINK_ID = scope->nlink;
     } else
@@ -191,7 +191,7 @@ laure_scope_t *laure_scope_create_global() {
 }
 
 laure_scope_t *laure_scope_new(laure_scope_t *global, laure_scope_t *next) {
-    laure_scope_t *scope = malloc(sizeof(laure_scope_t));
+    laure_scope_t *scope = laure_alloc(sizeof(laure_scope_t));
     scope->idx = next->idx + 1;
     scope->nlink = global->nlink;
     scope->glob = global;
@@ -206,13 +206,13 @@ laure_scope_t *laure_scope_new(laure_scope_t *global, laure_scope_t *next) {
 void laure_scope_free_linked(linked_scope_t *linked) {
     if (! linked) return;
     if (linked->next) laure_scope_free_linked(linked->next);
-    free(linked);
+    laure_free(linked);
 }
 
 void laure_scope_free(laure_scope_t *scope) {
     if (! scope) return;
     laure_scope_free_linked(scope->linked);
-    free(scope);
+    laure_free(scope);
 }
 
 linked_scope_t *laure_scope_insert_l(
@@ -221,7 +221,7 @@ linked_scope_t *laure_scope_insert_l(
     ulong link
 ) {
     if (! scope) return NULL;
-    linked_scope_t *linked = malloc(sizeof(linked_scope_t));
+    linked_scope_t *linked = laure_alloc(sizeof(linked_scope_t));
     linked->next = scope->linked;
     linked->ptr = ptr;
     linked->link = link;
@@ -340,7 +340,7 @@ Instance *laure_scope_change_link_by_link(laure_scope_t *scope, ulong link, ulon
 
 // creates a deep copy
 laure_scope_t *laure_scope_create_copy(control_ctx *cctx, laure_scope_t *scope) {
-    laure_scope_t *nscope = malloc(sizeof(laure_scope_t));
+    laure_scope_t *nscope = laure_alloc(sizeof(laure_scope_t));
     nscope->next = scope->next;
     nscope->count = scope->count;
     nscope->glob = scope->glob;
@@ -365,18 +365,18 @@ void laure_scope_show(laure_scope_t *scope) {
             printf("%lu: %s%s%s %s\n", cellptr->link, BOLD_WHITE, cellptr->ptr->name, NO_COLOR, repr);
         else
             printf("%lu: %s%s%s%s %s\n", cellptr->link, BOLD_DEC, BLUE_COLOR, cellptr->ptr->name, NO_COLOR, repr);
-        free(repr);
+        laure_free(repr);
     });
     printf("---\n");
 }
 
 laure_scope_t *laure_scope_create_global() {
-    laure_scope_t *scope = malloc(sizeof(laure_scope_t));
+    laure_scope_t *scope = laure_alloc(sizeof(laure_scope_t));
     scope->idx = 1;
     scope->count = 0;
 
     if (! LAURE_LINK_ID) {
-        scope->nlink = malloc(sizeof(unsigned long));
+        scope->nlink = laure_alloc(sizeof(unsigned long));
         *scope->nlink = 1;
         LAURE_LINK_ID = scope->nlink;
     } else
@@ -389,7 +389,7 @@ laure_scope_t *laure_scope_create_global() {
 }
 
 laure_scope_t *laure_scope_new(laure_scope_t *global, laure_scope_t *next) {
-    laure_scope_t *scope = malloc(sizeof(laure_scope_t));
+    laure_scope_t *scope = laure_alloc(sizeof(laure_scope_t));
     scope->idx = next->idx + 1;
     scope->count = 0;
     scope->glob = global;
@@ -424,16 +424,16 @@ void laure_scope_free(laure_scope_t *scope) {
     for (uint idx = 0; idx < scope->count; idx++) {
         Instance *instance = scope->cells[idx].ptr;
         image_free(instance->image);
-        free(instance);
+        laure_free(instance);
     }
-    free(scope);
+    laure_free(scope);
 }
 
 #endif
 
 ulong laure_scope_generate_link() {
     if (! LAURE_LINK_ID) {
-        LAURE_LINK_ID = malloc(sizeof(ulong));
+        LAURE_LINK_ID = laure_alloc(sizeof(ulong));
         *LAURE_LINK_ID = (unsigned long)1;
     }
     ulong link = *LAURE_LINK_ID;

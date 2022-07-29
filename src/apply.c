@@ -48,11 +48,11 @@ void ask_for_halt() {
     else if (str_eq(line, "yy")) mode = 2;
     else if (str_eq(line, "n")) exit(6);
     else {
-        free(line);
+        laure_free(line);
         ask_for_halt();
         return;
     }
-    free(line);
+    laure_free(line);
     if (mode) {
         if (mode == 2) LAURE_ASK_IGNORE = true;
         return;
@@ -171,7 +171,7 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
     if (predicate_exp->ba->has_resp) all_count--;
 
     uint idx = 0;
-    uint *nestings = malloc(sizeof(void*) * (all_count - predicate_exp->ba->body_len));
+    uint *nestings = laure_alloc(sizeof(void*) * (all_count - predicate_exp->ba->body_len));
 
     for (int i = predicate_exp->ba->body_len; i < all_count; i++) {
         laure_expression_t *aexp = laure_expression_set_get_by_idx(predicate_exp->ba->set, i);
@@ -329,7 +329,7 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
             strcpy(buffer, LAURE_DOC_BUFF);
             strcat(buffer, "\n");
             strcat(buffer, fact);
-            free(LAURE_DOC_BUFF);
+            laure_free(LAURE_DOC_BUFF);
             LAURE_DOC_BUFF = strdup(buffer);
         }
         return respond_apply(apply_ok, NULL);
@@ -352,7 +352,7 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
     qresp response = laure_start(cctx, expset);
 
     laure_scope_free(cctx->tmp_answer_scope);
-    free(cctx);
+    laure_free(cctx);
     
     if (response.state == q_error) {
         printf("\nError while applying statement:\n  %s%s%s\n    %s\n", RED_COLOR, exp->s, NO_COLOR, LAURE_ACTIVE_ERROR ? LAURE_ACTIVE_ERROR->msg : (string)response.payload);
@@ -389,14 +389,14 @@ string consult_single(
     assert(fname && file);
     int ln = 0;
 
-    struct stat *sb = malloc(sizeof(struct stat));
+    struct stat *sb = laure_alloc(sizeof(struct stat));
     memset(sb, 0, sizeof(struct stat));
 
     if (fstat(fileno(file), sb) == 0 && S_ISDIR(sb->st_mode)) {
 
-        free(sb);
+        laure_free(sb);
 
-        string rev = malloc(strlen(fname) + 1);
+        string rev = laure_alloc(strlen(fname) + 1);
         memset(rev, 0, strlen(fname) + 1);
         strcpy(rev, fname);
         
@@ -404,13 +404,13 @@ string consult_single(
 
         string spl = strtok(rev, "/");
         
-        string s = malloc(strlen(spl) + 1);
+        string s = laure_alloc(strlen(spl) + 1);
         memset(s, 0, strlen(spl) + 1);
         strcpy(s, spl);
 
         strrev_via_swap(s);
 
-        string p = malloc(strlen(fname) + strlen(s) + 6);
+        string p = laure_alloc(strlen(fname) + strlen(s) + 6);
         memset(p, 0, strlen(fname) + strlen(s) + 6);
         strcpy(p, fname);
         strcat(p, "/");
@@ -437,7 +437,7 @@ string consult_single(
     ssize_t read = 0;
     size_t len = 0;
 
-    string readinto = malloc(512);
+    string readinto = laure_alloc(512);
     memset(readinto, 0, 512);
 
     while ((read = getline(&readinto, &len, file)) != -1) {
@@ -485,7 +485,7 @@ string consult_single(
         }
     }
 
-    free(readinto);
+    laure_free(readinto);
     fclose(file);
     laure_init_structures(session);
     return NULL;

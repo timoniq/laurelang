@@ -5,7 +5,7 @@ laure_error *laure_error_create(
     char *msg, 
     laure_expression_t *reason
 ) {
-    laure_error *err = malloc(sizeof(laure_error));
+    laure_error *err = laure_alloc(sizeof(laure_error));
     err->kind = k;
     err->msg = msg;
     err->reason = reason;
@@ -13,8 +13,8 @@ laure_error *laure_error_create(
 }
 
 void laure_error_free(laure_error *err) {
-    free(err->msg);
-    free(err);
+    laure_free(err->msg);
+    laure_free(err);
 }
 
 string laure_error_msg(laure_error *err) {
@@ -91,5 +91,5 @@ void laure_error_write(
         msg
     );
 
-    free(msg);
+    laure_free(msg);
 }

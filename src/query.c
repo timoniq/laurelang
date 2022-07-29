@@ -80,7 +80,7 @@ struct img_rec_ctx *img_rec_ctx_create(
     laure_expression_set *expset, 
     gen_resp (*qr_process)(qresp, struct img_rec_ctx*)
 ) {
-    struct img_rec_ctx *ctx = malloc(sizeof(struct img_rec_ctx));
+    struct img_rec_ctx *ctx = laure_alloc(sizeof(struct img_rec_ctx));
     ctx->var = var;
     ctx->cctx = cctx;
     ctx->expset = expset;
@@ -346,7 +346,7 @@ qresp check_interactive(string cmd, string showcast) {
         showcast = crop_showcast(showcast);
         printf("%s;\n", showcast);
         if (strlen(ptr))
-            free(ptr);
+            laure_free(ptr);
         return respond(q_continue, NULL);
     }
     else if (str_eq(cmd, ";")) {
@@ -386,7 +386,7 @@ qresp laure_send(control_ctx *cctx) {
             repr = tracked->repr(tracked);
         }
         strcat(reprs, repr);
-        free(repr);
+        laure_free(repr);
         if (i != vpk->tracked_vars_len - 1) strcat(reprs, ";");
     }
     bool result = vpk->sender_receiver(strdup(reprs), vpk->payload);
@@ -432,12 +432,12 @@ qresp laure_showcast(control_ctx *cctx) {
             showcast = "";
         } else {
             uint showcast_n = strlen(name) + strlen(repr) + 6;
-            showcast = malloc(showcast_n + 1);
+            showcast = laure_alloc(showcast_n + 1);
             memset(showcast, 0, showcast_n + 1);
             snprintf(showcast, showcast_n, "  %s = %s", name, repr);
         }
 
-        free(repr);
+        laure_free(repr);
 
         last_string = showcast;
 
@@ -470,7 +470,7 @@ void default_var_processor(laure_scope_t *scope, string name, void* _) {
     Instance *ins = laure_scope_find_by_key(scope, name, true);
     string s = ins->repr(ins);
     printf("  %s\n", s);
-    free(s);
+    laure_free(s);
 }
 
 int append_vars(string **vars, int vars_len, laure_expression_set *vars_exps) {
@@ -488,7 +488,7 @@ int append_vars(string **vars, int vars_len, laure_expression_set *vars_exps) {
                 }
             }
             if (!exists) {
-                (*vars) = realloc(*vars, sizeof(void*) * (vars_len + 1));
+                (*vars) = laure_realloc(*vars, sizeof(void*) * (vars_len + 1));
                 (*vars)[vars_len] = n;
                 vars_len++;
             }
@@ -498,7 +498,7 @@ int append_vars(string **vars, int vars_len, laure_expression_set *vars_exps) {
 }
 
 var_process_kit *laure_vpk_create(laure_expression_set *expset) {
-    string *vars = malloc(sizeof(string));
+    string *vars = laure_alloc(sizeof(string));
     int vars_len = 0;
 
     laure_expression_t *exp = NULL;
@@ -507,7 +507,7 @@ var_process_kit *laure_vpk_create(laure_expression_set *expset) {
         vars_len = append_vars(&vars, vars_len, vars_exps);
     });
 
-    var_process_kit *vpk = malloc(sizeof(var_process_kit));
+    var_process_kit *vpk = laure_alloc(sizeof(var_process_kit));
     vpk->do_process = true;
     vpk->interactive_by_name = false;
     vpk->mode = INTERACTIVE;
@@ -519,8 +519,8 @@ var_process_kit *laure_vpk_create(laure_expression_set *expset) {
 }
 
 void laure_vpk_free(var_process_kit *vpk) {
-    free(vpk->tracked_vars);
-    free(vpk);
+    laure_free(vpk->tracked_vars);
+    laure_free(vpk);
 }
 
 #define _laure_eval_sub_args control_ctx *cctx, laure_expression_t *e, laure_expression_set *expset
@@ -695,7 +695,7 @@ qresp laure_eval_assert(
                 struct img_rec_ctx *ctx = img_rec_ctx_create(var2, cctx, expset, qr_process_default);
                 // -------
                 gen_resp gr = image_generate(scope, var1->image, image_rec_default, ctx);
-                free(ctx);
+                laure_free(ctx);
 
                 if (gr.r == 0) {
                     if (gr.qr.state == q_error) return gr.qr;
@@ -759,12 +759,12 @@ qresp laure_eval_assert(
 
 Instance *get_nested_fixed(Instance *atom, uint length, laure_scope_t *scope) {
     struct ArrayImage *im = laure_create_array_u(atom);
-    free(im->u_data.length);
+    laure_free(im->u_data.length);
     im->state = I;
     im->i_data.length = length;
     array_linked_t *first = NULL, *linked = NULL;
     for (uint i = 0; i < length; i++) {
-        array_linked_t *new = malloc(sizeof(array_linked_t));
+        array_linked_t *new = laure_alloc(sizeof(array_linked_t));
         new->data = instance_deepcopy(scope, MOCK_NAME, atom);
         new->next = linked;
         if (linked)
@@ -830,7 +830,7 @@ Instance *ready_instance(laure_scope_t *scope, laure_expression_t *expr) {
                 }
                 default: {
                     image_free(typevar->image);
-                    free(typevar);
+                    laure_free(typevar);
                     return NULL;
                 }
             }
@@ -1040,7 +1040,7 @@ qresp laure_eval_unify(_laure_eval_sub_args) {
     gen_resp gr = image_generate(scope, to_unif->image, image_rec_default, ctx);
     if (gr.qr.state == q_error) return gr.qr;
     if (! ctx->flag) return respond(q_yield, YIELD_FAIL);
-    free(ctx);
+    laure_free(ctx);
     if (gr.qr.state == q_stop) {
         return gr.qr;
     }
@@ -1340,12 +1340,12 @@ ARGPROC_RES pred_call_procvar(
 
             if (! result) {
                 image_free(arg->image);
-                free(arg);
+                laure_free(arg);
                 return ARGPROC_RET_FALSE;
             }
             
             if (read_head(arg->image).t == PREDICATE_FACT) {
-                free(arg);
+                laure_free(arg);
                 if (recorder) {
                     Instance *uu_ins = laure_create_uuid_instance(argn, hint->name, exp->s);
                     recorder(uu_ins, laure_scope_generate_link(), ctx);
@@ -1357,7 +1357,7 @@ ARGPROC_RES pred_call_procvar(
                 recorder(arg, laure_scope_generate_link(), ctx);
             else {
                 image_free(arg->image);
-                free(arg);
+                laure_free(arg);
             }
             break;
         }
@@ -1440,7 +1440,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
         qctx->constraint_mode = true;
     if (pred_img->variations->finals == NULL) {
         // first call constructs finals
-        void **pfs = malloc(sizeof(void*) * pred_img->variations->len);
+        void **pfs = laure_alloc(sizeof(void*) * pred_img->variations->len);
         for (uint i = 0; i < pred_img->variations->len; i++) {
             struct PredicateImageVariation pv = pred_img->variations->set[i];
             predfinal *pf = get_pred_final(pred_img, pv);
@@ -1658,11 +1658,11 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 if (! T) {
                     T = resolve_generic_T(pred_img->header, e->ba->set, scope);
                     if (! T) {
-                        string dname = malloc(strlen(predicate_name) + 3);
+                        string dname = laure_alloc(strlen(predicate_name) + 3);
                         strcpy(dname, "T:");
                         strcat(dname, predicate_name);
                         string Tdefault = get_dflag(dname);
-                        free(dname);
+                        laure_free(dname);
                         if (Tdefault) {
                             T = laure_scope_find_by_key(scope, Tdefault, true);
                             T = instance_shallow_copy(T);
@@ -1774,7 +1774,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             } else
                 respi = false;
             
-            if (T) free(T);
+            if (T) laure_free(T);
 
             if (uuid_instance) {
                 ulong l[1];
@@ -2189,7 +2189,7 @@ qresp laure_eval_atom_sign(_laure_eval_sub_args) {
             void *img = instance->image;
             struct img_rec_ctx *ctx = img_rec_ctx_create(instance, cctx, set, qr_process_default);
             gen_resp gr = image_generate(scope, instance->image, image_rec_default, ctx);
-            free(ctx);
+            laure_free(ctx);
             instance->image = img;
 
             if (gr.r == 0) {
@@ -2267,28 +2267,28 @@ qresp laure_eval_command(_laure_eval_sub_args) {
                     n = strdup(name);
                 } else if (str_starts(name, "@/")) {
                     name++;
-                    n = malloc(strlen(lib_path) + strlen(name) + 1);
+                    n = laure_alloc(strlen(lib_path) + strlen(name) + 1);
                     strcpy(n, lib_path);
                     strcat(n, name);
                 } else {
                     string wdir = get_work_dir_path(LAURE_CURRENT_ADDRESS ? LAURE_CURRENT_ADDRESS : "./");
-                    n = malloc(strlen(wdir) + strlen(name) + 1);
+                    n = laure_alloc(strlen(wdir) + strlen(name) + 1);
                     strcpy(n, wdir);
                     strcat(n, name);
                 }
 
-                string path_ = malloc(PATH_MAX);
+                string path_ = laure_alloc(PATH_MAX);
                 memset(path_, 0, PATH_MAX);
                 realpath(n, path_);
 
                 if (e->flag == command_useso) {
                     bool result = laure_load_shared(cctx->session, path_);
-                    free(path_);
+                    laure_free(path_);
                 } else {
                     FILE *f = fopen(path_, "r");
                     if (!f) {
                         printf("%s\n", path_);
-                        free(path_);
+                        laure_free(path_);
                         RESPOND_ERROR(undefined_err, e, "failed to find file %s", path_);
                     }
                     fclose(f);
@@ -2305,7 +2305,7 @@ qresp laure_eval_command(_laure_eval_sub_args) {
 
 control_ctx *control_new(laure_session_t *session, laure_scope_t* scope, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig) {
     if (! scope) return NULL;
-    control_ctx *cctx = malloc(sizeof(control_ctx));
+    control_ctx *cctx = laure_alloc(sizeof(control_ctx));
     cctx->session = session;
     cctx->scope = scope;
     cctx->tmp_answer_scope = laure_scope_new(scope->glob, scope);
@@ -2327,11 +2327,11 @@ void control_free(control_ctx *cctx) {
     #ifndef DISABLE_WS
     laure_ws_free(cctx->ws);
     #endif
-    free(cctx);
+    laure_free(cctx);
 }
 
 qcontext *qcontext_new(laure_expression_set *expset) {
-    qcontext *qctx = malloc(sizeof(qcontext));
+    qcontext *qctx = laure_alloc(sizeof(qcontext));
     qctx->constraint_mode = false;
     qctx->expset = expset;
     qctx->next = NULL;

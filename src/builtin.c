@@ -33,7 +33,7 @@ void laure_register_builtins(laure_session_t *session) {
 
     for (int i = 0; i < (sizeof(BUILTIN_INSTANCES) / sizeof(struct Builtin)); i++) {
         struct Builtin builtin = BUILTIN_INSTANCES[i];
-        Instance *ins = malloc(sizeof(Instance));
+        Instance *ins = laure_alloc(sizeof(Instance));
         *ins = builtin.generate();
         ins->doc = strdup(builtin.doc);
         if (str_eq(ins->name, "char")) CHAR_PTR = ins;
@@ -43,13 +43,13 @@ void laure_register_builtins(laure_session_t *session) {
     for (int i = 0; i < (sizeof(BUILTIN_PREDICATES) / sizeof(struct BuiltinPred)); i++) {
         struct BuiltinPred builtin = BUILTIN_PREDICATES[i];
 
-        struct PredicateCImage *cimage = malloc(sizeof(struct PredicateCImage));
+        struct PredicateCImage *cimage = laure_alloc(sizeof(struct PredicateCImage));
 
         cimage->argc = builtin.argc;
         cimage->pred = builtin.pred;
 
         if (builtin.hint.arg_types != NULL) {
-            cimage->hints = malloc(sizeof(Instance*) * builtin.argc);
+            cimage->hints = laure_alloc(sizeof(Instance*) * builtin.argc);
 
             string hint_names_s = builtin.hint.arg_types;
 
@@ -84,7 +84,7 @@ void laure_register_builtins(laure_session_t *session) {
         pv.t = PREDICATE_C;
         pv.c = *cimage;
 
-        struct PredicateImage *img = malloc(sizeof(struct PredicateImage));
+        struct PredicateImage *img = laure_alloc(sizeof(struct PredicateImage));
 
         struct PredicateImageVariationSet *variations = pvs_new();
         pvs_push(variations, pv);
@@ -153,13 +153,13 @@ Instance *laure_api_add_predicate(
     uint argc, string arg_hints, string response_hint,
     bool is_constraint, string doc
 ) {
-    struct PredicateCImage *cimage = malloc(sizeof(struct PredicateCImage));
+    struct PredicateCImage *cimage = laure_alloc(sizeof(struct PredicateCImage));
 
     cimage->argc = argc;
     cimage->pred = callable;
 
     if (arg_hints != NULL) {
-        cimage->hints = malloc(sizeof(Instance*) * argc);
+        cimage->hints = laure_alloc(sizeof(Instance*) * argc);
 
         string hint_names_s = arg_hints;
 
@@ -195,7 +195,7 @@ Instance *laure_api_add_predicate(
     pv.t = PREDICATE_C;
     pv.c = *cimage;
 
-    struct PredicateImage *img = malloc(sizeof(struct PredicateImage));
+    struct PredicateImage *img = laure_alloc(sizeof(struct PredicateImage));
 
     struct PredicateImageVariationSet *variations = pvs_new();
     pvs_push(variations, pv);

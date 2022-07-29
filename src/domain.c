@@ -10,7 +10,7 @@
 #endif
 
 Domain *int_domain_new() {
-    Domain *dom = malloc(sizeof(Domain));
+    Domain *dom = laure_alloc(sizeof(Domain));
 
     IntValue start;
     IntValue end;
@@ -28,7 +28,7 @@ Domain *int_domain_new() {
 }
 
 Domain *int_domain_single(bigint *bi) {
-    Domain *dom = malloc(sizeof(Domain));
+    Domain *dom = laure_alloc(sizeof(Domain));
     dom->t = SINGLE;
     dom->lborder.t = INCLUDED;
     dom->lborder.data = bi;
@@ -253,7 +253,7 @@ gen_resp int_domain_generate(Domain *dom, gen_resp (*receiver)(bigint*, void*), 
             }
 
             bigint* value = bigint_create(0);
-            bigint* bound = malloc(sizeof(bigint));
+            bigint* bound = laure_alloc(sizeof(bigint));
             bigint_init(bound);
             bool bounded = true;
             bigint* (*f)(bigint*);
@@ -360,7 +360,7 @@ IntValue copy_int_value(IntValue old) {
 }
 
 Domain *int_domain_copy(Domain *dom) {
-    Domain *dom_new = malloc(sizeof(Domain));
+    Domain *dom_new = laure_alloc(sizeof(Domain));
     dom_new->t = dom->t;
     dom_new->lborder = copy_int_value(dom->lborder);
     dom_new->rborder = copy_int_value(dom->rborder);

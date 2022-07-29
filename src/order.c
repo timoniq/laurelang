@@ -30,7 +30,7 @@ void set_initted_variable(ordering_scope_mock *mock, string name) {
         }
     }
     mock_variable var;
-    var.names = malloc(sizeof(string*));
+    var.names = laure_alloc(sizeof(string*));
     var.names[0] = name;
     var.names_n = 1;
     var.instantiated = 1;
@@ -55,14 +55,14 @@ bool link_name(ordering_scope_mock *mock, string link1, string link2) {
         mock_variable var = mock->variables[i];
         for (size_t j = 0; j < var.names_n; j++) {
             if (str_eq(link1, var.names[j])) {
-                mock->variables[i].names = realloc(
+                mock->variables[i].names = laure_realloc(
                     mock->variables[i].names, 
                     sizeof(string*) * (mock->variables[i].names_n + 1)
                 );
                 mock->variables[i].names[mock->variables[i].names_n++] = link2;
                 return true;
             } else if (str_eq(link2, var.names[j])) {
-                mock->variables[i].names = realloc(
+                mock->variables[i].names = laure_realloc(
                     mock->variables[i].names, 
                     sizeof(string*) * (mock->variables[i].names_n + 1)
                 );
@@ -107,7 +107,7 @@ laure_expression_t *get_most_initted(
     } else if (set->expression->t == let_name) {
         laure_expression_t *expr = set->expression;
         *set_ptr = set->next;
-        free(set);
+        laure_free(set);
         return expr;
     }
 
@@ -135,7 +135,7 @@ laure_expression_t *get_most_initted(
         laure_expression_set *p = set;
         laure_expression_set *s = set->next;
         for (size_t i = 1; i < max_idx; i++) {s = s->next; p = p->next;};
-        free(s);
+        laure_free(s);
         p->next = s->next;
     }
     return max_exp;
@@ -182,7 +182,7 @@ void mock_init_with_mask(ordering_scope_mock *mock, laure_mask mask) {
     } else {
         mock_variable var;
         var.instantiated = false;
-        var.names = malloc(sizeof(string*));
+        var.names = laure_alloc(sizeof(string*));
         var.names[0] = laure_get_respn();
         var.names_n = 1;
         mock->variables[mock->count++] = var;
@@ -191,7 +191,7 @@ void mock_init_with_mask(ordering_scope_mock *mock, laure_mask mask) {
         bool is_instantiated = mask.mask[i];
         mock_variable var;
         var.names_n = 1;
-        var.names = malloc(sizeof(string*));
+        var.names = laure_alloc(sizeof(string*));
         var.names[0] = laure_get_argn(i);
         var.instantiated = is_instantiated;
         mock->variables[mock->count++] = var;
@@ -235,10 +235,10 @@ void go_binary_tree(
     } else {
         bintree->set = NULL;
         mask[idx] = 0;
-        bintree->_0 = malloc(sizeof(bintree_permut));
+        bintree->_0 = laure_alloc(sizeof(bintree_permut));
         go_binary_tree(argc, idx + 1, mask, response, bintree->_0, unlinked);
         mask[idx] = 1;
-        bintree->_1 = malloc(sizeof(bintree_permut));
+        bintree->_1 = laure_alloc(sizeof(bintree_permut));
         go_binary_tree(argc, idx + 1, mask, response, bintree->_1, unlinked);
     }
 }
@@ -254,16 +254,16 @@ predicate_linked_permutations laure_generate_final_permututations(
         plp.fixed_set = unlinked;
         return plp;
     }
-    bintree_permut *btree = malloc(sizeof(bintree_permut));
-    bool *mask = malloc(sizeof(bool) * argc);
+    bintree_permut *btree = laure_alloc(sizeof(bintree_permut));
+    bool *mask = laure_alloc(sizeof(bool) * argc);
     btree->set = NULL;
     if (has_resp) {
-        btree->_1 = malloc(sizeof(bintree_permut));
+        btree->_1 = laure_alloc(sizeof(bintree_permut));
         go_binary_tree(argc, 0, mask, true, btree->_1, unlinked);
     } else {
         btree->_1 = NULL;
     }
-    btree->_0 = malloc(sizeof(bintree_permut));
+    btree->_0 = laure_alloc(sizeof(bintree_permut));
     go_binary_tree(argc, 0, mask, false, btree->_0, unlinked);
     predicate_linked_permutations plp;
     plp.fixed = false;

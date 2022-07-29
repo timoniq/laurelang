@@ -291,14 +291,14 @@ bool laure_string_pattern_match(char *s, char *p) {
                 break;
             }
             case '.': {
-                pattern[idx] = malloc(sizeof(pattern_element));
+                pattern[idx] = laure_alloc(sizeof(pattern_element));
                 pattern[idx]->c = 0;
                 pattern[idx]->any_count = 0;
                 idx++;
                 break;
             }
             default: {
-                pattern[idx] = malloc(sizeof(pattern_element));
+                pattern[idx] = laure_alloc(sizeof(pattern_element));
                 pattern[idx]->c = c;
                 pattern[idx]->any_count = 0;
                 idx++;
@@ -309,6 +309,6 @@ bool laure_string_pattern_match(char *s, char *p) {
 
     bool result =  (bool) laure_string_pattern_parse(s, pattern, NULL);
 	for (uint i = 0; i < idx; i++)
-		free(pattern[idx]);
+		laure_free(pattern[idx]);
 	return result;
 }

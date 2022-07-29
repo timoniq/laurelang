@@ -5,12 +5,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+void *laure_alloc(size_t size);
+void laure_free(void *ptr);
+void *laure_realloc(void *ptr, size_t size);
+
 #define BIGINT_ASSERT(a, op, b) assert((a) op (b));
 
 bigint *bigint_create(
     int src
 ) {
-    bigint *bi = malloc(sizeof(bigint));
+    bigint *bi = laure_alloc(sizeof(bigint));
     bigint_init(bi);
     return bigint_from_int(bi, src);
 }
@@ -139,7 +143,7 @@ bigint* bigint_reserve(bigint *dst, int capacity){
     if (dst->capacity >= capacity) return dst;
     dst->capacity = capacity;
     assert(capacity > 0);
-    dst->words = (bigint_word*)realloc(dst->words, capacity * sizeof(*dst->words));
+    dst->words = (bigint_word*)laure_realloc(dst->words, capacity * sizeof(*dst->words));
     /* out of memory? sorry :( */
     assert(dst->words != NULL);
     BIGINT_ASSERT(dst->size, <=, capacity);
@@ -147,7 +151,7 @@ bigint* bigint_reserve(bigint *dst, int capacity){
 }
 
 void bigint_free(bigint *dst) {
-    free(dst->words);
+    laure_free(dst->words);
     bigint_init(dst);
 }
 
@@ -500,11 +504,11 @@ bigint* bigint_mul(bigint *dst, const bigint *a, const bigint *b){
         dst->size = bigint_raw_mul_add(dst->words, a->words, na, b->words, nb);
     }else{
         int magical_upper_bound = BIGINT_MAX(na, nb) * 11 + 180 + n;
-        tmp = (bigint_word*)malloc(magical_upper_bound * sizeof(*tmp));
+        tmp = (bigint_word*)laure_alloc(magical_upper_bound * sizeof(*tmp));
 
         dst->size = bigint_raw_mul_karatsuba(tmp, a->words, na, b->words, nb, tmp + n);
         bigint_raw_cpy(dst->words, tmp, dst->size);
-        free(tmp);
+        laure_free(tmp);
     }
 
     return bigint_set_neg(dst, a->neg ^ b->neg);
@@ -1244,7 +1248,7 @@ double bigint_double(const bigint *src){
 }
 
 bigint *bigint_copy(bigint *from) {
-    bigint *bi = malloc(sizeof(bigint));
+    bigint *bi = laure_alloc(sizeof(bigint));
     bigint_init(bi);
     bigint_cpy(bi, from);
     return bi;

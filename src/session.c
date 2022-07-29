@@ -17,13 +17,13 @@ laure_backtrace *LAURE_BACKTRACE = NULL;
 
 void init_backtrace() {
     if (! LAURE_BACKTRACE) {
-        LAURE_BACKTRACE = malloc(sizeof(laure_backtrace));
+        LAURE_BACKTRACE = laure_alloc(sizeof(laure_backtrace));
     }
     *LAURE_BACKTRACE = laure_backtrace_new();
 }
 
 laure_session_t *laure_session_new() {
-    laure_session_t *session = malloc(sizeof(laure_session_t));
+    laure_session_t *session = laure_alloc(sizeof(laure_session_t));
     session->scope = laure_scope_create_global();
     memset(session->_included_filepaths, 0, included_fp_max * sizeof(void*));
     return session;

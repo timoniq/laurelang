@@ -22,7 +22,7 @@ DECLARE(laure_predicate_integer_plus) {
 
     } else if (var1_i && var2_i && !sum_i) {
         // X = 1 + 2
-        bigint *bi_sum = malloc(sizeof(bigint));
+        bigint *bi_sum = laure_alloc(sizeof(bigint));
         bigint_init(bi_sum);
         bigint_add(bi_sum, var1_im->i_data, var2_im->i_data);
         INT_ASSIGN(sum_im, bi_sum);
@@ -30,7 +30,7 @@ DECLARE(laure_predicate_integer_plus) {
 
     } else if (var1_i && !var2_i && sum_i) {
         // 3 = 1 + X
-        bigint *bi = malloc(sizeof(bigint));
+        bigint *bi = laure_alloc(sizeof(bigint));
         bigint_init(bi);
         bigint_sub(bi, sum_im->i_data, var1_im->i_data);
         INT_ASSIGN(var2_im, bi);
@@ -38,7 +38,7 @@ DECLARE(laure_predicate_integer_plus) {
         
     } else if (!var1_i && var2_i && sum_i) {
         // 3 = X + 2
-        bigint *bi = malloc(sizeof(bigint));
+        bigint *bi = laure_alloc(sizeof(bigint));
         bigint_init(bi);
         bigint_sub(bi, sum_im->i_data, var2_im->i_data);
         INT_ASSIGN(var1_im, bi);
@@ -176,14 +176,14 @@ DECLARE(laure_predicate_integer_multiply) {
         return from_boolean(cmp);
 
     } else if (var1_i && var2_i && !prod_i) {
-        bigint *bi_prod = malloc(sizeof(bigint));
+        bigint *bi_prod = laure_alloc(sizeof(bigint));
         bigint_init(bi_prod);
         bigint_mul(bi_prod, var1_im->i_data, var2_im->i_data);
         INT_ASSIGN(prod_im, bi_prod);
         return True;
 
     } else if (var1_i && !var2_i && prod_i) {
-        bigint *bi = malloc(sizeof(bigint));
+        bigint *bi = laure_alloc(sizeof(bigint));
         bigint_init(bi);
         void *success = bigint_div(bi, prod_im->i_data, var1_im->i_data, true);
         if (success == NULL) return respond(q_false, NULL);
@@ -191,7 +191,7 @@ DECLARE(laure_predicate_integer_multiply) {
         return True;
 
     } else if (!var1_i && var2_i && prod_i) {
-        bigint *bi = malloc(sizeof(bigint));
+        bigint *bi = laure_alloc(sizeof(bigint));
         bigint_init(bi);
         void *success = bigint_div(bi, prod_im->i_data, var2_im->i_data, true);
         if (success == NULL) return respond(q_false, NULL);
@@ -215,13 +215,13 @@ DECLARE(laure_predicate_sqrt) {
         bigint_sqrt(bi, n_img->i_data);
         return from_boolean(bigint_cmp(bi, s_img->i_data) == 0);
     } else if (instantiated(n)) {
-        bigint *bi = malloc(sizeof(bigint));
+        bigint *bi = laure_alloc(sizeof(bigint));
         bigint_init(bi);
         bigint_sqrt(bi, n_img->i_data);
         INT_ASSIGN(s_img, bi);
         return True;
     } else if (instantiated(s)) {
-        bigint *bi = malloc(sizeof(bigint));
+        bigint *bi = laure_alloc(sizeof(bigint));
         bigint_init(bi);
         bigint_mul(bi, s_img->i_data, s_img->i_data);
         INT_ASSIGN(n_img, bi);

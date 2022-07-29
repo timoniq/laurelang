@@ -507,4 +507,18 @@ int laure_compiler_cli(laure_session_t *comp_session, int argc, char *argv[]);
 extern Instance *_TEMP_PREDCONSULT_LAST;
 extern uint      LAURE_COMPILER_ID_OFFSET;
 
+/* Allocator
+*/
+typedef struct laure_allocator_stats {
+    size_t allocated;
+    size_t freed;
+    size_t reallocated;
+} laure_allocator_stats;
+
+void *laure_alloc(size_t size);
+void laure_free(void *ptr);
+void *laure_realloc(void *ptr, size_t size);
+laure_allocator_stats laure_allocator_stats_get();
+void laure_allocator_reset_stats();
+
 #endif

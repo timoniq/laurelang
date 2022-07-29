@@ -30,7 +30,7 @@ DECLARE(laure_predicate_message) {
         string s = readline("> ");
         char buff[128];
         snprintf(buff, 128, "\"%s\"", s);
-        free(s);
+        laure_free(s);
         laure_expression_t exp[1];
         exp->t = let_custom;
         exp->s = buff;
@@ -78,7 +78,7 @@ DECLARE(laure_predicate_repr) {
 
         while (true) {
             if ((! linked) != (! len)) {
-                free(instance_representation);
+                laure_free(instance_representation);
                 return False;
             }
             cast_image(cim, struct CharImage) linked->data->image;
@@ -89,14 +89,14 @@ DECLARE(laure_predicate_repr) {
                 continue;
             } else data_started = true;
             if (c != cim->c) {
-                free(instance_representation);
+                laure_free(instance_representation);
                 return False;
             }
             len--;
             i++;
             linked = linked->next;
             if (! len) {
-                free(instance_representation);
+                laure_free(instance_representation);
                 while (braces_opened > 0) {
                     if (! linked || ((struct CharImage*)linked->data->image)->c != ')') {
                         return False;
@@ -111,7 +111,7 @@ DECLARE(laure_predicate_repr) {
                 }
             }
         }
-        free(instance_representation);
+        laure_free(instance_representation);
         return False;
     } else if (instance_inst && ! repr_known) {
         set_representation: {};
@@ -164,7 +164,7 @@ DECLARE(laure_predicate_repr) {
             exp->s = strdup(buff);
             exp->t = let_custom;
             bool result = read_head(instance->image).translator->invoke(exp, instance->image, cctx->scope);
-            if (! result) free(exp->s);
+            if (! result) laure_free(exp->s);
             return from_boolean(result);
         }
     } else {
@@ -199,17 +199,17 @@ DECLARE(laure_predicate_format) {
         if (formatting_to_pattern(fim->first, pattern, 128, &count) != 0)
             RESPOND_ERROR(internal_err, NULL, "unable to convert formatting to pattern");
         pattern[count] = 0;
-        string buff = malloc(sim->i_data.length + 1);
+        string buff = laure_alloc(sim->i_data.length + 1);
         if (convert_to_string(sim->i_data, buff) != 0)
             RESPOND_ERROR(internal_err, NULL, "unable to convert string");
         size_t group_count = groups_count(fim->first);
-        string *groups = malloc(sizeof(void*) * group_count);
+        string *groups = laure_alloc(sizeof(void*) * group_count);
         int result = laure_string_pattern_parse(buff, pattern, groups);
-        free(buff);
+        laure_free(buff);
         for (uint i = 0; i < count; i++)
-            free(pattern[i]);
+            laure_free(pattern[i]);
         if (! result) {
-            free(groups);
+            laure_free(groups);
             return False;
         } else {
             struct FormattingPart *part = fim->first;
@@ -238,7 +238,7 @@ DECLARE(laure_predicate_format) {
                         format_jmp_instantiated_instance: {};
                         string repr = instance->repr(instance);
                         if (str_eq(repr, group)) {
-                            free(groups);
+                            laure_free(groups);
                             return False;
                         }
                     } else {
@@ -256,9 +256,9 @@ DECLARE(laure_predicate_format) {
                         }
                         bool result = read_head(instance->image).translator->invoke(exp, instance->image, parent_scope);
                         if (should_free)
-                            free(exp->s);
+                            laure_free(exp->s);
                         if (! result) {
-                            free(groups);
+                            laure_free(groups);
                             return False;
                         }
                     }
@@ -266,7 +266,7 @@ DECLARE(laure_predicate_format) {
                 part = part->next;
                 i++;
             }
-            free(groups);
+            laure_free(groups);
             return True;
         }
     } else {
@@ -286,11 +286,11 @@ DECLARE(laure_predicate_format) {
                 if (instance->repr != string_repr || ! instantiated(instance))
                     repr = instance->repr(instance);
                 else {
-                    repr = malloc(((struct ArrayImage*)instance->image)->i_data.length + 1);
+                    repr = laure_alloc(((struct ArrayImage*)instance->image)->i_data.length + 1);
                     convert_to_string(((struct ArrayImage*)instance->image)->i_data, repr);
                 }
                 strcat(formatted, repr);
-                free(repr);
+                laure_free(repr);
             }
             part = part->next;
         }

@@ -38,7 +38,7 @@ laure_expression_t *laure_expression_create(
 ) {
     if (! ELLIPSIS)
         ELLIPSIS = strdup("...");
-    laure_expression_t *exp = malloc(sizeof(laure_expression_t));
+    laure_expression_t *exp = laure_alloc(sizeof(laure_expression_t));
     exp->t = t;
     exp->docstring = docstring;
     exp->is_header = is_header;
@@ -53,7 +53,7 @@ laure_expression_t *laure_expression_create(
 
 laure_expression_set *laure_expression_set_link(laure_expression_set *root, laure_expression_t *new_link) {
 
-    laure_expression_set *new_branch = malloc(sizeof(laure_expression_set));
+    laure_expression_set *new_branch = laure_alloc(sizeof(laure_expression_set));
     new_branch->expression = new_link;
     new_branch->next = NULL;
 
@@ -142,17 +142,17 @@ laure_expression_t *laure_expression_set_get_by_idx(laure_expression_set *root, 
 void laure_expression_destroy(laure_expression_t *expression) {
     if (expression->ba) {
         laure_expression_set_destroy(expression->ba->set);
-        free(expression->ba);
+        laure_free(expression->ba);
     }
-    free(expression);
+    laure_free(expression);
 }
 
 string rough_strip_string(string s) {
     if (str_starts(s, "\"") && lastc(s) == '"') {
-        string n = malloc(strlen(s));
+        string n = laure_alloc(strlen(s));
         strcpy(n, s+1);
         strcpy(s, n);
-        free(n);
+        laure_free(n);
         lastc(s) = 0;
         s = rough_strip_string(s);
     }
@@ -163,11 +163,11 @@ void laure_expression_set_destroy(laure_expression_set *root) {
     if (!root) return;
     laure_expression_set_destroy(root->next);
     laure_expression_destroy(root->expression);
-    free(root);
+    laure_free(root);
 }
 
 laure_expression_compact_bodyargs *laure_bodyargs_create(laure_expression_set *set, uint body_len, bool has_resp) {
-    laure_expression_compact_bodyargs *ba = malloc(sizeof(laure_expression_compact_bodyargs));
+    laure_expression_compact_bodyargs *ba = laure_alloc(sizeof(laure_expression_compact_bodyargs));
     ba->set = set;
     ba->body_len = body_len;
     ba->has_resp = has_resp;
@@ -208,7 +208,7 @@ string read_til(const string s, int c) {
             uint cur_i = i - 1;
             // slice from last_i to cur_i
 
-            string slice = malloc(sizeof(char) * (cur_i + 1) * 4);
+            string slice = laure_alloc(sizeof(char) * (cur_i + 1) * 4);
             memset(slice, 0, sizeof(char) * (cur_i + 1) * 4);
             
             for (int j = 0; j < cur_i + 1; j++) {
@@ -295,14 +295,14 @@ void str_lower(string str) {
 
 string_linked *string_split(string s_, int delimiter) {
     string s = strdup(s_);
-    string_linked *linked = malloc(sizeof(string_linked));
+    string_linked *linked = laure_alloc(sizeof(string_linked));
     string_linked *ptr = linked;
 
     for (;;) {
         string sub = read_til(s, delimiter);
         if (!sub) break;
         ptr->s = strdup(sub);
-        ptr->next = malloc(sizeof(string_linked));
+        ptr->next = laure_alloc(sizeof(string_linked));
         s = s + strlen(sub) + 1;
         ptr = ptr->next;
     }
@@ -375,14 +375,14 @@ bool easy_pattern_parse(char *s, char *p) {
                 break;
             }
             case '.': {
-                pattern[idx] = malloc(sizeof(element));
+                pattern[idx] = laure_alloc(sizeof(element));
                 pattern[idx]->c = 0;
                 pattern[idx]->any_count = 0;
                 idx++;
                 break;
             }
             default: {
-                pattern[idx] = malloc(sizeof(element));
+                pattern[idx] = laure_alloc(sizeof(element));
                 pattern[idx]->c = c;
                 pattern[idx]->any_count = 0;
                 idx++;
@@ -393,7 +393,7 @@ bool easy_pattern_parse(char *s, char *p) {
 
     bool res = easy_pattern_parse_final(s, pattern);
     for (int i = 0; i < idx; i++) {
-        free(pattern[i]);
+        laure_free(pattern[i]);
     }
     return res;
 }
@@ -504,7 +504,7 @@ laure_parse_many_result laure_parse_many(const string query_, char divisor, laur
             if (lastc(slice_) == divisor) lastc(slice_) = 0;
             
             laure_parse_result res = laure_parse(slice_);
-            free(slice_ptr);
+            laure_free(slice_ptr);
             if (!res.is_ok) {
                 laure_expression_set_destroy(linked);
                 laure_parse_many_result lpmr;
@@ -768,7 +768,7 @@ laure_parse_result laure_parse(string query) {
                 if (sp)
                     resp = query + strlen(sp) + 2;
                 
-                free(sp);
+                laure_free(sp);
             } else if (easy_pattern_parse(query, ".*(.*).*")) {
 
                 name = read_til(query, '(');
@@ -1016,14 +1016,14 @@ laure_parse_result laure_parse(string query) {
                 while(implies_for[0] == ' ') implies_for++;
 
                 if (implies_for[0] == '{' && lastc(implies_for) == '}') {
-                    string q = malloc(strlen(implies_for) - 1);
+                    string q = laure_alloc(strlen(implies_for) - 1);
                     strcpy(q, implies_for + 1);
                     lastc(q) = 0;
                     q = string_clean(q);
                     laure_parse_many_result q_result = laure_parse_many(q, ';', implication_expset);
                     if (! q_result.is_ok) {
-                        free(q);
-                        free(implication_expset);
+                        laure_free(q);
+                        laure_free(implication_expset);
                         laure_expression_destroy(left_result.exp);
                         error_format("right side of implication is invalid: %s", q_result.err);
                     }
@@ -1031,7 +1031,7 @@ laure_parse_result laure_parse(string query) {
                 } else {
                     laure_parse_many_result q_result = laure_parse_many(implies_for, ',', implication_expset);
                     if (! q_result.is_ok) {
-                        free(implication_expset);
+                        laure_free(implication_expset);
                         error_format("right side of implication is invalid: %s", q_result.err);
                     }
                     implication_expset = laure_expression_set_link_branch(implication_expset, laure_expression_compose(q_result.exps));
@@ -1335,11 +1335,11 @@ laure_parse_result laure_parse(string query) {
                             error_format("invalid declaration `%s` for array by_idx, must be var", vname);
                         }
                     } else {
-                        string idx_s = malloc(strlen(dup) - strlen(vname) - 1);
+                        string idx_s = laure_alloc(strlen(dup) - strlen(vname) - 1);
                         strncpy(idx_s, dup + strlen(vname) + 1, strlen(dup) - strlen(vname) - 2);
                         char nquery[256];
                         snprintf(nquery, 256, "by_idx(%s, %s)", vname, idx_s);
-                        free(idx_s);
+                        laure_free(idx_s);
                         return laure_parse(strdup(nquery));
                     }
                 }

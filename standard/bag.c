@@ -58,7 +58,7 @@ DECLARE(laure_predicate_bag) {
         cast_image(to_img, struct ArrayImage) to->image;
 
         if (to_img->state == I) {
-            RESPOND_ERROR(signature_err, NULL, "bag `to` should be free array");
+            RESPOND_ERROR(signature_err, NULL, "bag `to` should be laure_free array");
         }
 
         //! fixme remove bags
@@ -80,7 +80,7 @@ DECLARE(laure_predicate_bag) {
             }
 
         if (! pocket->first) {
-            array_linked_t *first = malloc(sizeof(array_linked_t));
+            array_linked_t *first = laure_alloc(sizeof(array_linked_t));
             first->data = instance_deepcopy(cctx->scope, MOCK_NAME, from);
             first->next = NULL;
 
@@ -88,7 +88,7 @@ DECLARE(laure_predicate_bag) {
             pocket->last = first;
             pocket->size = 1;
         } else {
-            array_linked_t *new = malloc(sizeof(array_linked_t));
+            array_linked_t *new = laure_alloc(sizeof(array_linked_t));
             new->data = instance_deepcopy(cctx->scope, MOCK_NAME, from);
             new->next = NULL;
             pocket->last->next = new;
@@ -114,7 +114,7 @@ DECLARE(laure_predicate_bag) {
                     return False;
             } else {
                 sz_im->state = I;
-                sz_im->i_data = malloc(sizeof(bigint));
+                sz_im->i_data = laure_alloc(sizeof(bigint));
                 *(sz_im->i_data) = *bi;
             }
         }
