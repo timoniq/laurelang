@@ -276,10 +276,10 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
         ref.idx = (uint)bigint_double(idx_img->i_data);
         ref.link_id = pd->resp_link;
         if (arr_img->ref_count) {
-            arr_img->ref = realloc(arr_img->ref, sizeof(ref_element) * (arr_img->ref_count + 1));
+            arr_img->ref = laure_realloc(arr_img->ref, sizeof(ref_element) * (arr_img->ref_count + 1));
             arr_img->ref[arr_img->ref_count++] = ref;
         } else {
-            arr_img->ref = malloc(sizeof(ref_element));
+            arr_img->ref = laure_alloc(sizeof(ref_element));
             arr_img->ref[0] = ref;
             arr_img->ref_count++;
         }
@@ -408,7 +408,7 @@ qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
 
             array_linked_t *old = linked;
 
-            linked = malloc(sizeof(array_linked_t));
+            linked = laure_alloc(sizeof(array_linked_t));
             linked->data = cp_linked->data;
             linked->next = NULL;
             

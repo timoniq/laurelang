@@ -30,6 +30,15 @@ typedef enum {
     nologs,
 } test_suite_mode;
 
+#define result_n(q) \
+        (q.state == q_true) ? "true" \
+        : (q.state == q_false) ? "false" \
+        : (q.state == q_error) ? "error" \
+        : (q.state == q_yield) ? ((q.payload == (void*)1) ? "true" : "false") \
+        : (q.state == q_continue) ? "true, continue" \
+        : (q.state == q_stop) ? "true, stop" \
+        : "?"
+
 bool test_suite_receiver(string repr, struct receiver_payload *payload) {
     if (! payload->data) {
         return true;
@@ -61,6 +70,10 @@ bool should_skip(string_linked *skips, string s) {
     return false;
 }
 
+size_t filler_size(uint maxnlen) {
+    return maxnlen + 13;
+}
+
 void headerprint(string s, uint maxnlen, uint colorcodes, int isstart) {
     uint filler = 9 + maxnlen + 4;
     uint len_s = laure_string_strlen(s) + 9 - (colorcodes * 6);
@@ -83,6 +96,16 @@ void headerprint(string s, uint maxnlen, uint colorcodes, int isstart) {
         printf("%s\n", r);
     }
 }
+
+#define print_in_block(maxnlen, ...) do { \
+        printf("│ "); char buff[64]; \
+        snprintf(buff, 64, __VA_ARGS__); \
+        size_t __l = strlen(buff) + 4; \
+        printf("%s", buff); \
+        size_t __fsz = filler_size(maxnlen); if (__l > __fsz) {__fsz = 0;} else {__fsz -= __l;} \
+        for (size_t __j = 0; __j < __fsz; __j++) printf(" "); \
+        printf("│\n"); \
+        } while (0)
 
 qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
 
@@ -109,7 +132,8 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         }
     }
 
-    string stopkwd = get_dflag("stop_kwd");
+    string stopkwd = get_dflag("stopkwd");
+    string alloc_stats = get_dflag("alloc_stats");
 
     if (mode == full) {
         printf("\n(Running test suite v%s)\n", test_suite_version);
@@ -144,7 +168,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     if (mode == full) printf("Collected %d tests.\n", len);
     uint tests_passed = 0;
 
-    laure_session_t *sess = malloc(sizeof(laure_session_t));
+    laure_session_t *sess = laure_alloc(sizeof(laure_session_t));
 
     sess->scope = cctx->scope->glob;
     sess->scope->glob = sess->scope;
@@ -172,6 +196,10 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     uint checked_len = len;
     uint skipped = 0;
 
+    if (alloc_stats) {
+        laure_allocator_reset_stats();
+    }
+
     for (int i = 0; i < len; i++) {
         printf("│ ");
         Instance *predicate = tests[i];
@@ -187,7 +215,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
             checked_len--; skipped++;
             continue;
         }
-        if (mode == full) printf("%s: %s%srunned%s\n", predicate->name, spaces, YELLOW_COLOR, NO_COLOR);
+        if (mode == full) printf("%s: %s%srunned%s │\n", predicate->name, spaces, YELLOW_COLOR, NO_COLOR);
 
         int argc = 0;
         char **data = 0;
@@ -196,7 +224,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
             for (int j = 0; j < strlen(predicate->doc); j++) {
                 if (predicate->doc[j] == '\n') argc++;
             }
-            data = malloc(sizeof(void*) * argc);
+            data = laure_alloc(sizeof(void*) * argc);
             char *ptr = strtok(predicate->doc, "\n");
             int j = 0;
             while (ptr) {
@@ -238,7 +266,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         ncctx->vpk = laure_vpk_create(expset);
         ncctx->vpk->sender_receiver = test_suite_receiver;
 
-        struct receiver_payload *payload = malloc(sizeof(struct receiver_payload));
+        struct receiver_payload *payload = laure_alloc(sizeof(struct receiver_payload));
         payload->idx = 0;
         payload->passed = true;
         payload->data = data;
@@ -250,6 +278,18 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
 
         LAURE_CLOCK = clock();
         qresp response = laure_start(ncctx, expset);
+
+        if (alloc_stats) {
+            print_in_block(max_name_len, "");
+            print_in_block(max_name_len, "%s allocs", predicate->name);
+            laure_allocator_stats stats = laure_allocator_stats_get();
+            print_in_block(max_name_len, "  alloc   %zu", stats.allocated);
+            print_in_block(max_name_len, "  realloc %zu", stats.reallocated);
+            print_in_block(max_name_len, "  free    %zu", stats.freed);
+            print_in_block(max_name_len, "");
+            printf("\n");
+            laure_allocator_reset_stats();
+        }
 
         if (mode == full) {
             up;
@@ -303,7 +343,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
                 }
             }
         }
-        free(payload);
+        laure_free(payload);
         laure_scope_free(ncctx->tmp_answer_scope);
         if (stopkwd && (strstr(predicate->name + 5, stopkwd) || strcmp(stopkwd, ".") == 0)) {
             printf("%sCaught keyword. Press any key to continue%s\n", LAURUS_NOBILIS, NO_COLOR);
@@ -318,7 +358,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
     t = clock() - t;
     double elapsed = ((double)t) / CLOCKS_PER_SEC;
 
-    free(sess);
+    laure_free(sess);
 
     if (mode != nologs) {
         headerprint("Done. Showing results", max_name_len, 0, 0);
@@ -327,7 +367,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         for (int i = 0; i < len; i++) {
             if (comments[i]) {
                 printf("\n%s%s%s: \n%s%s%s\n", BOLD_WHITE, tests[i]->name, NO_COLOR, RED_COLOR, comments[i], NO_COLOR);
-                free(comments[i]);
+                laure_free(comments[i]);
                 if (i == len - 1) printf("\n");
             }
         }
