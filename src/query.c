@@ -1653,7 +1653,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             qctx->expset = full;
         } else {
 
-            if (e->ba->body_len != pf->interior.argc) {
+            if (e->ba->body_len < pf->interior.argc) {
                 laure_scope_free(init_scope);
                 RESPOND_ERROR(signature_err, e, "predicate %s got %d args, expected %d", predicate_name, e->ba->body_len, pf->interior.argc);
             }
@@ -1730,6 +1730,12 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 actx->idx_pd = idx;
                 laure_expression_t *argexp = arg_l->expression;
 
+                if (idx == pf->interior.argc && pf->interior.respn) {
+                    goto joint_response;
+                } else if (idx > pf->interior.argc) {
+                    RESPOND_ERROR(signature_err, e, "too much arguments (expected %d)", pf->interior.argc);
+                }
+
                 RECORDER_T(rec) = NULL;
                 if (! str_eq(pf->interior.argn[idx], "_")) {
                     rec = dompred_arg_recorder;
@@ -1754,6 +1760,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             }
 
             if (pf->interior.respn && pred_img->header.resp->t != td_auto) {
+                joint_response: {};
                 if (! arg_l) {
                     Instance *hint = NULL;
                     if (pred_img->header.resp) {

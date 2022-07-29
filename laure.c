@@ -145,6 +145,33 @@ string convert_filepath(string filepath) {
     return new;
 }
 
+bool endswith(string s, string end) {
+    char *c = s + strlen(s) - strlen(end);
+    for (size_t i = 0; i < strlen(end); i++) {
+        if (*c != end[i]) return false;
+        c++;
+    }
+    return true;
+}
+
+string search_path(string original_path) {
+    FILE *f = fopen(original_path, "r");
+    if (f) {
+        fclose(f);
+        return original_path;
+    } else if (! endswith(original_path, ".le")) {
+        char buff[PATH_MAX];
+        strcpy(buff, original_path);
+        strcat(buff, ".le");
+        f = fopen(buff, "r");
+        if (f) {
+            fclose(f);
+            return strdup(buff);
+        }
+        return NULL;
+    }
+}
+
 void sigint_handler(int _) {
     printf("\n%sCtrl-C%s: Goodbye\n", LAURUS_NOBILIS, NO_COLOR);
     exit(0);
@@ -184,15 +211,14 @@ int laure_process_query(laure_session_t *session, string line) {
             }
             for (int j = 1; j < args.argc; j++) {
                 string path = convert_filepath(args.argv[j]);
-                FILE *fs = fopen(path, "r");
-                if (! fs) {
+                path = search_path(path);
+                if (! path) {
                     printf("  %sUnable to open %s%s%s\n", RED_COLOR, BOLD_WHITE, path, NO_COLOR);
                     laure_free(path);
                     laure_free(args.argv);
                     return 1;
                 }
 
-                fclose(fs);
                 string full_path = strdup( realpath(path, _PATH) );
                 bool failed[1];
                 failed[0] = false;
@@ -618,14 +644,13 @@ int main(int argc, char *argv[]) {
     struct filename_linked *filenames = FILENAMES;
     while (filenames) {
         string path = convert_filepath(filenames->filename);
-        FILE *fs = fopen(path, "r");
-        if (! fs) {
+        path = search_path(path);
+        if (! path) {
             printf("  %sUnable to open `%s`%s\n", RED_COLOR, path, NO_COLOR);
             if (FLAG_SIGNAL) return SIGABRT;
             filenames = filenames->next;
             continue;
         }
-        fclose(fs);
 
         string full_path = strdup( realpath(path, _PATH) );
         bool failed[1];

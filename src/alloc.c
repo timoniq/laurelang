@@ -27,8 +27,6 @@ void *laure_realloc(void *ptr, size_t size) {
     return realloc(ptr, size);
 }
 
-
-
 laure_allocator_stats laure_allocator_stats_get() {
     laure_allocator_stats stats;
     #ifdef ALLOCATOR_STATS
