@@ -4,12 +4,18 @@
 #include "laurelang.h"
 
 typedef enum {
-    q_false,
-    q_true,
-    q_yield,
-    q_error,
-    q_stop,
-    q_continue,
+    q_false,    // no payload
+    q_true,     // no payload
+    q_yield,    // succeed: 0x1, fail: 0x0
+    q_error,    // error message for internal
+    q_stop,     // succeed: 0x1, fail: 0x0
+    q_continue, // no payload
+    /* Bag full
+    ---
+    no_payload - only for bag predicate
+    name - from bag predicate wrapper 
+    --- */
+    q_bag_full,
 } qresp_state;
 
 typedef struct laure_qresp {
@@ -32,9 +38,11 @@ qresp respond(qresp_state s, string e);
         LAURE_ACTIVE_ERROR = laure_error_create(k, strdup(_errmsg), exp); \
         return respond(q_error, (void*)1);} while (0)
 
-#define RESPOND_TRUE           respond(q_true, NULL)
-#define RESPOND_FALSE          respond(q_false, NULL)
-#define RESPOND_YIELD(code)          respond(q_yield, code)
+#define RESPOND_TRUE            respond(q_true, NULL)
+#define RESPOND_FALSE           respond(q_false, NULL)
+#define RESPOND_YIELD(code)     respond(q_yield, code)
+#define RESPOND_BAG_FULL        respond(q_bag_full, (void*)true)
+#define RESPOND_BAG_FULL_E      respond(q_bag_full, (void*)false)
 
 #define INT_ASSIGN(im, bi) do { \
         if(! int_check(im, bi)) {laure_free(bi->words); laure_free(bi); return respond(q_false, 0);} \
@@ -50,7 +58,9 @@ bool int_check(void *img, bigint *bi);
 
 typedef struct laure_qcontext qcontext;
 
-qcontext qcontext_temp(qcontext *next, laure_expression_set *expset);
+typedef struct Bag Bag;
+
+qcontext qcontext_temp(qcontext *next, laure_expression_set *expset, Bag *bag);
 
 struct BuiltinPredHint {
     char *arg_types; // argname:typename splitted by ' ' (NULL if no args; typename == "_" means no typehint)

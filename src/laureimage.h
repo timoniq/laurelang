@@ -284,7 +284,7 @@ typedef struct laure_control_ctx {
     qcontext*       qctx;
     var_process_kit* vpk;
     void*           data;
-    bool          silent, no_ambig;
+    bool          silent, no_ambig, this_break;
     ulong cut; // scope id to cut up to
 #ifndef DISABLE_WS
     laure_ws *ws;

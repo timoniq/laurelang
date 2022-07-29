@@ -4,6 +4,11 @@ WS_FLAGS =
 CFLAGS = -Isrc -Istandard -Icompiler -I/usr/local/include -g $(LIBFLAG) -fPIC ${ADDFLAGS} ${WS_FLAGS} -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers
 LDFLAGS = -L/usr/local/lib -Isrc -lreadline -lm -g -ldl
 
+ifeq ($(UNAME), Linux)
+	LDFLAGS := $(LDFLAGS) -luuid
+	CFLAGS := $(CFLAGS) -luuid
+endif
+
 .PHONY: all clean
 
 LIB = src/parser.o \

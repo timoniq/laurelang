@@ -72,13 +72,15 @@ struct img_rec_ctx {
     laure_expression_set *expset;
     gen_resp (*qr_process)(qresp, struct img_rec_ctx*);
     uint flag;
+    unsigned long link;
 };
 
 struct img_rec_ctx *img_rec_ctx_create(
     Instance *var, 
     control_ctx *cctx, 
     laure_expression_set *expset, 
-    gen_resp (*qr_process)(qresp, struct img_rec_ctx*)
+    gen_resp (*qr_process)(qresp, struct img_rec_ctx*),
+    unsigned long link
 ) {
     struct img_rec_ctx *ctx = laure_alloc(sizeof(struct img_rec_ctx));
     ctx->var = var;
@@ -86,6 +88,7 @@ struct img_rec_ctx *img_rec_ctx_create(
     ctx->expset = expset;
     ctx->qr_process = qr_process;
     ctx->flag = 0;
+    ctx->link = link;
     return ctx;
 }
 
@@ -99,6 +102,12 @@ gen_resp image_rec_default(void *image, struct img_rec_ctx *ctx) {
     laure_scope_free(nscope);
     ctx->cctx->scope = oscope;
     ctx->var->image = d;
+    if (ctx->cctx->this_break) {
+        gen_resp gr;
+        gr.r = 0;
+        gr.qr = respond(q_yield, (void*)0);
+        return gr;
+    }
     return ctx->qr_process(response, ctx);
 }
 
@@ -189,6 +198,8 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
             sz = laure_count_transistions(cctx->ws);
         #endif
     });
+
+    cctx->this_break = false;
 
     if (cctx->qctx)
         cctx->qctx->flagme = true;
@@ -633,8 +644,9 @@ qresp laure_eval_assert(
         // When var asserted to var
         // check whether they exist or not
 
-        Instance *lvar_ins = laure_scope_find_by_key(scope, lvar->s, true);
-        Instance *rvar_ins = laure_scope_find_by_key(scope, rvar->s, true);
+        ulong l1[1], l2[1];
+        Instance *lvar_ins = laure_scope_find_by_key_l(scope, lvar->s, l1, true);
+        Instance *rvar_ins = laure_scope_find_by_key_l(scope, rvar->s, l2, true);
 
         if (lvar_ins && rvar_ins) {
             // check if they are instantiated
@@ -671,12 +683,15 @@ qresp laure_eval_assert(
                 // **intersection**
                 Instance *var1;
                 Instance *var2;
+                unsigned long v2_link;
                 if (lvar_ins->locked && !rvar_ins->locked) {
                     var1 = lvar_ins;
                     var2 = rvar_ins;
+                    v2_link = *l2;
                 } else if (!lvar_ins->locked || !rvar_ins->locked) {
                     var1 = rvar_ins;
                     var2 = lvar_ins;
+                    v2_link = *l1;
                 } else {
                     RESPOND_ERROR(
                         access_err,
@@ -692,7 +707,7 @@ qresp laure_eval_assert(
                 }
 
                 // context
-                struct img_rec_ctx *ctx = img_rec_ctx_create(var2, cctx, expset, qr_process_default);
+                struct img_rec_ctx *ctx = img_rec_ctx_create(var2, cctx, expset, qr_process_default, v2_link);
                 // -------
                 gen_resp gr = image_generate(scope, var1->image, image_rec_default, ctx);
                 laure_free(ctx);
@@ -1036,9 +1051,9 @@ qresp laure_eval_unify(_laure_eval_sub_args) {
         RESPOND_ERROR(undefined_err, e, "variable %s", e->s);
     else if (to_unif->locked)
         RESPOND_ERROR(access_err, e, "%s is locked", e->s);
-    struct img_rec_ctx *ctx = img_rec_ctx_create(to_unif, cctx, expset, proc_unify_response);
+    struct img_rec_ctx *ctx = img_rec_ctx_create(to_unif, cctx, expset, proc_unify_response, *link);
     gen_resp gr = image_generate(scope, to_unif->image, image_rec_default, ctx);
-    if (gr.qr.state == q_error) return gr.qr;
+    if (gr.qr.state == q_error || gr.qr.state == q_stop || ! gr.r) return gr.qr;
     if (! ctx->flag) return respond(q_yield, YIELD_FAIL);
     laure_free(ctx);
     if (gr.qr.state == q_stop) {
@@ -1605,6 +1620,13 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             resp = pf->c.pred(pd, cctx);
             preddata_free(pd);
 
+            if (resp.state == q_bag_full) {
+                // from __bag_sz predicate
+                assert(qctx->next->bag);
+                resp.state = (resp.payload) ? q_true : q_false;
+                cctx->this_break = true;
+            }
+
             if (resp.state == q_false) continue;
 
             if (tfc) {
@@ -1944,14 +1966,15 @@ qresp laure_eval_quant(_laure_eval_sub_args) {
     string vname = e->s;
     laure_expression_set *set = e->ba->set;
 
-    Instance *ins = laure_scope_find_by_key(scope, vname, false);
+    ulong link[1];
+    Instance *ins = laure_scope_find_by_key_l(scope, vname, link, false);
     if (! ins)
         RESPOND_ERROR(undefined_err, e, "variable %s", vname);
     
     bool dp = cctx->vpk->do_process;
     
     qcontext nqctx[1];
-    *nqctx = qcontext_temp(NULL, set);
+    *nqctx = qcontext_temp(NULL, set, NULL);
 
     cctx->qctx = nqctx;
 
@@ -1966,6 +1989,7 @@ qresp laure_eval_quant(_laure_eval_sub_args) {
             ctx->expset = set;
             ctx->var = ins;
             ctx->qr_process = qr_process_quant_all;
+            ctx->link = *link;
             gen_resp gr = image_generate(scope, ins->image, image_rec_default, ctx);
             if (! gr.r) qr = respond(q_false, 0);
             break;
@@ -2017,15 +2041,15 @@ qresp laure_eval_imply(_laure_eval_sub_args) {
     // fact_set -> implies_for
 
     qcontext current[1];
-    *current = qcontext_temp(qctx->next, expset);
+    *current = qcontext_temp(qctx->next, expset, qctx->bag);
     current->constraint_mode = qctx->constraint_mode;
 
     qcontext if_qctx[1];
-    *if_qctx = qcontext_temp(current, implies_for);
+    *if_qctx = qcontext_temp(current, implies_for, NULL);
     if_qctx->constraint_mode = true;
 
     qcontext fact_qctx[1];
-    *fact_qctx = qcontext_temp(if_qctx, fact_set);
+    *fact_qctx = qcontext_temp(if_qctx, fact_set, NULL);
     fact_qctx->constraint_mode = true;
 
     laure_scope_t *nscope = laure_scope_create_copy(cctx, scope);
@@ -2072,7 +2096,7 @@ qresp laure_eval_choice(_laure_eval_sub_args) {
         laure_expression_set *old = qctx->expset;
 
         qcontext nqctx[1];
-        *nqctx = qcontext_temp(qctx, choice);
+        *nqctx = qcontext_temp(qctx, choice, NULL);
         nqctx->constraint_mode = qctx->constraint_mode;
 
         qctx->expset = expset;
@@ -2134,7 +2158,7 @@ qresp laure_eval_set(_laure_eval_sub_args) {
         qctx->expset = qctx->expset->next;
 
         qcontext nqctx[1];
-        *nqctx = qcontext_temp(NULL, e->ba->set);
+        *nqctx = qcontext_temp(NULL, e->ba->set, NULL);
         nqctx->constraint_mode = qctx->constraint_mode;
 
         vpk->do_process = false;
@@ -2160,7 +2184,7 @@ qresp laure_eval_set(_laure_eval_sub_args) {
         qctx->expset = qctx->expset->next;
 
         qcontext nqctx[1];
-        *nqctx = qcontext_temp(qctx, e->ba->set);
+        *nqctx = qcontext_temp(qctx, e->ba->set, NULL);
         nqctx->constraint_mode = qctx->constraint_mode;
 
         cctx->qctx = nqctx;
@@ -2182,12 +2206,13 @@ qresp laure_eval_atom_sign(_laure_eval_sub_args) {
 
     laure_scope_iter(scope, cell, {
         Instance *instance = cell->ptr;
+        ulong l = cell->link;
         if (! instantiated(instance)) {
             laure_expression_set set[1];
             set->next = expset;
             set->expression = e;
             void *img = instance->image;
-            struct img_rec_ctx *ctx = img_rec_ctx_create(instance, cctx, set, qr_process_default);
+            struct img_rec_ctx *ctx = img_rec_ctx_create(instance, cctx, set, qr_process_default, l);
             gen_resp gr = image_generate(scope, instance->image, image_rec_default, ctx);
             laure_free(ctx);
             instance->image = img;
@@ -2316,6 +2341,7 @@ control_ctx *control_new(laure_session_t *session, laure_scope_t* scope, qcontex
     cctx->silent = false;
     cctx->no_ambig = no_ambig;
     cctx->cut = 0;
+    cctx->this_break = false;
 #ifndef DISABLE_WS
     // docs: https://docs.laurelang.org/wiki/ws
     cctx->ws = laure_ws_create(NULL);
@@ -2381,12 +2407,13 @@ string get_default_name(predfinal *pf, string final_name) {
     return NULL;
 }
 
-qcontext qcontext_temp(qcontext *next, laure_expression_set *expset) {
+qcontext qcontext_temp(qcontext *next, laure_expression_set *expset, Bag *bag) {
     qcontext qctx;
     qctx.bag = NULL;
     qctx.constraint_mode = false;
     qctx.expset = expset;
     qctx.flagme = false;
     qctx.next = next;
+    qctx.bag = bag;
     return qctx;
 }

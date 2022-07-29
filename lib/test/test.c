@@ -253,7 +253,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         laure_expression_set *expset = laure_expression_compose_one(res.exp);
 
         qcontext nqctx[1];
-        *nqctx = qcontext_temp(NULL, expset);
+        *nqctx = qcontext_temp(NULL, expset, NULL);
 
         control_ctx ncctx[1];
         ncctx->data = NULL;
@@ -264,6 +264,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         ncctx->tmp_answer_scope = laure_scope_new(cctx->scope->glob, cctx->scope);
         ncctx->tmp_answer_scope->next = NULL;
         ncctx->vpk = laure_vpk_create(expset);
+        ncctx->this_break = false;
         ncctx->vpk->sender_receiver = test_suite_receiver;
 
         struct receiver_payload *payload = laure_alloc(sizeof(struct receiver_payload));

@@ -32,3 +32,22 @@
 ?test_sized_bagof(bag) {
     sized_bagof(3, (1 .. 5)?) = bag;
 }
+
+// [0, 1, -1]
+// [1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880]
+: ?test_sized_bagof_stop(int[]).
+?test_sized_bagof_stop(bag) {
+    a ~ int;
+    a?;
+    3 sized_bagof a = bag;
+}
+?test_sized_bagof_stop(bag) when 10 sized_bagof fac(_) = bag.
+
+// 1;[2]
+// 2;[2, 3]
+// 3;[2, 3, 4]
+: ?test_sized_bagof_2(int, int[]).
+?test_sized_bagof_2(n, bag) {
+    x = between(1, 5)?;
+    sized_bagof(n, x) = bag;
+}

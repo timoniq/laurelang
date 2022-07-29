@@ -66,7 +66,7 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
                     laure_scope_t *nscope = laure_scope_create_copy(cctx, pd->scope);
                     
                     qcontext temp[1];
-                    *temp = qcontext_temp(cctx->qctx->next, NULL);
+                    *temp = qcontext_temp(cctx->qctx->next, NULL, cctx->qctx->bag);
 
                     laure_scope_t *old_sc = pd->scope;
                     qcontext *old_qc = cctx->qctx;
@@ -178,7 +178,7 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
                     laure_scope_t *nscope = laure_scope_create_copy(cctx, pd->scope);
 
                     qcontext temp[1];
-                    *temp = qcontext_temp(cctx->qctx->next, NULL);
+                    *temp = qcontext_temp(cctx->qctx->next, NULL, cctx->qctx->bag);
 
                     laure_scope_t *old_sc = pd->scope;
                     qcontext *old_qc = cctx->qctx;
@@ -244,7 +244,7 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
                 laure_scope_t *nscope = laure_scope_create_copy(cctx, pd->scope);
                 
                 qcontext temp[1];
-                *temp = qcontext_temp(cctx->qctx->next, NULL);
+                *temp = qcontext_temp(cctx->qctx->next, NULL, cctx->qctx->bag);
 
                 laure_scope_t *old_sc = pd->scope;
                 qcontext *old_qc = cctx->qctx;
@@ -490,7 +490,7 @@ qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
             laure_scope_t *old_sc = pd->scope;
 
             qcontext temp[1];
-            *temp = qcontext_temp(cctx->qctx->next, NULL);
+            *temp = qcontext_temp(cctx->qctx->next, NULL, cctx->qctx->bag);
 
             qcontext *old_qc = cctx->qctx;
             cctx->qctx = temp;

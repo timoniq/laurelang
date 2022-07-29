@@ -29,7 +29,7 @@ DECLARE(laure_predicate_bag) {
             laure_scope_t *nscope = laure_scope_create_copy(cctx, pd->scope);
                     
             qcontext temp[1];
-            *temp = qcontext_temp(cctx->qctx->next, NULL);
+            *temp = qcontext_temp(cctx->qctx->next, NULL, cctx->qctx->bag);
 
             laure_scope_t *old_sc = pd->scope;
             qcontext *old_qc = cctx->qctx;
@@ -76,7 +76,7 @@ DECLARE(laure_predicate_bag) {
                 bool inv = bigint_cmp(bi, sz_im->i_data) >= 0;
                 bigint_free(bi);
                 if (inv)
-                    return False;
+                    return RESPOND_BAG_FULL_E;
             }
 
         if (! pocket->first) {
@@ -112,6 +112,8 @@ DECLARE(laure_predicate_bag) {
                 bigint_free(bi);
                 if (! inv)
                     return False;
+                else 
+                    return RESPOND_BAG_FULL;
             } else {
                 sz_im->state = I;
                 sz_im->i_data = laure_alloc(sizeof(bigint));
