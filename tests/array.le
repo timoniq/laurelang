@@ -192,3 +192,24 @@
 ?test_array_head_tail(x) {
     [1, 2, 3, 4] = [1, 2|x];
 }
+
+// [2, 2, 2]
+// [5, -10, 3]
+// [5, -10, 4]
+: ?test_array_sized(int[]).
+?test_array_sized(arr) {
+    x = between(1, 3);
+    a ~ x[3];
+    a?;
+    arr = a;
+}
+
+?test_array_sized(arr) {
+    a ~ int[3];
+    a[0] = 5;
+    a[1] = -10;
+    x = between(2, 5);
+    a[2] = x;
+    a?;
+    arr = a;
+}

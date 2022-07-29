@@ -12,5 +12,6 @@
     "quantors.le",
     "generic.le",
     "abstract.le",
-    "formatting.le"
+    "formatting.le",
+    "bagof.le"
 ).
