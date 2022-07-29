@@ -27,6 +27,12 @@
     bagof(x) = [];
 }
 
+: ?test_bagof_3(int[]).
+?test_bagof_3(x) {
+    bagof<int>(1) = x;
+    bagof<int>(x[0]) = x;
+}
+
 // [1, 2, 3]
 : ?test_sized_bagof(int[]).
 ?test_sized_bagof(bag) {

@@ -417,6 +417,30 @@ uint pop_nestings(string s) {
     return nesting;
 }
 
+string is_by_idx_call(string q) {
+    if (lastc(q) != ']') return NULL;
+    char *c = q + strlen(q) - 2;
+    uint closed = 0;
+    bool is_str = false;
+    while (c != q) {
+        if (*c == '\"') {
+            is_str = ! is_str;
+            c--;
+            continue;
+        }
+        if (! is_str) {
+            if (*c == '[') {
+                if (closed == 0)
+                    return c;
+                closed--;
+            } else if (*c == ']')
+                closed++;
+        }
+        c--;
+    }
+    return NULL;
+}
+
 uint pop_generic(string* name, string *tname, string *query) {
     string generic_before = read_til(*name, GENERIC_OPEN);
     printf("%s|%s\n", *name, generic_before);
@@ -1320,6 +1344,7 @@ laure_parse_result laure_parse(string query) {
                 }
 
                 string dup = strdup(query);
+                string tmp = NULL;
 
                 if (dup[0] == '-' && is_super_fine_name_for_var(dup + 1)) {
                     // negate variable
@@ -1328,18 +1353,13 @@ laure_parse_result laure_parse(string query) {
                     char nquery[256];
                     snprintf(nquery, 256, "*(-1, %s)", dup + 1);
                     return laure_parse(strdup(nquery));
-                } else if (lastc(dup) == ']' && dup[strlen(dup)-2] != '[') {
-                    string vname = read_til(dup, '[');
-                    if (! vname || ! strlen(vname) || ! is_fine_name_for_var(vname)) {
-                        if (! vname || strlen(vname) > 0) {
-                            error_format("invalid declaration `%s` for array by_idx, must be var", vname);
-                        }
-                    } else {
-                        string idx_s = laure_alloc(strlen(dup) - strlen(vname) - 1);
-                        strncpy(idx_s, dup + strlen(vname) + 1, strlen(dup) - strlen(vname) - 2);
+                } else if ((tmp = is_by_idx_call(dup)) != NULL && strlen(tmp) > 2) {
+                    tmp[0] = 0;
+                    tmp++;
+                    lastc(tmp) = 0;
+                    if (dup && strlen(dup) > 0) {
                         char nquery[256];
-                        snprintf(nquery, 256, "by_idx(%s, %s)", vname, idx_s);
-                        laure_free(idx_s);
+                        snprintf(nquery, 256, "by_idx(%s, %s)", dup, tmp);
                         return laure_parse(strdup(nquery));
                     }
                 }

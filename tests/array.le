@@ -213,3 +213,10 @@
     a?;
     arr = a;
 }
+
+// 4
+: ?test_array_nested_by_idx(int).
+?test_array_nested_by_idx(x) {
+    int[][] arr = [[1,2,3],[4,5,6]];
+    x = arr[1][0];
+}
