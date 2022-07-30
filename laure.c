@@ -297,8 +297,12 @@ int laure_process_query(laure_session_t *session, string line) {
             break;
         }
         case 7: {
-            // print_header("laurelang interpreter info");
-            printf("  %s%sλaurelang %s%s\n", BOLD_DEC, LAURUS_NOBILIS, VERSION, NO_COLOR);
+            printf("  %s%sλaurelang %s%s", BOLD_DEC, LAURUS_NOBILIS, VERSION, NO_COLOR);
+            #ifdef GIT_VER
+            printf(" (%s)\n", GIT_VER);
+            #else
+            printf("\n");
+            #endif
             printf("  running `%s`\n", LAURE_INTERPRETER_PATH);
             printf("  bugtracker\n    %s%s%s\n", LAURUS_NOBILIS, BUGTRACKER_URL, NO_COLOR);
             printf("  %sbuild info%s:\n", BOLD_WHITE, NO_COLOR);
@@ -507,10 +511,16 @@ int main(int argc, char *argv[]) {
         } else if (argc == 3) {
             if (str_eq(argv[2], "build")) {
                 printf("Build information:\n");
-                #ifdef __VERSION__
-                printf("%scompiler%s: %s\n", BOLD_WHITE, NO_COLOR, __VERSION__);
+                printf("%sVERSION%s: %s%s", BOLD_WHITE, NO_COLOR, VERSION, LL_PRE_RELEASE);
+                #ifdef GIT_VER
+                printf(" %s\n", GIT_VER);
+                #else
+                printf("\n");
                 #endif
-                printf("%sscope build%s: %s\n", 
+                #ifdef __VERSION__
+                printf("%sCOMPILER%s: %s\n", BOLD_WHITE, NO_COLOR, __VERSION__);
+                #endif
+                printf("%sSCOPE BUILD%s: %s\n", 
                     BOLD_WHITE, NO_COLOR,
                     #ifdef FEATURE_LINKED_SCOPE
                     "linked"
@@ -518,8 +528,8 @@ int main(int argc, char *argv[]) {
                     "stodgy"
                     #endif
                 );
-                printf("%slib_path%s: \"%s\"\n", BOLD_WHITE, NO_COLOR, lib_path);
-                printf("%scompiled at%s: %s %s\n", BOLD_WHITE, NO_COLOR, __DATE__, __TIME__);
+                printf("%sLIBRARY%s: \"%s\"\n", BOLD_WHITE, NO_COLOR, lib_path);
+                printf("%sCOMPILED AT%s: %s %s\n", BOLD_WHITE, NO_COLOR, __DATE__, __TIME__);
             } else {
                 printf("Unknown help option `%s`\n", argv[2]);
                 goto help1;
