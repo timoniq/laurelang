@@ -17,8 +17,16 @@
 
 #define str_starts(s, start) (strncmp(start, s, strlen(start)) == 0)
 
-#define VERSION        "0.1"
+// Laurelang interpreter along with abstract machine
+// uses semantic versioning.
+#define VERSION        "0.1.0"
 #define BUGTRACKER_URL "https://github.com/timoniq/laurelang"
+
+#ifndef LL_RELEASE_BUILD
+#define LL_PRE_RELEASE "-dev"
+#else
+#define LL_PRE_RELEASE ""
+#endif
 
 struct laure_flag {
     int    id;
@@ -158,7 +166,7 @@ string search_path(string original_path) {
     FILE *f = fopen(original_path, "r");
     if (f) {
         fclose(f);
-        return original_path;
+        return strdup(original_path);
     } else if (! endswith(original_path, ".le")) {
         char buff[PATH_MAX];
         strcpy(buff, original_path);
@@ -170,6 +178,7 @@ string search_path(string original_path) {
         }
         return NULL;
     }
+    return NULL;
 }
 
 void sigint_handler(int _) {
@@ -211,21 +220,22 @@ int laure_process_query(laure_session_t *session, string line) {
             }
             for (int j = 1; j < args.argc; j++) {
                 string path = convert_filepath(args.argv[j]);
-                path = search_path(path);
-                if (! path) {
-                    printf("  %sUnable to open %s%s%s\n", RED_COLOR, BOLD_WHITE, path, NO_COLOR);
+                string spath = search_path(path);
+                if (! spath) {
+                    printf("  %s%s%s: unable to consult (path can't be found)\n", RED_COLOR, path, NO_COLOR);
                     laure_free(path);
                     laure_free(args.argv);
                     return 1;
                 }
 
-                string full_path = strdup( realpath(path, _PATH) );
+                string full_path = strdup( realpath(spath, _PATH) );
                 bool failed[1];
                 failed[0] = false;
                 laure_consult_recursive(session, full_path, (int*)failed);
                 if (! failed[0])
                     printf("  %s%s%s: consulted\n", GREEN_COLOR, args.argv[j], NO_COLOR);
                 laure_free(path);
+                laure_free(spath);
             }
             break;
         }
@@ -292,7 +302,7 @@ int laure_process_query(laure_session_t *session, string line) {
             printf("  running `%s`\n", LAURE_INTERPRETER_PATH);
             printf("  bugtracker\n    %s%s%s\n", LAURUS_NOBILIS, BUGTRACKER_URL, NO_COLOR);
             printf("  %sbuild info%s:\n", BOLD_WHITE, NO_COLOR);
-            printf("    %sstack build%s: %s\n", 
+            printf("    %sscope build%s: %s\n", 
             BOLD_WHITE, NO_COLOR,
             #ifdef FEATURE_LINKED_SCOPE
             "linked (production)"
@@ -487,11 +497,38 @@ int laure_compiler_cli(laure_session_t *comp_session, int argc, char *argv[]);
 int main(int argc, char *argv[]) {
     signal(SIGINT, sigint_handler);
 
-    if (argc == 2 && str_eq(argv[1], "help")) {
-        printf("This laurelang interpreter version %s%s%s\n", LAURUS_NOBILIS, VERSION, NO_COLOR);
-        printf("Pass knownledge base filenames to consult.\n");
-        printf("Read documentation at %shttps://docs.laurelang.org%s\n", LAURUS_NOBILIS, NO_COLOR);
-        exit(0);
+    if (argc >= 2 && str_eq(argv[1], "help")) {
+        if (argc == 2) {
+            help1: {};
+            printf("This laurelang interpreter version %s%s%s\n", LAURUS_NOBILIS, VERSION, NO_COLOR);
+            printf("Pass knownledge base filenames to consult.\n");
+            printf("Read documentation at %shttps://docs.laurelang.org%s\n", LAURUS_NOBILIS, NO_COLOR);
+            printf("* %s%s help build%s to see build information\n", YELLOW_COLOR, argv[0], NO_COLOR);
+        } else if (argc == 3) {
+            if (str_eq(argv[2], "build")) {
+                printf("Build information:\n");
+                #ifdef __VERSION__
+                printf("%scompiler%s: %s\n", BOLD_WHITE, NO_COLOR, __VERSION__);
+                #endif
+                printf("%sscope build%s: %s\n", 
+                    BOLD_WHITE, NO_COLOR,
+                    #ifdef FEATURE_LINKED_SCOPE
+                    "linked"
+                    #else
+                    "stodgy"
+                    #endif
+                );
+                printf("%slib_path%s: \"%s\"\n", BOLD_WHITE, NO_COLOR, lib_path);
+                printf("%scompiled at%s: %s %s\n", BOLD_WHITE, NO_COLOR, __DATE__, __TIME__);
+            } else {
+                printf("Unknown help option `%s`\n", argv[2]);
+                goto help1;
+            }
+        } else {
+            printf("Too much args passed\n");
+            goto help1;
+        }
+        return 1;
     }
 
     if (argc >= 2 && str_eq(argv[1], "compile")) {
@@ -601,7 +638,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    printf("laurelang v%s\n", VERSION);
+    printf("laurelang v%s%s\n", VERSION, LL_PRE_RELEASE);
     LAURE_INTERPRETER_PATH = INTERPRETER_PATH;
 
     string prompt = getenv("LLPROMPT");
@@ -644,15 +681,16 @@ int main(int argc, char *argv[]) {
     struct filename_linked *filenames = FILENAMES;
     while (filenames) {
         string path = convert_filepath(filenames->filename);
-        path = search_path(path);
-        if (! path) {
-            printf("  %sUnable to open `%s`%s\n", RED_COLOR, path, NO_COLOR);
+        string spath = search_path(path);
+        if (! spath) {
+            printf("  %s%s%s: unable to consult (path can't be found)\n", RED_COLOR, path, NO_COLOR);
+            laure_free(path);
             if (FLAG_SIGNAL) return SIGABRT;
             filenames = filenames->next;
             continue;
         }
 
-        string full_path = strdup( realpath(path, _PATH) );
+        string full_path = strdup( realpath(spath, _PATH) );
         bool failed[1];
         failed[0] = false;
         laure_consult_recursive(session, full_path, (int*)failed);
@@ -661,6 +699,7 @@ int main(int argc, char *argv[]) {
         else
             printf("  %s%s%s: not consulted\n", RED_COLOR, filenames->filename, NO_COLOR);
         laure_free(path);
+        laure_free(spath);
         filenames = filenames->next;
     }
 

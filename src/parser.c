@@ -243,6 +243,9 @@ string read_til(const string s, int c) {
 
 bool laure_parser_needs_continuation(string query) {
 
+    if (lastc(query) == ',')
+        return true;
+
     size_t sz = laure_string_strlen(query);
 
     int braced = 0;
@@ -1400,7 +1403,7 @@ laure_parse_result laure_parse(string query) {
                             // "@" atom sign query
                             laure_parse_result lpr;
                             lpr.is_ok = true;
-                            lpr.exp = laure_expression_create(let_atom_sign, NULL, false, --query, 0, NULL, query);
+                            lpr.exp = laure_expression_create(let_atom_sign, NULL, false, query - 1, 0, NULL, query);
                             return lpr;
                         }
                         laure_parse_result lpr = laure_parse(query);

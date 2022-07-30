@@ -25,7 +25,7 @@ bool read_bits(Bitstream *bits, uint count, bool *buf) {
 }
 
 void generate_signature(bool *signature) {
-    assert(SIGNATURE_LENGTH <= strlen(SIGNATURE));
+    assert(SIGNATURE_LENGTH <= strlen((char*)SIGNATURE));
     for (uint i = 0; i < SIGNATURE_LENGTH; i++) {
         for (uint j = 0; j < SIGNATURE_CHARBITS; j++) {
             signature[(i * 4) + j] = get_bit(SIGNATURE[i], j);
@@ -162,7 +162,6 @@ ID read_ID(Bitstream *bits) {
     if (id >= END_WITH_OFFSET)
         END_WITH_OFFSET = id + 1;
     id += LAURE_COMPILER_ID_OFFSET;
-    assert(id < ID_MAX);
     return id;
 }
 
@@ -508,7 +507,7 @@ bool evaluator(laure_session_t *session, Bitstream *bits, laure_expression_t *ex
         if (LAURE_ACTIVE_ERROR) {
             printf("error: %s\n", LAURE_ACTIVE_ERROR->msg);
         } else
-            printf("error evaluating bytecode: %s\n", qr.payload);
+            printf("error evaluating bytecode: %s\n", (char*)qr.payload);
     }
     return true;
 }

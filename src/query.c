@@ -2385,14 +2385,14 @@ void *pd_get_arg(preddata *pd, int index) {
     for (int i = 0; i < pd->argc; i++)
         if (pd->argv[i].index == index)
             return pd->argv[i].arg;
-    return NULL;
+    return 0;
 }
 
 unsigned long pd_get_arg_link(preddata *pd, int index) {
     for (int i = 0; i < pd->argc; i++)
         if (pd->argv[i].index == index)
             return pd->argv[i].link_id;
-    return NULL;
+    return 0;
 }
 
 string get_final_name(predfinal *pf, string shorthand) {

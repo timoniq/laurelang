@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #define say(...) do {printf("  %scompiler%s: ", LAURUS_NOBILIS, NO_COLOR); printf(__VA_ARGS__);} while (0)
+#define COMPILER_VERSION "WIP.0.1"
 
 FILE *STREAM = 0;
 
@@ -37,14 +38,14 @@ void laure_consult_bytecode(laure_session_t *session, FILE *file) {
 }
 
 int laure_compiler_cli(laure_session_t *comp_session, int argc, char *argv[]) {
-    printf("(Laurelang Compiler)\n");
+    printf("(Laurelang Compiler %s)\n", COMPILER_VERSION);
     if (argc == 0) {
         say("use %slaure compile help%s to see help message\n", YELLOW_COLOR, NO_COLOR);
     } else if (argc >= 1) {
         if (argc == 1) {
             if (streq(argv[0], "help")) {
                 say("command list\n");
-                printf("  compile {filename} {output filename} [-flags]\n");
+                printf("    compile {filename} {output filename} [-flags]\n");
                 return 0;
             } else {
                 say("command %s is undefined\n", argv[0]);

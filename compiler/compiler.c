@@ -13,7 +13,7 @@ Name VARIABLE_IDS[ID_MAX];
 uint VARIABLES_SIGNED = 0;
 unsigned char SIGNATURE[] = "laurelang";
 
-string *KNOWN_NAMES_DYNAMIC[ID_MAX];
+string KNOWN_NAMES_DYNAMIC[ID_MAX];
 uint KNOWN_NAMES_DYNAMIC_N = 0;
 
 uint ID_BITS = 0;
@@ -58,7 +58,7 @@ bool check_uint_fit(uint i, uint count_bits) {
 
 void add_known_name(string name) {
     assert(KNOWN_NAMES_DYNAMIC_N < ID_MAX);
-    KNOWN_NAMES_DYNAMIC[KNOWN_NAMES_DYNAMIC_N++] = name;
+    strncpy(KNOWN_NAMES_DYNAMIC[KNOWN_NAMES_DYNAMIC_N++], name, ID_MAX);
 }
 
 bool is_known_name(string name) {
@@ -387,7 +387,7 @@ bool compile_expression_with_bitstream(
 }
 
 void write_signature(FILE *file) {
-    assert(SIGNATURE_LENGTH <= strlen(SIGNATURE));
+    assert(SIGNATURE_LENGTH <= strlen((char*)SIGNATURE));
     Bitstream *bits = bitstream_new(file);
     for (uint i = 0; i < SIGNATURE_LENGTH; i++) {
         write_bits(bits, SIGNATURE[i], SIGNATURE_CHARBITS);
