@@ -94,14 +94,14 @@ struct img_rec_ctx *img_rec_ctx_create(
 
 gen_resp image_rec_default(void *image, struct img_rec_ctx *ctx) {
     void *d = ctx->var->image;
-    ctx->var->image = image;
+    IMTYPE(read_head(ctx->var->image).t, ctx->var->image, image);
     laure_scope_t *nscope = laure_scope_create_copy(ctx->cctx, ctx->cctx->scope);
     laure_scope_t *oscope = ctx->cctx->scope;
     ctx->cctx->scope = nscope;
     qresp response = laure_start(ctx->cctx, ctx->expset);
     laure_scope_free(nscope);
     ctx->cctx->scope = oscope;
-    ctx->var->image = d;
+    IMTYPE(read_head(ctx->var->image).t, ctx->var->image, d);
     if (ctx->cctx->this_break) {
         gen_resp gr;
         gr.r = 0;
@@ -216,7 +216,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
             laure_scope_iter(cctx->scope, cellptr, {
                 Instance *sim = laure_scope_find_by_link(nscope, cellptr->link, false);
                 if (sim) {
-                    bool res = image_equals(sim->image, cellptr->ptr->image);
+                    bool res = laure_safe_update(sim, cellptr->ptr, nscope, cctx->scope);
                     if (! res)
                         printf(
                             "Error: conflict when updating link %lu %s%s%s := %s%s%s\n", 
@@ -394,7 +394,7 @@ qresp laure_send(control_ctx *cctx) {
         Instance *tracked = laure_scope_find_by_link(scope, *link, false);
         if (!tracked) repr = strdup("UNKNOWN");
         else {
-            repr = tracked->repr(tracked);
+            repr = instance_repr(tracked, scope);
         }
         strcat(reprs, repr);
         laure_free(repr);
@@ -425,7 +425,7 @@ qresp laure_showcast(control_ctx *cctx) {
         Instance *ins = laure_scope_find_by_link(scope, *link, false);
         if (!ins) continue;
 
-        glob_ins->image = image_deepcopy(scope->glob, ins->image);
+        glob_ins->image = image_deepcopy(ins->image);
         
         char name[64];
         strncpy(name, vpk->tracked_vars[i], 64);
@@ -433,8 +433,7 @@ qresp laure_showcast(control_ctx *cctx) {
         if (str_starts(name, "$")) {
             snprintf(name, 64, "%s", ins->name);
         }
-
-        string repr = ins->repr(ins);
+        string repr = instance_repr(ins, scope);
         string showcast;
 
         if (strlen(repr) > 264) {
@@ -479,7 +478,7 @@ qresp laure_showcast(control_ctx *cctx) {
 
 void default_var_processor(laure_scope_t *scope, string name, void* _) {
     Instance *ins = laure_scope_find_by_key(scope, name, true);
-    string s = ins->repr(ins);
+    string s = instance_repr(ins, scope);
     printf("  %s\n", s);
     laure_free(s);
 }
@@ -549,6 +548,7 @@ qresp laure_eval_cut(_laure_eval_sub_args);
 qresp laure_eval_set(_laure_eval_sub_args);
 qresp laure_eval_atom_sign(_laure_eval_sub_args);
 qresp laure_eval_command(_laure_eval_sub_args);
+qresp laure_eval_structure(_laure_eval_sub_args);
 
 qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set *expset) {
     laure_scope_t *scope = cctx->scope;
@@ -609,6 +609,9 @@ qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set 
             return laure_eval_command(cctx, e, expset);
         }
         #endif
+        case let_struct: {
+            return laure_eval_structure(cctx, e, expset);
+        }
         default: {
             RESPOND_ERROR(internal_err, e, "can't evaluate {%s} in MAIN context", EXPT_NAMES[e->t]);
         }
@@ -727,7 +730,7 @@ qresp laure_eval_assert(
                 nvar_name = lvar->s;
             }
 
-            Instance *nvar = instance_deepcopy(scope, nvar_name, srcvar);
+            Instance *nvar = instance_deepcopy(nvar_name, srcvar);
             nvar->locked = false;
 
             laure_scope_insert(scope, nvar);
@@ -780,7 +783,7 @@ Instance *get_nested_fixed(Instance *atom, uint length, laure_scope_t *scope) {
     array_linked_t *first = NULL, *linked = NULL;
     for (uint i = 0; i < length; i++) {
         array_linked_t *new = laure_alloc(sizeof(array_linked_t));
-        new->data = instance_deepcopy(scope, MOCK_NAME, atom);
+        new->data = instance_deepcopy(MOCK_NAME, atom);
         new->next = linked;
         if (linked)
             linked->next = new;
@@ -798,7 +801,7 @@ Instance *ready_instance(laure_scope_t *scope, laure_expression_t *expr) {
     if (expr->t == let_var) {
         Instance *ins = laure_scope_find_by_key(scope, expr->s, true);
         if (! ins) return NULL;
-        return instance_deepcopy(scope, ins->name, ins);
+        return instance_deepcopy(ins->name, ins);
     } else if (expr->t == let_nested) {
         Instance *atom = ready_instance(scope, expr->link);
         if (! atom) return NULL;
@@ -963,7 +966,13 @@ qresp laure_eval_image(
 
             absorb(nesting, secondary_nesting);
 
-            Instance *ins = instance_deepcopy(scope, new_var_name, from);
+            Instance *ins;
+            if (read_head(from->image).t == STRUCTURE) {
+                ins = instance_new(new_var_name, NULL, structure_new_image(from->image, scope));
+                ins->repr = structure_repr;
+            } else {
+                ins = instance_deepcopy(new_var_name, from);
+            }
 
             if (nesting) {
                 while (nesting) {
@@ -1248,7 +1257,7 @@ ARGPROC_RES pred_call_procvar(
                             }
                         }
                     }
-                    arg = instance_deepcopy(prev_scope, argn, hint);
+                    arg = instance_new_copy(argn, hint, new_scope);
                 } else {
                     return_str_fmt("specification of %s is needed", vname);
                 }
@@ -1258,7 +1267,7 @@ ARGPROC_RES pred_call_procvar(
                     ulong l[1];
                     Instance *glob = laure_scope_find_by_key_l(cctx->tmp_answer_scope, vname, l, false);
                     if (! glob) {
-                        Instance *nins = instance_deepcopy(cctx->tmp_answer_scope, vname, arg);
+                        Instance *nins = instance_deepcopy(vname, arg);
                         #ifdef SCOPE_LINKED
                         linked_scope_t *linked = laure_scope_insert(cctx->tmp_answer_scope, nins);
                         // laure_add_grabbed_link(cctx, linked->link);
@@ -1272,7 +1281,7 @@ ARGPROC_RES pred_call_procvar(
                     preset_link = l[0];
                 }
 
-                Instance *prev_ins = instance_deepcopy(prev_scope, vname, arg);
+                Instance *prev_ins = instance_deepcopy(vname, arg);
 
                 if (preset_link > 0) {
                     laure_scope_insert_l(prev_scope, prev_ins, preset_link);
@@ -1294,7 +1303,7 @@ ARGPROC_RES pred_call_procvar(
                         hint = hint_opt->instance;
                     
                     if (hint && hint->image && arg->image) {
-                        void *Tim_copy = image_deepcopy(prev_scope, hint->image);
+                        void *Tim_copy = image_deepcopy(hint->image);
                         if (! (read_head(arg->image).t == UUID && read_head(Tim_copy).t == PREDICATE_FACT))
                             if (! image_equals(arg->image, Tim_copy))
                                 return ARGPROC_RET_FALSE;
@@ -1305,7 +1314,7 @@ ARGPROC_RES pred_call_procvar(
                 if (existing_same && recorder) {
                      arg = instance_new(argn, MARKER_NODELETE, existing_same->image);
                 } else if (create_copy && recorder)
-                    arg = instance_deepcopy(new_scope, argn, arg);
+                    arg = instance_deepcopy(argn, arg);
             }
 
             if (arg && is_inst)
@@ -1323,7 +1332,7 @@ ARGPROC_RES pred_call_procvar(
             if (prev_scope->idx == 1) {
                 Instance *glob = laure_scope_find_by_key(cctx->tmp_answer_scope, vname, false);
                 if (! glob) {
-                    Instance *nins = instance_deepcopy(cctx->tmp_answer_scope, vname, arg);
+                    Instance *nins = instance_deepcopy(vname, arg);
                     #ifdef SCOPE_LINKED
                     linked_scope_t *linked = laure_scope_insert(cctx->tmp_answer_scope, nins);
                     *l = linked->link;
@@ -1344,12 +1353,13 @@ ARGPROC_RES pred_call_procvar(
             } else {
                 hint = hint_opt->instance;
             }
-            Instance *arg = instance_deepcopy(prev_scope, argn, hint);
+            Instance *arg = instance_new_copy(argn, hint, new_scope);
             
             if (! arg->image)
                 return_str_fmt("specification of %s is needed", argn);
-            
-            bool result = read_head(arg->image).translator->invoke(exp, arg->image, prev_scope);
+
+            laure_image_head head = read_head(arg->image);
+            bool result = head.translator->invoke(exp, arg->image, prev_scope);
             if (is_inst)
                 *is_inst = true;
 
@@ -1358,8 +1368,8 @@ ARGPROC_RES pred_call_procvar(
                 laure_free(arg);
                 return ARGPROC_RET_FALSE;
             }
-            
-            if (read_head(arg->image).t == PREDICATE_FACT) {
+
+            if (head.t == PREDICATE_FACT) {
                 laure_free(arg);
                 if (recorder) {
                     Instance *uu_ins = laure_create_uuid_instance(argn, hint->name, exp->s);
@@ -1411,8 +1421,8 @@ bool check_namespace(laure_scope_t *scope, Instance *T, laure_expression_t *ns) 
         if (! var) return false;
         if (read_head(var->image).t != read_head(T->image).t)
             return false;
-        void *cp_img = image_deepcopy(scope, var->image);
-        void *cpT_img = image_deepcopy(scope, T->image);
+        void *cp_img = image_deepcopy(var->image);
+        void *cpT_img = image_deepcopy(T->image);
         bool result = image_equals(cp_img, cpT_img);
         image_free(cp_img);
         image_free(cpT_img);
@@ -1586,7 +1596,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     Instance *hint = pf->c.resp_hint;
                     if (! hint)
                         RESPOND_ERROR(signature_err, e, "specification of %s's response is needed", predicate_name);
-                    pd->resp = instance_deepcopy(prev, MOCK_NAME, hint);
+                    pd->resp = instance_deepcopy(MOCK_NAME, hint);
                     pd->resp_link = 0;
                 } else {
                     actx->idx_pd = 0;
@@ -1773,7 +1783,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     if (! hint)
                         RESPOND_ERROR(signature_err, e, "specification of %s's response is needed", predicate_name);
                     if (! str_eq(pf->interior.respn, "_")) {
-                        Instance *rins = instance_deepcopy(nscope, laure_get_respn(), hint);
+                        Instance *rins = instance_deepcopy(laure_get_respn(), hint);
                         laure_scope_insert(nscope, rins);
                     }
                     
@@ -2281,6 +2291,14 @@ qresp laure_eval_command(_laure_eval_sub_args) {
             }
             RESPOND_ERROR(runtime_err, e, "%s", e->link->s);
         }
+        case command_lock_unlock: {
+            string name = e->s;
+            Instance *ins = laure_scope_find_by_key(scope, name, true);
+            if (! ins) 
+                RESPOND_ERROR(undefined_err, e, "variable %s is undefined", name);
+            ins->locked = e->is_header;
+            return RESPOND_TRUE;
+        }
         case command_use:
         case command_useso: {
             string_linked *linked = string_split(e->s, ',');
@@ -2331,6 +2349,27 @@ qresp laure_eval_command(_laure_eval_sub_args) {
 
             return failed[0] ? RESPOND_FALSE : RESPOND_TRUE;
         }
+    }
+    return RESPOND_TRUE;
+}
+
+/* Structure
+   creates uninitted structure in scope
+*/
+qresp laure_eval_structure(_laure_eval_sub_args) {
+    assert(e->t == let_struct);
+    UNPACK_CCTX(cctx);
+
+    if (laure_scope_find_by_key(scope, e->s, true))
+        RESPOND_ERROR(runtime_err, e, "structure %s is already defined", e->s);
+
+    laure_structure *img = laure_structure_create_header(e);
+    Instance *ins = instance_new(e->s, NULL, img);
+    ins->repr = structure_repr;
+    laure_scope_insert(scope, ins);
+    if (scope->idx != 1 || vpk) {
+        // inplace init
+        return structure_init(img, scope);
     }
     return RESPOND_TRUE;
 }

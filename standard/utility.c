@@ -226,7 +226,7 @@ DECLARE(laure_predicate_format) {
                     false
                 );
                 if (! instance) {
-                    struct ArrayImage *cpy = image_deepcopy(parent_scope_owner, sim);
+                    struct ArrayImage *cpy = image_deepcopy(sim);
                     cpy->i_data = convert_string(group, parent_scope_owner);
                     Instance *new_instance = instance_new(name, NULL, cpy);
                     new_instance->repr = string_instance->repr;

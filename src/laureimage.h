@@ -144,19 +144,33 @@ struct CharImage {
 };
 
 typedef struct {
+    bool is_construct;
+    Instance *first;
+    string name;
+    union {
+        ulong link;
+        laure_expression_t *construct;
+    };
+} laure_structure_element;
+
+typedef struct {
     bool       fully_instantiated;
-    int        len;
-    Instance **data;
-} laure_structure_t;
+    int        count;
+    laure_structure_element *data;
+} laure_structure_data;
 
 typedef struct StructureImage {
     IMAGE_HEAD
     bool is_initted;
     union {
         laure_expression_t        *header;
-        laure_structure_t          structure;
+        laure_structure_data       data;
     };
 } laure_structure;
+
+laure_structure *laure_structure_create_header(laure_expression_t *e);
+qresp structure_init(laure_structure *structure, laure_scope_t *scope);
+laure_structure *structure_new_image(laure_structure *img, laure_scope_t *scope);
 
 typedef struct UnionImage {
     struct InstanceSet *united_set;
@@ -460,7 +474,7 @@ struct PredicateImage *predicate_header_new(string bound_name, laure_typeset *ar
 laure_uuid_image *laure_create_uuid(string bound, uuid_t uu);
 Instance *laure_create_uuid_instance(string name, string bound, string uu_str);
 
-void *image_deepcopy(laure_scope_t *scope, void *img);
+void *image_deepcopy(void *img);
 
 // Modify image
 // * add bodied variation to predicate image
@@ -482,7 +496,6 @@ predfinal *get_pred_final(struct PredicateImage*, struct PredicateImageVariation
 // [2] void*: context to pass into receiver
 gen_resp image_generate(laure_scope_t*, void*, gen_resp (*rec)(void*, void*), void*);
 
-
 // miscellanous
 
 struct ArrayIData convert_string(string unicode_str, laure_scope_t* scope);
@@ -494,6 +507,7 @@ bool int_translator(laure_expression_t*, void*, laure_scope_t*);
 bool char_translator(laure_expression_t*, void*, laure_scope_t*);
 bool array_translator(laure_expression_t*, void*, laure_scope_t*);
 bool atom_translator(laure_expression_t*, void*, laure_scope_t*);
+bool structure_translator(laure_expression_t*, void*, laure_scope_t*);
 
 // translator (a tool to work with macro_string to image conversions)
 
@@ -528,14 +542,17 @@ size_t image_get_size_deep(void *image);
 
 // Create instance
 Instance *instance_new(string name, string doc, void *image);
-Instance *instance_deepcopy(laure_scope_t*, string name, Instance *from_instance);
+Instance *instance_deepcopy(string name, Instance *from_instance);
 Instance *instance_shallow_copy(Instance *from_instance);
 Instance *instance_deepcopy_with_image(laure_scope_t*, string name, Instance *from_instance, void *image);
+Instance *instance_new_copy(string name, Instance *instance, laure_scope_t *scope);
 size_t instance_get_size_deep(Instance *instance);
-string instance_repr(Instance*);
+string instance_repr(Instance *instance, laure_scope_t *scope);
 string instance_get_doc(Instance *ins);
 void instance_lock(Instance *ins);
 void instance_unlock(Instance *ins);
+
+bool laure_safe_update(Instance *ninstance, Instance *oinstance, laure_scope_t *nscope, laure_scope_t *oscope);
 
 // instance set
 struct InstanceSet *instance_set_new();
@@ -578,6 +595,8 @@ string predicate_repr(Instance*);
 string constraint_repr(Instance*);
 string atom_repr(Instance*);
 string uuid_repr(Instance*);
+string structure_repr(Instance*);
+string structure_repr_detailed(Instance*, laure_scope_t*);
 // --
 
 bool image_equals(void*, void*);

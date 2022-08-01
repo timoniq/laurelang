@@ -27,7 +27,7 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
         arr_ins->image = laure_create_array_u(el_ins);
         arr_ins->repr = array_repr;
     } else if (!el_ins->image) {
-        el_ins->image = image_deepcopy(cctx->scope, ((struct ArrayImage*)arr_ins->image)->arr_el->image);
+        el_ins->image = image_deepcopy(((struct ArrayImage*)arr_ins->image)->arr_el->image);
         el_ins->repr = ((struct ArrayImage*)arr_ins->image)->arr_el->repr;
     }
 
@@ -49,14 +49,14 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
 
         } else {
 
-            Instance *el_ins_copy = instance_deepcopy(cctx->scope, el_ins->name, el_ins);
+            Instance *el_ins_copy = instance_deepcopy(el_ins->name, el_ins);
             bool found = false;
 
             uint i = 0;
             array_linked_t *linked = arr_img->i_data.linked;
 
             while (i < arr_img->i_data.length && linked) {
-                void *img_copy = image_deepcopy(cctx->scope, el_ins_copy->image);
+                void *img_copy = image_deepcopy(el_ins_copy->image);
                 Instance *el = linked->data;
 
                 if (image_equals(img_copy, el->image)) {
@@ -91,7 +91,7 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
             bool result = image_equals(arr_img->arr_el->image, el_ins->image);
             return respond(result ? q_true : q_false, 0);
         } else {
-            void *ar_el_img_copy = image_deepcopy(cctx->scope, arr_img->arr_el->image);
+            void *ar_el_img_copy = image_deepcopy(arr_img->arr_el->image);
             bool result = image_equals(ar_el_img_copy, el_ins->image);
             MUST_BE_F(result, {image_free(ar_el_img_copy);});
             Instance *arr_el_new = instance_new(MOCK_NAME, SINGLE_DOCMARK, ar_el_img_copy);
@@ -125,7 +125,7 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
         arr_ins->image = laure_create_array_u(el_ins);
         arr_ins->repr = array_repr;
     } else if (!el_ins->image) {
-        el_ins->image = image_deepcopy(cctx->scope, ((struct ArrayImage*)arr_ins->image)->arr_el->image);
+        el_ins->image = image_deepcopy(((struct ArrayImage*)arr_ins->image)->arr_el->image);
         el_ins->repr = ((struct ArrayImage*)arr_ins->image)->arr_el->repr;
     }
 
@@ -155,7 +155,7 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
         } else if (instantiated(el_ins)) {
 
             bool found = false;
-            void *idx_with_dom = image_deepcopy(cctx->scope, idx_img);
+            void *idx_with_dom = image_deepcopy(idx_img);
             uint idx = 0;
             array_linked_t *linked = arr_img->i_data.linked;
 
@@ -215,8 +215,8 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
         } else {
 
             bool found = false;
-            void *idx_img_copy = image_deepcopy(cctx->scope, idx_img);
-            void *el_img_u = image_deepcopy(cctx->scope, el_img);
+            void *idx_img_copy = image_deepcopy(idx_img);
+            void *el_img_u = image_deepcopy(el_img);
 
             uint idx = 0;
             array_linked_t *linked = arr_img->i_data.linked;
@@ -230,7 +230,7 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
                 }
 
                 Instance *ins = linked->data;
-                void *el_img_copy = image_deepcopy(cctx->scope, el_img_u);
+                void *el_img_copy = image_deepcopy(el_img_u);
                 bool check = image_equals(el_img_copy, ins->image);
                 if (! check) {
                     bigint_free(idx_bi);

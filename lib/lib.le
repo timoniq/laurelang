@@ -1,6 +1,10 @@
 int natural = 1...
 int natural* = 0...
 
+// locks
+!lock natural.
+!lock natural*.
+
 // Read docs at /docs/builtin.md#integer-add
 // ```a + b = c;
 // +(a, b) = c;```

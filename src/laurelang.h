@@ -410,6 +410,7 @@ apply_result_t laure_consult_predicate(
 );
 void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope);
 int laure_load_shared(laure_session_t *session, char *path);
+void laure_initialization(laure_scope_t *scope);
 
 /* =--------=
     Error
@@ -520,5 +521,16 @@ void laure_free(void *ptr);
 void *laure_realloc(void *ptr, size_t size);
 laure_allocator_stats laure_allocator_stats_get();
 void laure_allocator_reset_stats();
+
+#define IMTYPE(imgt, name1, name2) \
+        if (imgt == INTEGER) *(struct IntImage*)name1 = *(struct IntImage*)name2; \
+        else if (imgt == CHAR) *(struct CharImage*)name1 = *(struct CharImage*)name2; \
+        else if (imgt == ARRAY) *(struct ArrayImage*)name1 = *(struct ArrayImage*)name2; \
+        else if (imgt == ATOM) *(struct AtomImage*)name1 = *(struct AtomImage*)name2; \
+        else if (imgt == PREDICATE_FACT || imgt == CONSTRAINT_FACT) *(struct PredicateImage*)name1 = *(struct PredicateImage*)name2; \
+        else if (imgt == STRUCTURE) *(laure_structure*)name1 = *(laure_structure*)name2; \
+        else if (imgt == UNION) *(struct UnionImage*)name1 = *(struct UnionImage*)name2; \
+        else if (imgt == UUID) *(struct UUIDImage*)name1 = *(struct UUIDImage*)name2; \
+        else if (imgt == FORMATTING) *(struct FormattingImage*)name1 = *(struct FormattingImage*)name2;
 
 #endif

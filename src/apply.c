@@ -12,7 +12,6 @@
 #define DOC_BUFFER_LEN 512
 #endif
 
-#define HEADERSZ 60
 #define GENERIC_T "T"
 
 short int LAURE_ASK_IGNORE = 0;
@@ -73,10 +72,9 @@ int laure_load_shared(laure_session_t *session, char *path) {
     if (!lib) {
         print_errhead("failed to load shared CLE extension");
         string error = dlerror();
-        if (strstr(error, "no such file")) {
+        if (strstr(error, "no such file"))
             strcpy(error, "Shared object is undefined");
-        }
-        printf("    %s%s%s: \n        %s\n", BOLD_WHITE, path, NO_COLOR, error);
+        printf("    %s: \n        %s%s%s\n", path, RED_COLOR, error, NO_COLOR);
         ask_for_halt();
         return false;
     }
@@ -500,4 +498,5 @@ void laure_consult_recursive_with_receiver(laure_session_t *session, string path
 
 void laure_consult_recursive(laure_session_t *session, string path, int *failed) {
     laure_consult_recursive_with_receiver(session, path, failed, laure_apply);
+    laure_initialization(session->scope);
 }

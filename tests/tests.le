@@ -13,5 +13,6 @@
     "generic.le",
     "abstract.le",
     "formatting.le",
-    "bagof.le"
+    "bagof.le",
+    "structure.le"
 ).

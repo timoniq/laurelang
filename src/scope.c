@@ -59,7 +59,7 @@ linked_scope_t *laure_scope_find(
         if (! tmp_ptr) return NULL;
 
         if (copy) {
-            Instance *cp = instance_deepcopy(scope, tmp_ptr->ptr->name, tmp_ptr->ptr);
+            Instance *cp = instance_deepcopy(tmp_ptr->ptr->name, tmp_ptr->ptr);
             // copying in current pos to backtrack
             // further.
             return laure_scope_insert_l(scope, cp, tmp_ptr->link);
@@ -138,7 +138,7 @@ Instance *laure_scope_change_link_by_link(laure_scope_t *scope, ulong link, ulon
 void add_grab(ulong link, laure_scope_t *from, laure_scope_t *to) {
     Instance *from_ins = laure_scope_find_by_link(from, link, true);
     if (! from_ins) return;
-    Instance *to_ins = instance_deepcopy(to, from_ins->name, from_ins);
+    Instance *to_ins = instance_deepcopy(from_ins->name, from_ins);
     laure_scope_insert_l(to, to_ins, link);
 }
 
@@ -351,7 +351,7 @@ laure_scope_t *laure_scope_create_copy(control_ctx *cctx, laure_scope_t *scope) 
     for (uint idx = 0; idx < scope->count; idx++) {
         nscope->cells[idx].idx = idx;
         nscope->cells[idx].link = scope->cells[idx].link;
-        nscope->cells[idx].ptr = instance_deepcopy(scope, scope->cells[idx].ptr->name, scope->cells[idx].ptr);
+        nscope->cells[idx].ptr = instance_deepcopy(scope->cells[idx].ptr->name, scope->cells[idx].ptr);
     }
     return nscope;
 }

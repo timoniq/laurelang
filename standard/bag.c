@@ -16,7 +16,7 @@ DECLARE(laure_predicate_bag) {
 
         while (linked && length) {
             Instance *i = linked->data;
-            void *copy = image_deepcopy(cctx->scope, from->image);
+            void *copy = image_deepcopy(from->image);
             bool r = image_equals(copy, i->image);
             
             if (! r) {
@@ -81,7 +81,7 @@ DECLARE(laure_predicate_bag) {
 
         if (! pocket->first) {
             array_linked_t *first = laure_alloc(sizeof(array_linked_t));
-            first->data = instance_deepcopy(cctx->scope, MOCK_NAME, from);
+            first->data = instance_deepcopy(MOCK_NAME, from);
             first->next = NULL;
 
             pocket->first = first;
@@ -89,7 +89,7 @@ DECLARE(laure_predicate_bag) {
             pocket->size = 1;
         } else {
             array_linked_t *new = laure_alloc(sizeof(array_linked_t));
-            new->data = instance_deepcopy(cctx->scope, MOCK_NAME, from);
+            new->data = instance_deepcopy(MOCK_NAME, from);
             new->next = NULL;
             pocket->last->next = new;
             pocket->last = new;
