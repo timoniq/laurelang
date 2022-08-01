@@ -15,7 +15,7 @@ typedef enum {
     let_name,
     let_custom,
     let_constraint,
-    let_struct_def,
+    let_complex_data,
     let_struct,
     let_array,
     let_unify,
@@ -37,7 +37,8 @@ typedef enum laure_command_type {
     command_setflag,
     command_use,
     command_useso,
-    command_error
+    command_error,
+    command_lock_unlock
 } laure_command_type;
 
 typedef enum laure_auto_type {

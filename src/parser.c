@@ -27,7 +27,7 @@ string ELLIPSIS = NULL;
 #define GENERIC_OPEN '<'
 #define GENERIC_CLOSE '>'
 
-char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Structure Definition", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Atom", "Command", "Generic DT/Char", "Atom Sign", "Auto", "Nested", "[Nope]"};
+char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Complex Data", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Atom", "Command", "Generic DT/Char", "Atom Sign", "Auto", "Nested", "[Nope]"};
 
 laure_expression_t *laure_expression_create(
     laure_expression_type t, 
@@ -611,7 +611,23 @@ laure_parse_result laure_parse(string query) {
         query = strdup(query);
         query++;
         lastc(query) = 0;
-        return laure_parse(query);
+        laure_parse_many_result lpmr = laure_parse_many(query, ',', NULL);
+        if (! lpmr.is_ok) {
+            laure_parse_result lpr;
+            lpr.is_ok = false;
+            lpr.err = lpmr.err;
+            return lpr;
+        } else if (lpmr.exps->next == NULL) {
+            laure_parse_result lpr;
+            lpr.is_ok = true;
+            lpr.exp = lpmr.exps->expression;
+            return lpr;
+        } else {
+            laure_parse_result lpr;
+            lpr.is_ok = true;
+            lpr.exp = laure_expression_create(let_complex_data, NULL, false, query, 0, laure_bodyargs_create(lpmr.exps, laure_expression_get_count(lpmr.exps), false), query);
+            return lpr;
+        }
     }
 
     if (str_eq(query, "$")) {
@@ -708,6 +724,24 @@ laure_parse_result laure_parse(string query) {
                     );
                     return lpr;
                 }
+
+                if (str_starts(setting, "lock ") || str_starts(setting, "unlock ")) {
+                    bool lock = str_starts(setting, "lock ");
+                    string name = setting + (lock ? 5 : 7);
+                    laure_parse_result lpr;
+                    lpr.is_ok = true;
+                    lpr.exp = laure_expression_create(
+                        let_command,
+                        NULL,
+                        lock,
+                        name,
+                        command_lock_unlock,
+                        NULL,
+                        query
+                    );
+                    return lpr;
+                }
+
                 string n = read_til(setting, '=');
                 string v = NULL;
                 if (n) {
@@ -911,7 +945,36 @@ laure_parse_result laure_parse(string query) {
         }
         case '$': {
             // structure
-            error_result("not implemented");
+            string name = read_til(query, '{');
+            if (! name) {
+                error_format("invalid format of structure");
+            }
+            string body_s = read_til(query + strlen(name) + 1, '}');
+            if (! body_s) {
+                error_format("body is not set in structure");
+            } 
+            name = string_clean(name);
+            if (! is_super_fine_name_for_var(name))
+                error_format("`%s` is a bad name for structure", name);
+            
+            laure_parse_many_result body_r = laure_parse_many(body_s, ';', NULL);
+            if (! body_r.is_ok)
+                error_format("cannot parse structure body ( %s )", body_r.err);
+
+            laure_expression_set *body = body_r.exps;
+            laure_expression_set *ptr = body;
+            size_t l = 0;
+            while (ptr) {
+                if (ptr->expression->t != let_decl) {
+                    error_format("invalid element in structure body (all should be declarations): %s", ptr->expression->fullstring);
+                }
+                l++;
+                ptr = ptr->next;
+            }
+            laure_parse_result lpr;
+            lpr.is_ok = true;
+            lpr.exp = laure_expression_create(let_struct, NULL, false, name, false, laure_bodyargs_create(body, l, false), query - 1);
+            return lpr;
         }
         case '[': {
             if (lastc(query) != ']') goto gotodefault;
@@ -1655,6 +1718,18 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
             printf("]\n");
             break;
         }
+
+        case let_complex_data: {
+            printindent(indent);
+            printf("Complex Data [\n");
+            laure_expression_t *ptr = NULL;
+            EXPSET_ITER(exp->ba->set, ptr, {
+                laure_expression_show(ptr, indent + 2);
+            });
+            printindent(indent);
+            printf("]\n");
+            break;
+        }
     
         default: {
             printindent(indent);
@@ -1680,6 +1755,7 @@ laure_expression_set *laure_get_all_vars_in(laure_expression_t *exp, laure_expre
     case let_choice_2:
     case let_assert:
     case let_set:
+    case let_complex_data:
     case let_pred_call: {
         laure_expression_t *e = NULL;
         EXPSET_ITER(exp->ba->set, e, {
@@ -1825,7 +1901,16 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
 
             for (int i = 0; i < exp->ba->body_len; i++) {
                 laure_expression_t *arg_exp = laure_expression_set_get_by_idx(exp->ba->set, i);
-                if (arg_exp->t == let_var || arg_exp->t == let_custom || arg_exp->t == let_array || arg_exp->t == let_atom || arg_exp->t == let_singlq) {
+                // expressions with won't be carried out
+                // (data-like expressions)
+                if (
+                    arg_exp->t == let_var 
+                    || arg_exp->t == let_custom 
+                    || arg_exp->t == let_array 
+                    || arg_exp->t == let_atom 
+                    || arg_exp->t == let_singlq
+                    || arg_exp->t == let_complex_data
+                ) {
                     args = laure_expression_set_link(args, arg_exp);
                 } else {
                     char buff[16];
