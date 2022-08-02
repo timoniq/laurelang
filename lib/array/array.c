@@ -41,7 +41,7 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
 
             while (i < arr_img->i_data.length && linked) {
                 Instance *el = linked->data;
-                MUST_BE(image_equals(el_ins->image, el->image));
+                MUST_BE(image_equals(el_ins->image, el->image, cctx->scope));
                 linked = linked->next;
                 i++;
             }
@@ -59,7 +59,7 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
                 void *img_copy = image_deepcopy(el_ins_copy->image);
                 Instance *el = linked->data;
 
-                if (image_equals(img_copy, el->image)) {
+                if (image_equals(img_copy, el->image, cctx->scope)) {
 
                     el_ins->image = img_copy;
 
@@ -88,11 +88,11 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
     } else if (instantiated(el_ins)) {
         // every array element is el_ins
         if (! arr_img->arr_el->locked) {
-            bool result = image_equals(arr_img->arr_el->image, el_ins->image);
+            bool result = image_equals(arr_img->arr_el->image, el_ins->image, cctx->scope);
             return respond(result ? q_true : q_false, 0);
         } else {
             void *ar_el_img_copy = image_deepcopy(arr_img->arr_el->image);
-            bool result = image_equals(ar_el_img_copy, el_ins->image);
+            bool result = image_equals(ar_el_img_copy, el_ins->image, cctx->scope);
             MUST_BE_F(result, {image_free(ar_el_img_copy);});
             Instance *arr_el_new = instance_new(MOCK_NAME, SINGLE_DOCMARK, ar_el_img_copy);
             arr_el_new->repr = arr_img->arr_el->repr;
@@ -149,7 +149,7 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
                 return RESPOND_FALSE;
             
             Instance *ins = linked->data;
-            bool result = image_equals(el_ins->image, ins->image);
+            bool result = image_equals(el_ins->image, ins->image, cctx->scope);
             return respond(result ? q_true : q_false, 0);
 
         } else if (instantiated(el_ins)) {
@@ -169,7 +169,7 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
 
                 Instance *ins = linked->data;
 
-                if (image_equals(ins->image, el_ins->image)) {
+                if (image_equals(ins->image, el_ins->image, cctx->scope)) {
 
                     idx_img->state = I;
                     idx_img->i_data = idx_bi;
@@ -231,7 +231,7 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
 
                 Instance *ins = linked->data;
                 void *el_img_copy = image_deepcopy(el_img_u);
-                bool check = image_equals(el_img_copy, ins->image);
+                bool check = image_equals(el_img_copy, ins->image, cctx->scope);
                 if (! check) {
                     bigint_free(idx_bi);
                     continue;
@@ -305,19 +305,19 @@ qresp array_predicate_length(preddata *pd, control_ctx *cctx) {
         if (arr_img->length_lid) {
             Instance *llen = laure_scope_find_by_link(cctx->scope, arr_img->length_lid, true);
             if (llen && ! llen->locked) {
-                if (! image_equals(llen->image, real_len_img)) {
+                if (! image_equals(llen->image, real_len_img, cctx->scope)) {
                     image_free(real_len_img);
                     return respond(q_false, 0);
                 }
             }
         }
-        bool result = image_equals(len_img, real_len_img);
+        bool result = image_equals(len_img, real_len_img, cctx->scope);
         return respond(result ? q_true : q_false, 0);
     } else if (instantiated(len_ins)) {
         if (arr_img->length_lid) {
             Instance *llen = laure_scope_find_by_link(cctx->scope, arr_img->length_lid, true);
             if (llen && ! llen->locked) {
-                if (! image_equals(llen->image, len_img)) {
+                if (! image_equals(llen->image, len_img, cctx->scope)) {
                     return respond(q_false, 0);
                 }
             }
@@ -373,7 +373,7 @@ qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
             Instance *ins = linked->data;
             Instance *ins2 = check_linked->data;
 
-            MUST_BE(image_equals(ins->image, ins2->image));
+            MUST_BE(image_equals(ins->image, ins2->image, cctx->scope));
 
             length--;
             linked = linked->next;
@@ -439,7 +439,7 @@ qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
         // check that array offirst n elements of `res` equal to `to` array
         uint orig_res_len = LENGTH(res->image);
         LENGTH(res->image) = LENGTH(to->image);
-        MUST_BE(image_equals(res->image, to->image));
+        MUST_BE(image_equals(res->image, to->image, cctx->scope));
         // link `with` array to linked at n's position
         LENGTH(res->image) = orig_res_len;
         array_linked_t *linked = LINKED(res->image);
@@ -461,7 +461,7 @@ qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
 
         LINKED(res->image) = linked;
         LENGTH(res->image) = LENGTH(with->image);
-        MUST_BE_F(image_equals(res->image, with->image), {LINKED(res->image) = orig_linked; LENGTH(res->image) = orig_length;});
+        MUST_BE_F(image_equals(res->image, with->image, cctx->scope), {LINKED(res->image) = orig_linked; LENGTH(res->image) = orig_length;});
         LINKED(res->image) = orig_linked;
         LENGTH(res->image) = orig_length;
 

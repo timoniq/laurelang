@@ -8,12 +8,8 @@ struct Translator *INT_TRANSLATOR        = NULL,
                   *ATOM_TRANSLATOR       = NULL,
                   *PREDICATE_AUTO_TRANSLATOR = NULL,
                   *FORMATTING_TRANSLATOR = NULL,
-                  *STRUCTURE_TRANSLATOR  = NULL;
-
-
-// instance with marker is copied within
-// structure deepcopy
-#define LINKED_TO_STRUCTURE 0x2
+                  *STRUCTURE_TRANSLATOR  = NULL,
+                  *LINKED_TRANSLATOR     = NULL;
 
 string MOCK_NAME;
 qresp  MOCK_QRESP;
@@ -122,7 +118,7 @@ struct IntImage *laure_create_integer_u(Domain *dom) {
     return image;
 }
 
-bool int_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
+bool int_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, ulong link) {
     if (exp->t != let_custom) return false;
     string raw = exp->s;
     struct IntImage *img = (struct IntImage*)img_;
@@ -360,7 +356,7 @@ struct ArrayImage *laure_create_array_u(Instance *el_t) {
     return img;
 }
 
-bool array_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
+bool array_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, ulong link) {
     struct ArrayImage *array = (struct ArrayImage*)img_;
     if (exp->t != let_array) return false;
 
@@ -371,7 +367,7 @@ bool array_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope)
             Instance *llen = laure_scope_find_by_link(scope, array->length_lid, true);
             if (llen && ! llen->locked) {
                 struct IntImage *limg = laure_create_integer_i((int)length);
-                if (! image_equals(llen->image, limg)) {
+                if (! image_equals(llen->image, limg, scope)) {
                     image_free(limg);
                     return false;
                 }
@@ -400,7 +396,7 @@ bool array_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope)
             } else {
                 img = image_deepcopy(array->arr_el->image);
 
-                bool result = read_head(array->arr_el->image).translator->invoke(el_exp, img, scope);
+                bool result = read_head(array->arr_el->image).translator->invoke(el_exp, img, scope, 0);
                 if (! result) {
                     return false;
                 }
@@ -436,7 +432,8 @@ bool array_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope)
                 bool res = read_head(el->image).translator->invoke(
                     expr,
                     el->image,
-                    scope
+                    scope,
+                    0
                 );
                 if (! res) return false;
             }
@@ -488,7 +485,7 @@ string array_repr(Instance *ins) {
     return strdup( buff );
 }
 
-bool array_eq(struct ArrayImage *img1_t, struct ArrayImage *img2_t) {
+bool array_eq(struct ArrayImage *img1_t, struct ArrayImage *img2_t, laure_scope_t *scope) {
     if (img1_t->state == I && img2_t->state == I) {
         if (img1_t->i_data.length != img2_t->i_data.length) return false;
 
@@ -496,7 +493,7 @@ bool array_eq(struct ArrayImage *img1_t, struct ArrayImage *img2_t) {
         array_linked_t *linked1 = img1_t->i_data.linked;
         array_linked_t *linked2 = img2_t->i_data.linked;
         while (linked1 && linked2 && idx < img1_t->i_data.length) {
-            if (! image_equals(linked1->data->image, linked2->data->image))
+            if (! image_equals(linked1->data->image, linked2->data->image, scope))
                 return false;
             linked1 = linked1->next;
             linked2 = linked2->next;
@@ -678,7 +675,7 @@ gen_resp array_generate(
                 ref_element refel_opt = get_ref_element(im, i);
                 if (refel_opt.link_id != 0) {
                     Instance *refins = laure_scope_find_by_link(scope, refel_opt.link_id, false);
-                    bool result = image_equals(refins->image, ins->image);
+                    bool result = image_equals(refins->image, ins->image, scope);
                     if (! result)
                         return form_gen_resp(false, respond(q_false, NULL));
                 } else {
@@ -768,7 +765,7 @@ int laure_convert_esc_ch(int c, char *write) {
     }
 }
 
-bool char_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
+bool char_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, ulong link) {
     if (exp->t != let_custom && exp->t != let_singlq) return false;
 
     struct CharImage *img = (struct CharImage*)img_;
@@ -1060,8 +1057,8 @@ string string_repr(Instance *ins) {
     }
 }
 
-bool string_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
-    if (exp->t == let_array) return array_translator(exp, img_, scope);
+bool string_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, ulong link) {
+    if (exp->t == let_array) return array_translator(exp, img_, scope, link);
     if (exp->t != let_custom) return false;
     struct ArrayImage *strarr = (struct ArrayImage*)img_;
     if (! str_starts(exp->s, "\"") && lastc(exp->s) == '\"') return false;
@@ -1128,7 +1125,7 @@ void write_atom_name(string r, char *write_to) {
     write_to[len] = 0;
 } 
 
-bool atom_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope) {
+bool atom_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, ulong link) {
     struct AtomImage *atom = (struct AtomImage*)img_;
 
     if (exp->t == let_custom || (exp->t == let_atom && (! exp->flag))) {
@@ -1382,7 +1379,7 @@ laure_uuid_image *laure_create_uuid(string bound, uuid_t uu) {
 
 /* auto */
 
-bool predicate_auto_translator(laure_expression_t *expr, struct PredicateImage *img, laure_scope_t *scope) {
+bool predicate_auto_translator(laure_expression_t *expr, struct PredicateImage *img, laure_scope_t *scope, ulong link) {
     string uu_str = expr->s;
     uu_str = rough_strip_string(uu_str);
     uuid_t uu;
@@ -1504,7 +1501,7 @@ struct FormattingPart *laure_parse_formatting(string fmt) {
 }
 
 //   translator
-bool formatting_translator(laure_expression_t *expr, struct FormattingImage *im, laure_scope_t *scope) {
+bool formatting_translator(laure_expression_t *expr, struct FormattingImage *im, laure_scope_t *scope, ulong link) {
     if (! expr->s) return false;
     else if (im->first) return false;
     rough_strip_string(expr->s);
@@ -1602,7 +1599,7 @@ laure_structure *laure_structure_create_header(laure_expression_t *e) {
     return img;
 }
 
-bool structure_translator(laure_expression_t *expr, void *img_, laure_scope_t *scope) {
+bool structure_translator(laure_expression_t *expr, void *img_, laure_scope_t *scope, ulong link) {
     laure_structure *img = (laure_structure*)img_;
     assert(img->is_initted);
     if (img->data.count == 1) {
@@ -1610,10 +1607,8 @@ bool structure_translator(laure_expression_t *expr, void *img_, laure_scope_t *s
         if (element.is_construct) {
             printf("not impl\n");
         } else {
-            assert(false);
-            Instance *instance = laure_scope_find_by_link(scope, element.link, true);
-            
-            bool result = read_head(instance->image).translator->invoke(expr, instance->image, scope);
+            Instance *instance = element.instance;
+            bool result = read_head(instance->image).translator->invoke(expr, instance->image, scope, 0);
             return result;
         }
     } else {
@@ -1631,65 +1626,38 @@ bool structure_translator(laure_expression_t *expr, void *img_, laure_scope_t *s
             if (element.is_construct) {
                 printf("not impl %zu\n", i);
             } else {
-                Instance *instance = laure_scope_find_by_link(scope, element.link, true);
-
-                if (! instance) {
-                    printf("linked undef\n");
-                    instance = element.first;
-                }
+                Instance *instance = element.instance;
 
                 if (ptr->t == let_var) {
                     if (str_eq(ptr->s, "_"))
                         continue;
 
-                    assert(instance);
-                    ulong var_link = 0;
-                    Instance *var = laure_scope_find_by_key_l(scope, ptr->s, &var_link, true);
-
+                    Instance *var = laure_scope_find_by_key(scope, ptr->s, true);
                     if (! var) {
-                        void *cpy = image_deepcopy(instance->image);
-                        var = instance_new(ptr->s, NULL, cpy);
-                        var->repr = instance->repr;
-                        ulong l = laure_scope_generate_link();
-                        assert(l != 0);
-                        laure_scope_insert_l(scope, var, l);
-                        element.link = l;
+                        // create linked instance
+                        Instance *linstance = linked_create_instance_structure_field(ptr->s, link, i);
+                        laure_scope_insert(scope, linstance);
+                        var = instance;
                     } else {
-                        
                         if (var->locked) {
                             void *cpy = image_deepcopy(var->image);
-                            bool result = image_equals(cpy, instance->image);
+                            bool result = image_equals(cpy, instance->image, scope);
                             image_free(cpy);
                             if (! result) 
                                 return false;
                         } else {
-                            void *cpy = image_deepcopy(instance->image);
-
-                            bool result = image_equals(var->image, cpy);
+                            bool result = image_equals(var->image, instance->image, scope);
                             if (! result)
                                 return false;
-                            assert(var_link != 0);
-                            element.link = var_link;
                         }
                     }
                     if (! instantiated(var)) fully_inst = false;
                 } else {
-                    assert(instance);
-                    string uname = laure_scope_generate_unique_name();
-                    void *cpy = image_deepcopy(instance->image);
 
-                    bool result = read_head(cpy).translator->invoke(ptr, cpy, scope);
+                    bool result = read_head(instance->image).translator->invoke(ptr, instance->image, scope, link);
                     if (! result) {
-                        image_free(cpy);
                         return false;
                     }
-
-                    Instance *field_unique = instance_new(uname, NULL, cpy);
-                    field_unique->repr = instance->repr;
-
-                    ulong l = laure_scope_generate_link();
-                    laure_scope_insert_l(scope, field_unique, l);
-                    element.link = l;
 
                     if (! instantiated(instance)) fully_inst = false;
                 }
@@ -1727,17 +1695,13 @@ qresp structure_init(laure_structure *structure, laure_scope_t *scope) {
 
         switch (l->t) {
             case let_var: {
-                ulong link;
-                Instance *instance = laure_scope_find_by_key_l(scope, l->s, &link, true);
+                Instance *instance = laure_scope_find_by_key(scope, l->s, true);
                 if (! instance) {
                     RESPOND_ERROR(undefined_err, ptr, "type %s in structure declaration is undefined", l->s);
                 }
 
-                assert(link != 0);
-
                 element.is_construct = false;
-                element.link = link;
-                element.first = instance_deepcopy(l->s, instance);
+                element.instance = instance_deepcopy(l->s, instance);
 
                 if (! instantiated(instance)) {
                     all_instantiated = false;
@@ -1747,7 +1711,6 @@ qresp structure_init(laure_structure *structure, laure_scope_t *scope) {
             case let_pred_call: {
                 element.is_construct = true;
                 element.construct = l;
-                element.first = NULL;
                 break;
             }
             default: {
@@ -1765,10 +1728,6 @@ qresp structure_init(laure_structure *structure, laure_scope_t *scope) {
 }
 
 string structure_repr(Instance *instance) {
-    return structure_repr_detailed(instance, NULL);
-}
-
-string structure_repr_detailed(Instance *instance, laure_scope_t *scope) {
     laure_structure *img = (laure_structure*) instance->image;
     assert(img);
     if (! img->is_initted) {
@@ -1797,21 +1756,9 @@ string structure_repr_detailed(Instance *instance, laure_scope_t *scope) {
                 });
                 strcat(args, ")");
             } else {
-                if (scope) {
-                    Instance *instance = laure_scope_find_by_link(scope, element.link, true);
-                    assert(instance);
-                    string r;
-                    if (read_head(instance->image).t == STRUCTURE)
-                        r = structure_repr_detailed(instance, scope);
-                    else
-                        r = instance->repr(instance);
-                    strcat(args, r);
-                    free(r);
-                } else {
-                    char r[16];
-                    snprintf(r, 16, "link(%lu)", element.link);
-                    strcat(args, r);
-                }
+                string r = element.instance->repr(element.instance);
+                strcat(args, r);
+                free(r);
             }
         }
         strcat(args, ")");
@@ -1839,30 +1786,10 @@ laure_structure *structure_deepcopy(laure_structure *img) {
         structure->data.data = laure_alloc(sizeof(laure_structure_element) * img->data.count);
         for (size_t i = 0; i < img->data.count; i++) {
             laure_structure_element element = img->data.data[i];
+            if (! element.is_construct)
+                element.instance = instance_deepcopy(element.instance->name, element.instance);
             structure->data.data[i] = element;
         }
-    }
-    return structure;
-}
-
-laure_structure *structure_new_image(laure_structure *img, laure_scope_t *scope) {
-    assert(img->is_initted);
-    laure_structure *structure = laure_alloc(sizeof(laure_structure));
-    *structure = *img;
-    structure->data.data = laure_alloc(sizeof(laure_structure_element) * img->data.count);
-    for (size_t i = 0; i < img->data.count; i++) {
-        laure_structure_element element = img->data.data[i];
-        if (! element.is_construct) {
-            Instance *instance = laure_scope_find_by_link(scope, element.link, true);
-            assert(instance);
-            string uname = laure_scope_generate_unique_name();
-            Instance *copy = instance_deepcopy(uname, instance);
-            ulong link = laure_scope_generate_link();
-            laure_scope_insert_l(scope, copy, link);
-            element.link = link;
-            element.first = instance;
-        }
-        structure->data.data[i] = element;
     }
     return structure;
 }
@@ -1882,10 +1809,14 @@ bool structure_eq(laure_structure* img1, laure_structure* img2) {
             printf("not impl 3\n");
             return false;
         } else {
-
-            // bool result = image_equals(img1->data.data[i].instance->image, img2->data.data[i].instance->image);
-            // if (! result) 
-            //    return false;
+            
+            bool result = image_equals(
+                img1->data.data[i].instance->image, 
+                img2->data.data[i].instance->image, 
+                NULL
+            );
+            if (! result)
+                return false;
         }
     }
     return true;
@@ -1915,8 +1846,7 @@ gen_resp structure_generate(laure_scope_t *scope, laure_structure *img, REC_TYPE
         if (img->data.data[i].is_construct) {
 
         } else {
-            ulong l = img->data.data[i].link;
-            Instance *instance = laure_scope_find_by_link(scope, l, true);
+            Instance *instance = img->data.data[i].instance;
             if (! instance)
                 return form_gen_resp(false, respond(q_error, NULL));
             if (! instantiated(instance)) {
@@ -1931,6 +1861,142 @@ gen_resp structure_generate(laure_scope_t *scope, laure_structure *img, REC_TYPE
         }
     }
     return rec(img, external_ctx);
+}
+
+/* Working with linked */
+
+bool linked_translator(laure_expression_t *expr, laure_linked_image *img, laure_scope_t *scope, ulong link) {
+    switch (img->linked_type) {
+        case LINKED_STRUCTURE_FIELD: {
+            Instance *instance = laure_scope_find_by_link(scope, img->link, true);
+            assert(instance);
+            void *field = ((laure_structure*)instance->image)->data.data[img->idx].instance->image;
+            return read_head(field).translator->invoke(expr, field, scope, 0);
+        }
+    }
+    return false;
+}
+
+bool linked_eq(laure_linked_image* linked, void* img, laure_scope_t *scope) {
+    void *image_deref = NULL;
+
+    Instance *ins1 = laure_scope_find_by_link(scope, linked->link, true);
+    assert(ins1);
+    switch (linked->linked_type) {
+        case LINKED_STRUCTURE_FIELD: {
+            image_deref = ((laure_structure*)ins1->image)->data.data[linked->idx].instance->image;
+            break;
+        }
+    }
+    assert(image_deref);
+    return image_equals(image_deref, img, scope);
+}
+
+string linked_repr_unwrap(Instance *instance, laure_scope_t *scope) {
+    laure_linked_image *linked = (laure_linked_image*)instance->image;
+    if (scope) {
+        Instance *instance = laure_scope_find_by_link(scope, linked->link, true);
+        Instance *deref = NULL;
+        assert(instance);
+        switch (linked->linked_type) {
+            case LINKED_STRUCTURE_FIELD: {
+                deref = ((laure_structure*)instance->image)->data.data[linked->idx].instance;
+                break;
+            }
+        }
+        assert(deref);
+        return instance_repr(deref, scope);
+    } else {
+        char buff[128] = {0};
+        switch (linked->linked_type) {
+            case LINKED_STRUCTURE_FIELD:{
+                snprintf(buff, 128, "(link(%lu)[%zu])", linked->link, linked->idx);
+                break;
+            }   
+        }
+        return strdup(buff);
+    }
+}
+
+string linked_repr(Instance *instance) {
+    return linked_repr_unwrap(instance, NULL);
+}
+
+laure_linked_image *linked_deepcopy(laure_linked_image *im) {
+    laure_linked_image *n = laure_alloc(sizeof(laure_linked_image));
+    *n = *im;
+    return n;
+}
+
+Instance *linked_deepcopy_deref(string name, laure_linked_image *im, laure_scope_t *scope) {
+    switch (im->linked_type) {
+        case LINKED_STRUCTURE_FIELD: {
+            Instance *instance = laure_scope_find_by_link(scope, im->link, true);
+            assert(instance);
+            void *nim = image_deepcopy(((laure_structure*)instance->image)->data.data[im->idx].instance->image);
+            Instance *nins = instance_new(name, NULL, nim);
+            nins->repr = ((laure_structure*)instance->image)->data.data[im->idx].instance->repr;
+            return nins;
+        }
+    }
+    return NULL;
+}
+
+void linked_free(laure_linked_image *im) {
+    laure_free(im);
+}
+
+struct linkedgenctx {
+    laure_linked_image *linked;
+    REC_TYPE(rec);
+    void *external_ctx;
+    union {
+        laure_structure *structure;
+    };
+};
+
+gen_resp linked_generate_rec(void *im, struct linkedgenctx *ctx) {
+    switch (ctx->linked->linked_type) {
+        case LINKED_STRUCTURE_FIELD: {
+            Instance *field = ctx->structure->data.data[ctx->linked->idx].instance;
+            void *original = field->image;
+            IMTYPE(read_head(im).t, field->image, im);
+            gen_resp gr = ctx->rec(ctx->linked, ctx->external_ctx);
+            IMTYPE(read_head(im).t, field->image, original);
+            return gr;
+        }
+    }
+}
+
+gen_resp linked_generate(laure_scope_t *scope, laure_linked_image *img, REC_TYPE(rec), void *external_ctx) {
+    Instance *instance = laure_scope_find_by_link(scope, img->link, true);
+    assert(instance);
+    void *deref = NULL;
+    struct linkedgenctx gctx[1];
+    gctx->linked = img;
+    gctx->external_ctx = external_ctx;
+    gctx->rec = rec;
+    switch (img->linked_type) {
+        case LINKED_STRUCTURE_FIELD: {
+            deref = ((laure_structure*)instance->image)->data.data[img->idx].instance->image;
+            gctx->structure = instance->image;
+            break;
+        }
+    }
+    assert(deref);
+    return image_generate(scope, deref, linked_generate_rec, gctx);
+}
+
+Instance *linked_create_instance_structure_field(string name, ulong structure_link, size_t i) {
+    laure_linked_image *linked = laure_alloc(sizeof(laure_linked_image));
+    linked->t = LINKED;
+    linked->linked_type = LINKED_STRUCTURE_FIELD;
+    linked->link = structure_link;
+    linked->idx = i;
+    linked->translator = LINKED_TRANSLATOR;
+    Instance *instance = instance_new(name, NULL, linked);
+    instance->repr = linked_repr;
+    return instance;
 }
 
 /*
@@ -1948,6 +2014,7 @@ void laure_set_translators() {
     FORMATTING_TRANSLATOR = new_translator('f', formatting_translator);
     PREDICATE_AUTO_TRANSLATOR = new_translator('p', predicate_auto_translator);
     STRUCTURE_TRANSLATOR = new_translator('$', structure_translator);
+    LINKED_TRANSLATOR = new_translator('l', linked_translator);
     MOCK_NAME = strdup( "$mock_name" );
     MOCK_QRESP.state = q_true;
     MOCK_QRESP.payload = 0;
@@ -1957,9 +2024,16 @@ void laure_set_translators() {
 
 // Image eq
 
-bool image_equals(void* img1, void* img2) {
+bool image_equals(void* img1, void* img2, laure_scope_t *scope) {
     laure_image_head head1 = read_head(img1);
     laure_image_head head2 = read_head(img2);
+
+    if (head1.t == LINKED || head2.t == LINKED) {
+        if (head1.t == LINKED)
+            return linked_eq((laure_linked_image*)img1, img2, scope);
+        else
+            return linked_eq((laure_linked_image*)img2, img1, scope);
+    }
     
     if (head1.t != head2.t) return false;
 
@@ -1971,7 +2045,7 @@ bool image_equals(void* img1, void* img2) {
             return char_eq((struct CharImage*) img1, (struct CharImage*) img2);
         }
         case ARRAY: {
-            return array_eq((struct ArrayImage*) img1, (struct ArrayImage*) img2);
+            return array_eq((struct ArrayImage*) img1, (struct ArrayImage*) img2, scope);
         }
         case ATOM: {
             return atom_eq((struct AtomImage*) img1, (struct AtomImage*) img2);
@@ -2017,6 +2091,9 @@ gen_resp image_generate(laure_scope_t *scope, void *img, REC_TYPE(rec), void *ex
         case STRUCTURE: {
             return structure_generate(scope, (laure_structure*) img, rec, external_ctx);
         }
+        case LINKED: {
+            return linked_generate(scope, (laure_linked_image*) img, rec, external_ctx);
+        }
         default: {
             char error[128];
             snprintf(error, 128, "no instantiation implemented for %s", IMG_NAMES[head.t]);
@@ -2059,6 +2136,9 @@ void *image_deepcopy(void *img) {
         case STRUCTURE: {
             return structure_deepcopy((laure_structure*)img);
         }
+        case LINKED: {
+            return linked_deepcopy((laure_linked_image*)img);
+        }
         default:
             break;
     }
@@ -2092,6 +2172,9 @@ bool instantiated(Instance *ins) {
             return ((struct CharImage*)ins->image)->state == I;
         case STRUCTURE:
             return ((laure_structure*)ins->image)->is_initted && ((laure_structure*)ins->image)->data.fully_instantiated;
+        case LINKED: {
+            return true;
+        }
         default: return true;
     }
 }
@@ -2116,6 +2199,10 @@ void image_free(void *image) {
         }
         case UUID: {
             uuid_free((laure_uuid_image*)image);
+            break;
+        }
+        case LINKED: {
+            linked_free((laure_linked_image*)image);
             break;
         }
         default: break;
@@ -2147,7 +2234,7 @@ qresp respond(qresp_state s, string p) {
     return qr;
 };
 
-struct Translator *new_translator(char identificator, bool (*invoke)(string, void*, laure_scope_t*)) {
+struct Translator *new_translator(char identificator, bool (*invoke)(string, void*, laure_scope_t*, ulong)) {
     struct Translator *tr = laure_alloc(sizeof(struct Translator));
     tr->invoke = invoke;
     tr->identificator = identificator;
@@ -2651,38 +2738,13 @@ bool laure_safe_update(
     laure_scope_t *nscope,
     laure_scope_t *oscope
 ) {
-    if (read_head(ninstance->image).t == STRUCTURE) {
-        // complex data links must go with
-        // structure instance in scope
-        laure_structure *nstructure = (laure_structure*)ninstance->image;
-        laure_structure *ostructure = (laure_structure*)oinstance->image;
-        assert(nstructure->is_initted);
-        assert(ostructure->is_initted);
-        for (size_t i = 0; i < ostructure->data.count; i++) {
-            if (! ostructure->data.data[i].is_construct) {
-                ulong link = ostructure->data.data[i].link;
-                assert(link != 0);
-                Instance *possible_instance = laure_scope_find_by_link(nscope, link, true);
-                Instance *linstance = laure_scope_find_by_link(oscope, link, true);
-                if (! possible_instance) {
-                    Instance *copy = instance_deepcopy(linstance->name, linstance);
-                    laure_scope_insert_l(nscope, copy, link);
-                } else {
-                    image_equals(possible_instance->image, linstance->image);
-                }
-                nstructure->data.data[i].link = link;
-            }
-        }
-        return true;
-    } else {
-        return image_equals(ninstance->image, oinstance->image);
-    }
+    return image_equals(ninstance->image, oinstance->image, nscope);
 }
 
 // instance representation
 string instance_repr(Instance *instance, laure_scope_t *scope) {
-    if (read_head(instance->image).t == STRUCTURE)
-        return structure_repr_detailed(instance, scope);
+    if (read_head(instance->image).t == LINKED)
+        return linked_repr_unwrap(instance, scope);
     else
         return instance->repr(instance);
 }
@@ -2692,9 +2754,9 @@ Instance *instance_new_copy(
     Instance *instance, 
     laure_scope_t *scope
 ) {
-    if (read_head(instance->image).t == STRUCTURE) {
-        return instance_new(name, NULL, structure_new_image(instance->image, scope));
-    } else {
+    if (read_head(instance->image).t != LINKED)
         return instance_deepcopy(name, instance);
+    else {
+        return linked_deepcopy_deref(name, instance->image, scope);
     }
 }

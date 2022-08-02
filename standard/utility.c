@@ -34,7 +34,7 @@ DECLARE(laure_predicate_message) {
         laure_expression_t exp[1];
         exp->t = let_custom;
         exp->s = buff;
-        bool result = img->translator->invoke(exp, img, cctx->scope);
+        bool result = img->translator->invoke(exp, img, cctx->scope, 0);
         return from_boolean(result);
     }
 }
@@ -163,7 +163,7 @@ DECLARE(laure_predicate_repr) {
             laure_expression_t exp[1];
             exp->s = strdup(buff);
             exp->t = let_custom;
-            bool result = read_head(instance->image).translator->invoke(exp, instance->image, cctx->scope);
+            bool result = read_head(instance->image).translator->invoke(exp, instance->image, cctx->scope, 0);
             if (! result) laure_free(exp->s);
             return from_boolean(result);
         }
@@ -254,7 +254,7 @@ DECLARE(laure_predicate_format) {
                             //! add support for arrays
                             exp->s = group;
                         }
-                        bool result = read_head(instance->image).translator->invoke(exp, instance->image, parent_scope);
+                        bool result = read_head(instance->image).translator->invoke(exp, instance->image, parent_scope, 0);
                         if (should_free)
                             laure_free(exp->s);
                         if (! result) {
@@ -298,7 +298,7 @@ DECLARE(laure_predicate_format) {
         laure_expression_t exp[1];
         exp->t = let_custom;
         exp->s = formatted;
-        bool result = sim->translator->invoke(exp, sim, cctx->scope);
+        bool result = sim->translator->invoke(exp, sim, cctx->scope, 0);
         return from_boolean(result);
     }
     return False;

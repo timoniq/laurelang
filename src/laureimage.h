@@ -25,7 +25,8 @@ enum ImageT {
     IMG_CUSTOM_T,
     UNION,
     UUID,
-    FORMATTING
+    FORMATTING,
+    LINKED
 };
 
 typedef struct {
@@ -130,6 +131,22 @@ struct IntImage {
     };
 };
 
+enum LinkedT {
+    LINKED_STRUCTURE_FIELD
+};
+
+typedef struct laure_linked_image {
+    IMAGE_HEAD
+    enum LinkedT linked_type;
+    ulong link;
+    union {
+        size_t idx;
+    };
+} laure_linked_image;
+
+
+Instance *linked_create_instance_structure_field(string name, ulong structure_link, size_t i);
+
 struct CharImage {
     IMAGE_HEAD;
     // states:
@@ -145,10 +162,9 @@ struct CharImage {
 
 typedef struct {
     bool is_construct;
-    Instance *first;
     string name;
     union {
-        ulong link;
+        Instance *instance;
         laure_expression_t *construct;
     };
 } laure_structure_element;
@@ -503,21 +519,21 @@ int convert_to_string(struct ArrayIData i_data, string buff);
 
 // translators
 
-bool int_translator(laure_expression_t*, void*, laure_scope_t*);
-bool char_translator(laure_expression_t*, void*, laure_scope_t*);
-bool array_translator(laure_expression_t*, void*, laure_scope_t*);
-bool atom_translator(laure_expression_t*, void*, laure_scope_t*);
-bool structure_translator(laure_expression_t*, void*, laure_scope_t*);
+bool int_translator(laure_expression_t*, void*, laure_scope_t*, ulong);
+bool char_translator(laure_expression_t*, void*, laure_scope_t*, ulong);
+bool array_translator(laure_expression_t*, void*, laure_scope_t*, ulong);
+bool atom_translator(laure_expression_t*, void*, laure_scope_t*, ulong);
+bool structure_translator(laure_expression_t*, void*, laure_scope_t*, ulong);
 
 // translator (a tool to work with macro_string to image conversions)
 
 struct Translator {
     char identificator;
     // needed to cast macro string to image
-    bool (*invoke)(laure_expression_t*, void*, laure_scope_t*); // (exp, image, scope)
+    bool (*invoke)(laure_expression_t*, void*, laure_scope_t*, ulong); // (exp, image, scope, link)
 };
 
-struct Translator *new_translator(char identificator, bool (*invoke)(string, void*, laure_scope_t*));
+struct Translator *new_translator(char identificator, bool (*invoke)(string, void*, laure_scope_t*, ulong));
 
 struct predicate_arg {
     int index;
@@ -571,11 +587,11 @@ bool instantiated(Instance*);
 
 // translators
 
-bool int_translator(laure_expression_t*, void*, laure_scope_t *scope);
-bool char_translator(laure_expression_t*, void*, laure_scope_t *scope);
-bool array_translator(laure_expression_t*, void*, laure_scope_t *scope);
-bool string_translator(laure_expression_t*, void*, laure_scope_t *scope);
-bool atom_translator(laure_expression_t*, void*, laure_scope_t *scope);
+bool int_translator(laure_expression_t*, void*, laure_scope_t *scope, ulong);
+bool char_translator(laure_expression_t*, void*, laure_scope_t *scope, ulong);
+bool array_translator(laure_expression_t*, void*, laure_scope_t *scope, ulong);
+bool string_translator(laure_expression_t*, void*, laure_scope_t *scope, ulong);
+bool atom_translator(laure_expression_t*, void*, laure_scope_t *scope, ulong);
 
 multiplicity *translate_to_multiplicity(
     laure_expression_t*, 
@@ -599,7 +615,7 @@ string structure_repr(Instance*);
 string structure_repr_detailed(Instance*, laure_scope_t*);
 // --
 
-bool image_equals(void*, void*);
+bool image_equals(void*, void*, laure_scope_t*);
 void image_free(void*);
 char convert_escaped_char(char c);
 

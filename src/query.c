@@ -50,7 +50,7 @@ void laure_upd_scope(ulong link, laure_scope_t *to, laure_scope_t *from) {
     if (! to_ins) return;
     Instance *from_ins = laure_scope_find_by_link(from, link, false);
     if (! from_ins) return;
-    bool res = image_equals(to_ins->image, from_ins->image);
+    bool res = image_equals(to_ins->image, from_ins->image, from);
     if (! res)
         printf("Error: cannot backtrack link %lu\n", link);
 }
@@ -657,7 +657,7 @@ qresp laure_eval_assert(
             bool ri = instantiated(rvar_ins);
 
             if (li && ri) {
-                return image_equals(lvar_ins->image, rvar_ins->image) ? RESPOND_TRUE : RESPOND_FALSE;
+                return image_equals(lvar_ins->image, rvar_ins->image, scope) ? RESPOND_TRUE : RESPOND_FALSE;
             } else if (li || ri) {
                 Instance *from;
                 Instance *to;
@@ -679,7 +679,7 @@ qresp laure_eval_assert(
 
                 if (h.t != oldh.t) return RESPOND_FALSE;
 
-                return image_equals(from->image, to->image) ? RESPOND_TRUE : RESPOND_FALSE;
+                return image_equals(from->image, to->image, scope) ? RESPOND_TRUE : RESPOND_FALSE;
             } else {
                 // choicepoint is created
                 // due to ambiguation
@@ -704,7 +704,7 @@ qresp laure_eval_assert(
                     );
                 }
 
-                bool eqr = image_equals(var1->image, var2->image);
+                bool eqr = image_equals(var1->image, var2->image, scope);
                 if (! eqr) {
                     return RESPOND_FALSE;
                 }
@@ -742,7 +742,8 @@ qresp laure_eval_assert(
     } else if (lvar->t == let_var || rvar->t == let_var) {
         string vname = lvar->t == let_var ? lvar->s : rvar->s;
         laure_expression_t *rexpression = lvar->t == let_var ? rvar : lvar;
-        Instance *to = laure_scope_find_by_key(scope, vname, true);
+        ulong link;
+        Instance *to = laure_scope_find_by_key_l(scope, vname, &link, true);
 
         if (!to)
             RESPOND_ERROR(undefined_err, e, "variable %s", vname);
@@ -762,7 +763,7 @@ qresp laure_eval_assert(
             if (! head.translator) {
                 RESPOND_ERROR(internal_err, e, "%s is not assignable. Cannot assign to `%s`", vname, rexpression->s);
             }
-            bool result = head.translator->invoke(rexpression, to->image, scope);
+            bool result = head.translator->invoke(rexpression, to->image, scope, link);
             if (!result) return RESPOND_FALSE;
 
             if (head.t == PREDICATE_FACT) {
@@ -966,13 +967,7 @@ qresp laure_eval_image(
 
             absorb(nesting, secondary_nesting);
 
-            Instance *ins;
-            if (read_head(from->image).t == STRUCTURE) {
-                ins = instance_new(new_var_name, NULL, structure_new_image(from->image, scope));
-                ins->repr = structure_repr;
-            } else {
-                ins = instance_deepcopy(new_var_name, from);
-            }
+            Instance *ins = instance_deepcopy(new_var_name, from);
 
             if (nesting) {
                 while (nesting) {
@@ -1033,7 +1028,7 @@ qresp laure_eval_name(_laure_eval_sub_args) {
     } else if (v1 && v2) {
         if (v1 == v2) return RESPOND_TRUE;
         else if (instantiated(v1) || instantiated(v2)) {
-            return image_equals(v1->image, v2->image) ? RESPOND_TRUE : RESPOND_FALSE;
+            return image_equals(v1->image, v2->image, scope) ? RESPOND_TRUE : RESPOND_FALSE;
         } else {
             laure_scope_change_link_by_key(scope, v2_exp->s, link1[0], false);
             return RESPOND_TRUE;
@@ -1305,7 +1300,7 @@ ARGPROC_RES pred_call_procvar(
                     if (hint && hint->image && arg->image) {
                         void *Tim_copy = image_deepcopy(hint->image);
                         if (! (read_head(arg->image).t == UUID && read_head(Tim_copy).t == PREDICATE_FACT))
-                            if (! image_equals(arg->image, Tim_copy))
+                            if (! image_equals(arg->image, Tim_copy, prev_scope))
                                 return ARGPROC_RET_FALSE;
                         image_free(Tim_copy);
                     }
@@ -1314,7 +1309,7 @@ ARGPROC_RES pred_call_procvar(
                 if (existing_same && recorder) {
                      arg = instance_new(argn, MARKER_NODELETE, existing_same->image);
                 } else if (create_copy && recorder)
-                    arg = instance_deepcopy(argn, arg);
+                    arg = instance_new_copy(argn, arg, prev_scope);
             }
 
             if (arg && is_inst)
@@ -1357,9 +1352,11 @@ ARGPROC_RES pred_call_procvar(
             
             if (! arg->image)
                 return_str_fmt("specification of %s is needed", argn);
+            
+            ulong predeflink = laure_scope_generate_link();
 
             laure_image_head head = read_head(arg->image);
-            bool result = head.translator->invoke(exp, arg->image, prev_scope);
+            bool result = head.translator->invoke(exp, arg->image, prev_scope, predeflink);
             if (is_inst)
                 *is_inst = true;
 
@@ -1379,7 +1376,7 @@ ARGPROC_RES pred_call_procvar(
             }
 
             if (recorder)
-                recorder(arg, laure_scope_generate_link(), ctx);
+                recorder(arg, predeflink, ctx);
             else {
                 image_free(arg->image);
                 laure_free(arg);
@@ -1423,7 +1420,7 @@ bool check_namespace(laure_scope_t *scope, Instance *T, laure_expression_t *ns) 
             return false;
         void *cp_img = image_deepcopy(var->image);
         void *cpT_img = image_deepcopy(T->image);
-        bool result = image_equals(cp_img, cpT_img);
+        bool result = image_equals(cp_img, cpT_img, scope);
         image_free(cp_img);
         image_free(cpT_img);
         return result;

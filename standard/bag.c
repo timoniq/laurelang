@@ -17,7 +17,7 @@ DECLARE(laure_predicate_bag) {
         while (linked && length) {
             Instance *i = linked->data;
             void *copy = image_deepcopy(from->image);
-            bool r = image_equals(copy, i->image);
+            bool r = image_equals(copy, i->image, cctx->scope);
             
             if (! r) {
                 image_free(copy);
