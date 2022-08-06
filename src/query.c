@@ -2243,6 +2243,7 @@ qresp laure_eval_atom_sign(_laure_eval_sub_args) {
 }
 
 string string_clean(string s);
+string search_path(string original_path);
 
 /* =---------=
 Writes dynamic flags
@@ -2325,22 +2326,23 @@ qresp laure_eval_command(_laure_eval_sub_args) {
                     strcat(n, name);
                 }
 
-                string path_ = laure_alloc(PATH_MAX);
+                char path_[PATH_MAX];
                 memset(path_, 0, PATH_MAX);
                 realpath(n, path_);
 
+                string final_path = search_path(path_);
+
+                if (! final_path) {
+                    free(final_path);
+                    RESPOND_ERROR(undefined_err, e, "failed to find file %s", path_);
+                }
+
                 if (e->flag == command_useso) {
-                    bool result = laure_load_shared(cctx->session, path_);
-                    laure_free(path_);
+                    bool result = laure_load_shared(cctx->session, final_path);
+                    free(final_path);
                 } else {
-                    FILE *f = fopen(path_, "r");
-                    if (!f) {
-                        printf("%s\n", path_);
-                        laure_free(path_);
-                        RESPOND_ERROR(undefined_err, e, "failed to find file %s", path_);
-                    }
-                    fclose(f);
-                    laure_consult_recursive(cctx->session, path_, (int*)failed);
+                    laure_consult_recursive(cctx->session, final_path, (int*)failed);
+                    free(final_path);
                 }
                 linked = linked->next;
             }

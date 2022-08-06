@@ -1,0 +1,22 @@
+natural day_t = 1..31.
+natural month_t = 1..12.
+natural second_t = 0..59.
+minute_t ~ second_t.
+natural hour_t = 0..23.
+
+$date {
+    day_t day;
+    month_t month;
+    int year;
+}
+
+$time {
+    hour_t hours;
+    minute_t minutes;
+    second_t seconds;
+}
+
+$datetime {
+    date d;
+    time t;
+}

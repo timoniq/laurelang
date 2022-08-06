@@ -153,33 +153,9 @@ string convert_filepath(string filepath) {
     return new;
 }
 
-bool endswith(string s, string end) {
-    char *c = s + strlen(s) - strlen(end);
-    for (size_t i = 0; i < strlen(end); i++) {
-        if (*c != end[i]) return false;
-        c++;
-    }
-    return true;
-}
+bool endswith(string s, string end);
 
-string search_path(string original_path) {
-    FILE *f = fopen(original_path, "r");
-    if (f) {
-        fclose(f);
-        return strdup(original_path);
-    } else if (! endswith(original_path, ".le")) {
-        char buff[PATH_MAX];
-        strcpy(buff, original_path);
-        strcat(buff, ".le");
-        f = fopen(buff, "r");
-        if (f) {
-            fclose(f);
-            return strdup(buff);
-        }
-        return NULL;
-    }
-    return NULL;
-}
+string search_path(string original_path);
 
 void sigint_handler(int _) {
     printf("\n%sCtrl-C%s: Goodbye\n", LAURUS_NOBILIS, NO_COLOR);

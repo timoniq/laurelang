@@ -500,3 +500,31 @@ void laure_consult_recursive(laure_session_t *session, string path, int *failed)
     laure_consult_recursive_with_receiver(session, path, failed, laure_apply);
     laure_initialization(session->scope);
 }
+
+bool endswith(string s, string end) {
+    char *c = s + strlen(s) - strlen(end);
+    for (size_t i = 0; i < strlen(end); i++) {
+        if (*c != end[i]) return false;
+        c++;
+    }
+    return true;
+}
+
+string search_path(string original_path) {
+    FILE *f = fopen(original_path, "r");
+    if (f) {
+        fclose(f);
+        return strdup(original_path);
+    } else if (! endswith(original_path, ".le")) {
+        char buff[PATH_MAX];
+        strcpy(buff, original_path);
+        strcat(buff, ".le");
+        f = fopen(buff, "r");
+        if (f) {
+            fclose(f);
+            return strdup(buff);
+        }
+        return NULL;
+    }
+    return NULL;
+}
