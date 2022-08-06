@@ -303,7 +303,7 @@ Usually header file just include other public package resources.
 Use command `use`:
 
 ```
-!use "my_package", "@/http"
+!use "my_package", <http>.
 ```
 
 There can be any number of packages to include declared.

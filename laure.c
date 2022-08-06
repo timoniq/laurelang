@@ -140,13 +140,14 @@ args_parsed args_parse(string str) {
 }
 
 void print_header(string header, uint sz);
+
 string convert_filepath(string filepath) {
     string new;
-    if (str_starts(filepath, "@/")) {
-        filepath++;
+    if (str_starts(filepath, "<") && lastc(filepath) == '>') {
         new = laure_alloc(strlen(lib_path) + strlen(filepath));
         strcpy(new, lib_path);
-        strcat(new, filepath);
+        strcat(new, "/");
+        strncat(new, filepath + 1, strlen(filepath) - 2);
     } else {
         new = strdup(filepath);
     }

@@ -2314,11 +2314,11 @@ qresp laure_eval_command(_laure_eval_sub_args) {
 
                 if (str_starts(name, "/")) {
                     n = strdup(name);
-                } else if (str_starts(name, "@/")) {
-                    name++;
-                    n = laure_alloc(strlen(lib_path) + strlen(name) + 1);
+                } else if (str_starts(name, "<") && lastc(name) == '>') {
+                    n = laure_alloc(strlen(lib_path) + strlen(name));
                     strcpy(n, lib_path);
-                    strcat(n, name);
+                    strcat(n, "/");
+                    strncat(n, name + 1, strlen(name) - 2);
                 } else {
                     string wdir = get_work_dir_path(LAURE_CURRENT_ADDRESS ? LAURE_CURRENT_ADDRESS : "./");
                     n = laure_alloc(strlen(wdir) + strlen(name) + 1);

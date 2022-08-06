@@ -1,4 +1,4 @@
-!use "@/abstract.le".
+!use <abstract>.
 
 // <-inf..inf>
 : #test_abstract_primitive(int).

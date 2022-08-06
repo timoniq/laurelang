@@ -80,7 +80,7 @@ package: shared
 	python3 utility/build_pkg.py $(name)
 
 test:
-	./$(TARGET) @/test tests \
+	./$(TARGET) "<test>" tests \
 	-q "tests_run()" \
 	-D skip="test_pred_.*;test_nested_2" \
 	-norepl -signal --ignore
