@@ -1,5 +1,3 @@
-!use @/array.
-
 // concatenates two strings
 : ?concat(string, string) -> string.
 ?concat(a, b) -> append(a, b).

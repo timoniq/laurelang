@@ -1,5 +1,3 @@
-!use "@/array".
-
 : ?inc(int) -> int,
   ?flatten_('T'[][]) -> 'T'[].
 

@@ -1,22 +1,11 @@
-#include <laurelang.h>
-#include <predpub.h>
-#include <laureimage.h>
-#include <math.h>
-#include <builtin.h>
+#include "standard.h"
 
-#define DOC_each "Array enumerating predicate\n```each(array) = element```\nFrom @/array pkg"
-#define DOC_by_idx "Predicate of idx to element relation in array\n```array by_idx idx = element```\nFrom @/array pkg"
-#define DOC_length "Array length declaration\nFrom @/array pkg"
-
-#define TOO_AMBIG respond(q_error, strdup( "too much ambiguations" ) );
 
 #define LENGTH(image) ((struct ArrayImage*)image)->i_data.length
-
 #define LINKED(image) ((struct ArrayImage*)image)->i_data.linked
-
 #define STATE(image) ((struct ArrayImage*)image)->state
 
-qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
+DECLARE(laure_predicate_each) {
     Instance *arr_ins = pd_get_arg(pd, 0);
     Instance *el_ins = pd->resp;
 
@@ -45,7 +34,7 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
                 linked = linked->next;
                 i++;
             }
-            return respond(q_true, NULL);
+            return True;
 
         } else {
 
@@ -89,7 +78,7 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
         // every array element is el_ins
         if (! arr_img->arr_el->locked) {
             bool result = image_equals(arr_img->arr_el->image, el_ins->image, cctx->scope);
-            return respond(result ? q_true : q_false, 0);
+            return from_boolean(result);
         } else {
             void *ar_el_img_copy = image_deepcopy(arr_img->arr_el->image);
             bool result = image_equals(ar_el_img_copy, el_ins->image, cctx->scope);
@@ -97,23 +86,20 @@ qresp array_predicate_each(preddata *pd, control_ctx *cctx) {
             Instance *arr_el_new = instance_new(MOCK_NAME, SINGLE_DOCMARK, ar_el_img_copy);
             arr_el_new->repr = arr_img->arr_el->repr;
             arr_img->arr_el = arr_el_new;
-            return respond(q_true, 0);
+            return True;
         }
     } else {
         arr_img->arr_el->image = el_ins->image;
-        return respond(q_true, 0);
     }
-    return respond(q_true, 0);
+    return True;
 }
-
 
 struct ArrayIdxEGenCtx {
     control_ctx *cctx;
     uint idx; 
 };
 
-
-qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
+DECLARE(laure_predicate_by_idx) {
     Instance *arr_ins = pd_get_arg(pd, 0);
     Instance *idx_ins = pd_get_arg(pd, 1);
     Instance *el_ins  = pd->resp;
@@ -138,7 +124,7 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
         if (instantiated(idx_ins)) {
 
             uint idx = (uint)bigint_double(idx_img->i_data);
-            if (idx < 0 || idx >= len) return RESPOND_FALSE;
+            if (idx < 0 || idx >= len) return False;
             uint i = idx;
             array_linked_t *linked = arr_img->i_data.linked;
             while (i && linked) {
@@ -146,11 +132,11 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
                 i--;
             }
             if (!linked || i)
-                return RESPOND_FALSE;
+                return False;
             
             Instance *ins = linked->data;
             bool result = image_equals(el_ins->image, ins->image, cctx->scope);
-            return respond(result ? q_true : q_false, 0);
+            return from_boolean(result);
 
         } else if (instantiated(el_ins)) {
 
@@ -283,16 +269,15 @@ qresp array_predicate_by_idx(preddata *pd, control_ctx *cctx) {
             arr_img->ref[0] = ref;
             arr_img->ref_count++;
         }
-        return RESPOND_TRUE;
+        return True;
     } else if (instantiated(el_ins)) {
-        return TOO_AMBIG;
+        return RESPOND_INSTANTIATE_FIRST(1);
     } else {
-        return TOO_AMBIG;
+        return RESPOND_INSTANTIATE_FIRST(0);
     }
 }
 
-
-qresp array_predicate_length(preddata *pd, control_ctx *cctx) {
+DECLARE(laure_predicate_length) {
     Instance *arr_ins = pd_get_arg(pd, 0);
     Instance *len_ins = pd->resp;
 
@@ -307,29 +292,29 @@ qresp array_predicate_length(preddata *pd, control_ctx *cctx) {
             if (llen && ! llen->locked) {
                 if (! image_equals(llen->image, real_len_img, cctx->scope)) {
                     image_free(real_len_img);
-                    return respond(q_false, 0);
+                    return False;
                 }
             }
         }
         bool result = image_equals(len_img, real_len_img, cctx->scope);
-        return respond(result ? q_true : q_false, 0);
+        return from_boolean(result);
     } else if (instantiated(len_ins)) {
         if (arr_img->length_lid) {
             Instance *llen = laure_scope_find_by_link(cctx->scope, arr_img->length_lid, true);
             if (llen && ! llen->locked) {
                 if (! image_equals(llen->image, len_img, cctx->scope)) {
-                    return respond(q_false, 0);
+                    return False;
                 }
             }
         }
         arr_img->u_data.length->t = SINGLE;
         arr_img->u_data.length->lborder.data = len_img->i_data;
-        return respond(q_true, 0);
+        return True;
     } else {
         ulong link[1];
         laure_scope_find_by_key_l(pd->scope, len_ins->name, link, true);
         arr_img->length_lid = *link;
-        return respond(q_true, 0);
+        return True;
     }
 }
 
@@ -351,7 +336,7 @@ bool append_resolve(Instance *to, Instance *with, Instance *res) {
     return true;
 }
 
-qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
+DECLARE(laure_predicate_append) {
     Instance *to = pd_get_arg(pd, 0);
     Instance *with = pd_get_arg(pd, 1);
     Instance *res = pd->resp;
@@ -386,7 +371,7 @@ qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
                 check_length = LENGTH(with->image);
             }
         }
-        return RESPOND_TRUE;
+        return True;
     } else if (instantiated(to) && instantiated(with)) {
         // concatenate `to` and `with` arrays into `res` array
         uint res_length = LENGTH(to->image) + LENGTH(with->image);
@@ -430,7 +415,7 @@ qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
         res_img->state = I;
         res_img->i_data.length = res_length;
         res_img->i_data.linked = head;
-        return RESPOND_TRUE;
+        return True;
     } else if (instantiated(to) && instantiated(res)) {
         struct ArrayImage *with_img = (struct ArrayImage*) with->image;
         uint with_length = LENGTH(res->image) - LENGTH(to->image);
@@ -447,7 +432,7 @@ qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
         with_img->state = I;
         with_img->i_data.length = with_length;
         with_img->i_data.linked = linked;
-        return RESPOND_TRUE;
+        return True;
     } else if (instantiated(with) && instantiated(res)) {
         struct ArrayImage *to_img = (struct ArrayImage*) to->image;
         uint to_length = LENGTH(res->image) - LENGTH(with->image);
@@ -469,7 +454,7 @@ qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
         to_img->state = I;
         to_img->i_data.length = to_length;
         to_img->i_data.linked = orig_linked;
-        return RESPOND_TRUE;
+        return True;
     } else if (instantiated(res)) {
         // combinations
         uint length = LENGTH(res->image);
@@ -508,36 +493,5 @@ qresp array_predicate_append(preddata *pd, control_ctx *cctx) {
         }
         return respond(q_yield, (void*)found);
     }
-    printf("too ambig\n");
-    return RESPOND_FALSE;
-}
-
-int on_use(laure_session_t *session) {
-    laure_api_add_predicate(
-        session, "each", 
-        array_predicate_each, 
-        1, "ARRAY:_", "_", false, 
-        DOC_each
-    );
-    
-    laure_api_add_predicate(
-        session, "__by_idx", 
-        array_predicate_by_idx, 
-        2, "ARRAY:_ idx:int", "_", false, 
-        DOC_by_idx
-    );
-    
-    laure_api_add_predicate(
-        session, "length", 
-        array_predicate_length, 
-        1, "ARRAY:!", "int", false, 
-        DOC_length
-    );
-    laure_api_add_predicate(
-        session, "__append",
-        array_predicate_append,
-        2, "ARRAY:_ ARRAY:_", "_", false,
-        NULL
-    );
-    return 0;
+    return RESPOND_INSTANTIATE_FIRST(0);
 }

@@ -32,7 +32,11 @@ const struct BuiltinPred BUILTIN_PREDICATES[] = {
     {"repr", laure_predicate_repr, 1, "builtin representation predicate", {"ins:_", "string"}, false},
     {"__format", laure_predicate_format, 1, "builtin string formatting", {"f:formatting", "string"}, false},
     {"__bag", laure_predicate_bag, 2, "builtin bag", {"from:_ to:_"}, false},
-    {"__bag_sz", laure_predicate_bag, 3, "builtin bag sized", {"from:_ to:_ size:int"}, false}
+    {"__bag_sz", laure_predicate_bag, 3, "builtin bag sized", {"from:_ to:_ size:int"}, false},
+    {"each", laure_predicate_each, 1, "builtin array each predicate", {"arr:_", "_"}, false},
+    {"__by_idx", laure_predicate_by_idx, 2, "builtin array by idx predicate", {"arr:_ idx:int", "_"}, false},
+    {"length", laure_predicate_length, 1, "builtin array length predicate", {"arr:_", "int"}, false},
+    {"__append", laure_predicate_append, 2, "builtin array append predicate", {"to:_ with:_", "_"}, false},
 };
 
 void laure_register_builtins(laure_session_t*);

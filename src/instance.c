@@ -929,7 +929,6 @@ bool char_eq(struct CharImage *img1_t, struct CharImage *img2_t) {
             }
             if (! l) return false;
             laure_free(min->charset);
-            laure_free(max->charset);
             min->charset = strdup(buff);
             max->charset = strdup(buff);
             return true;
@@ -2754,7 +2753,7 @@ Instance *instance_new_copy(
     Instance *instance, 
     laure_scope_t *scope
 ) {
-    if (read_head(instance->image).t != LINKED)
+    if (! instance->image || read_head(instance->image).t != LINKED)
         return instance_deepcopy(name, instance);
     else {
         return linked_deepcopy_deref(name, instance->image, scope);

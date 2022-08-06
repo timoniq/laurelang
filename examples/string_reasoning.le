@@ -1,5 +1,3 @@
-!use @/array.
-
 string lowers = "abcdefghijklmnopqrstuvwxyz".
 string uppers = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".
 

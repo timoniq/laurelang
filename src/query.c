@@ -1632,7 +1632,8 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 assert(qctx->next->bag);
                 resp.state = (resp.payload) ? q_true : q_false;
                 cctx->this_break = true;
-            }
+            } else if (resp.state == q_instantiate_first) 
+                RESPOND_ERROR(too_broad_err, e, "too broad, try instantiating %lu argument. auto instantiation not implemented yet", (uintptr_t)resp.payload);
 
             if (resp.state == q_false) continue;
 

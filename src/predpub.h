@@ -10,12 +10,19 @@ typedef enum {
     q_error,    // error message for internal
     q_stop,     // succeed: 0x1, fail: 0x0
     q_continue, // no payload
+
+    /* Following states can only be returned from c predicates */
+
     /* Bag full
     ---
     no_payload - only for bag predicate
     name - from bag predicate wrapper 
     --- */
     q_bag_full,
+    /* Instantiate first 
+    payload is argument idx to instantiate
+    */
+    q_instantiate_first,
 } qresp_state;
 
 typedef struct laure_qresp {
@@ -43,6 +50,9 @@ qresp respond(qresp_state s, string e);
 #define RESPOND_YIELD(code)     respond(q_yield, code)
 #define RESPOND_BAG_FULL        respond(q_bag_full, (void*)true)
 #define RESPOND_BAG_FULL_E      respond(q_bag_full, (void*)false)
+
+#define RESPOND_INSTANTIATE_FIRST(argument_idx) \
+        respond(q_instantiate_first, (void*)argument_idx)
 
 #define INT_ASSIGN(im, bi) do { \
         if(! int_check(im, bi)) {laure_free(bi->words); laure_free(bi); return respond(q_false, 0);} \

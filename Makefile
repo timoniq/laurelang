@@ -2,7 +2,15 @@ TARGET = laure
 PREFIX = /usr/local
 WS_FLAGS = 
 GIT_VER = "$(shell git describe --always --tags)"
-CFLAGS = -Isrc -Istandard -Icompiler -I/usr/local/include -g $(LIBFLAG) -fPIC ${ADDFLAGS} ${WS_FLAGS} -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers -DGIT_VER='$(GIT_VER)'
+
+CFLAGS = -Isrc \
+		 -Istandard -Icompiler -I/usr/local/include \
+		 -g $(LIBFLAG) -fPIC \
+		 ${ADDFLAGS} ${WS_FLAGS} \
+		 -Wno-incompatible-function-pointer-types \
+		 -Wno-incompatible-pointer-types-discards-qualifiers \
+		 -DGIT_VER='$(GIT_VER)'
+
 LDFLAGS = -L/usr/local/lib -Isrc -lreadline -lm -g -ldl -DGIT_VER='$(GIT_VER)'
 
 ifeq ($(UNAME), Linux)
@@ -32,7 +40,8 @@ LIB = src/parser.o \
 	  src/alloc.o \
 	  standard/integer.c \
 	  standard/utility.c \
-	  standard/bag.c 
+	  standard/bag.c \
+	  standard/array.c
 
 OBJECTS = laure.o $(LIB)
 

@@ -49,5 +49,5 @@ Auto-builder will also run test suite.
 # [Contributing](https://laurelang.org/contrib)
 # License
 
-Laurelang is [MIT licensed](/LICENSE)  
+[MIT license](/LICENSE)  
 Copyright © 2022 [timoniq](https://github.com/timoniq)
