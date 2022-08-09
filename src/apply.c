@@ -332,7 +332,7 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
         }
         return respond_apply(apply_ok, NULL);
     }
-    
+
     laure_parse_result result = laure_parse(fact);
     if (!result.is_ok) {
         return respond_apply(apply_error, result.err);

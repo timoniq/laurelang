@@ -208,17 +208,19 @@ string read_til(const string s, int c) {
             uint cur_i = i - 1;
             // slice from last_i to cur_i
 
-            string slice = laure_alloc(sizeof(char) * (cur_i + 1) * 4);
-            memset(slice, 0, sizeof(char) * (cur_i + 1) * 4);
+            char slice[1024];
             
             for (int j = 0; j < cur_i + 1; j++) {
-                char nch[4];
+                char nch[5];
                 int n = laure_string_char_at_pos(s, strlen(s), j);
                 laure_string_put_char(nch, n);
-                strcat(slice, nch);
+                if (j == 0)
+                    strcpy(slice, nch);
+                else
+                    strcat(slice, nch);
             }
 
-            return slice;
+            return strdup(slice);
         } else if (ch == '"') {
             text = !text;
         } else if (text) {
@@ -402,10 +404,10 @@ bool easy_pattern_parse(char *s, char *p) {
 }
 
 string string_clean(string s) {
-    while (s[0] == ' ') {
+    while (laure_string_char_at_pos(s, strlen(s), 0) == ' ') {
         s++;
     }
-    while (s[strlen(s)-1] == ' ') {
+    while (laure_string_char_at_pos(s, strlen(s), laure_string_strlen(s) - 1) == ' ') {
         s[strlen(s) - 1] = 0;
     }
     return s;
@@ -514,7 +516,7 @@ laure_parse_many_result laure_parse_many(const string query_, char divisor, laur
             uint slice_len = 0;
 
             for (int j = last_i; j < cur_i + 1; j++) {
-                char nch[4];
+                char nch[10];
                 int n = laure_string_char_at_pos(s, strlen(s), j);
                 int len = laure_string_put_char(nch, n);
                 if (slice_len + len >= 1024) {
@@ -569,7 +571,7 @@ laure_parse_many_result laure_parse_many(const string query_, char divisor, laur
         && !text
     ) {
         if (last_i - 1 != sz - 1 || sz == 1) {
-            char slice[512] = {0};
+            char slice[1024] = {0};
             int i = 0;
             for (int j = last_i; j < sz; j++) {
                 int n = laure_string_char_at_pos(s, strlen(s), j);
@@ -876,6 +878,8 @@ laure_parse_result laure_parse(string query) {
                     error_format("namespace must be %s, @ or 'T' (single quoted), not %s", EXPT_NAMES[let_var], EXPT_NAMES[ns_exp->t]);
                 linked_namespace = ns_exp;
             }
+
+            name = string_clean(name);
 
             // parse body, args and resp
             laure_expression_set *set = NULL;
