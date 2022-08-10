@@ -1850,12 +1850,24 @@ gen_resp structure_generate(laure_scope_t *scope, laure_structure *img, REC_TYPE
                 return form_gen_resp(false, respond(q_error, NULL));
             if (! instantiated(instance)) {
                 struct fieldgenctx fgctx[1];
-                fgctx->img = instance->image;
+
+                void *cpy = image_deepcopy(instance->image);
+                void *d   = instance->image;
+
+                instance->image = cpy;
+
+                fgctx->img = cpy;
                 fgctx->structure = img;
                 fgctx->external_ctx = external_ctx;
                 fgctx->rec = rec;
                 fgctx->scope = scope;
-                return image_generate(scope, instance->image, structure_field_generate, fgctx);
+
+                gen_resp gr = image_generate(scope, cpy, structure_field_generate, fgctx);
+                instance->image = d;
+                image_free(cpy);
+
+                return gr;
+
             }
         }
     }
