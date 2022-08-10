@@ -206,18 +206,29 @@ DECLARE(laure_predicate_sqrt) {
     Instance *n = pd_get_arg(pd, 0);
     Instance *s = pd->resp;
 
+    Instance *rounding_optional = pd_get_arg(pd, 1);
+    enum Rounding rounding = RoundingDown;
+
+    if (rounding_optional) {
+        cast_image(r_img, struct AtomImage) rounding_optional->image;
+        int r = laure_resolve_enum_atom(r_img->atom, ROUNDING_ATOMU, rounding_atomu_size());
+        if (r < 0)
+            RESPOND_ERROR(signature_err, NULL, "invalid rounding atom");
+        rounding = (enum Rounding)r;
+    }
+
     cast_image(n_img, struct IntImage)  n->image;
     cast_image(s_img, struct IntImage)  s->image;
 
     if (instantiated(n) && instantiated(s)) {
         bigint bi[1];
         bigint_init(bi);
-        bigint_sqrt(bi, n_img->i_data);
+        bigint_sqrt(bi, n_img->i_data, rounding);
         return from_boolean(bigint_cmp(bi, s_img->i_data) == 0);
     } else if (instantiated(n)) {
         bigint *bi = laure_alloc(sizeof(bigint));
         bigint_init(bi);
-        bigint_sqrt(bi, n_img->i_data);
+        bigint_sqrt(bi, n_img->i_data, rounding);
         INT_ASSIGN(s_img, bi);
         return True;
     } else if (instantiated(s)) {

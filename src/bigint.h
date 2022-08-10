@@ -132,7 +132,7 @@ bigint* bigint_div_mod_half_word(
 );
 
 bigint* bigint_gcd(bigint *dst, const bigint *src_a, const bigint *src_b);
-bigint* bigint_sqrt(bigint *dst, const bigint *src);
+bigint* bigint_sqrt(bigint *dst, const bigint *src, int round_up);
 
 bigint* bigint_rand_bits(bigint *dst, int n_bits, bigint_rand_func rand_func);
 bigint* bigint_rand_inclusive(bigint *dst, const bigint *n, bigint_rand_func rand_func);

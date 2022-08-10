@@ -19,7 +19,7 @@ Language aims to become reasonable choice for declarative, logic, constraint pro
 ?prime(2).
 ?prime(n) {
     n > 2; n?;
-    b = between(1, n);
+    b = 2 .. sqrtu(n);
     &all b {
         n / b ->
             fail();

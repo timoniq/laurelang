@@ -1,5 +1,5 @@
 #ifndef STANDARD_H
-#define PREDICATES_H
+#define STANDARD_H
 
 #include "laurelang.h"
 #include "laureimage.h"
@@ -34,13 +34,21 @@ qresp laure_predicate_append(preddata*, control_ctx*);
 
 #define out(...) printf(__VA_ARGS__)
 
-struct BuiltinPred {
+typedef struct laure_builtin_predicate {
     string name;
     qresp (*pred)(preddata*, control_ctx*);
     int argc; // -1 means any
     string doc;
-    struct BuiltinPredHint hint;
+    laure_builtin_predicate_hint hint;
     bool is_constraint;
+} laure_builtin_predicate;
+
+enum Rounding {
+    RoundingDown,
+    RoundingUp,
 };
+
+extern laure_enum_atom ROUNDING_ATOMU[];
+size_t rounding_atomu_size();
 
 #endif

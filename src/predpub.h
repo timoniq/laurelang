@@ -72,10 +72,10 @@ typedef struct Bag Bag;
 
 qcontext qcontext_temp(qcontext *next, laure_expression_set *expset, Bag *bag);
 
-struct BuiltinPredHint {
+typedef struct laure_builtin_predicate_hint {
     char *arg_types; // argname:typename splitted by ' ' (NULL if no args; typename == "_" means no typehint)
     char *resp_type; // resp type name (NULL if no resp), "_" means no typehint
-};
+} laure_builtin_predicate_hint;
 
 typedef void (*single_proc)(laure_scope_t*, char*, void*);
 typedef bool (*sender_rec)(char*, void*);
@@ -108,5 +108,12 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset);
 
 #define MUST_BE(expr) if (! (expr)) return RESPOND_FALSE
 #define MUST_BE_F(expr, freer) if (! (expr)) {freer; return RESPOND_FALSE;}
+
+typedef struct laure_enum_atom {
+    string atom;
+    int enum_field;
+} laure_enum_atom;
+
+int laure_resolve_enum_atom(string, laure_enum_atom[], size_t);
 
 #endif

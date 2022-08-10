@@ -9,6 +9,8 @@ void *laure_alloc(size_t size);
 void laure_free(void *ptr);
 void *laure_realloc(void *ptr, size_t size);
 
+double MAX_INT_THAT_FITS_IN_DOUBLE = 0;
+
 #define BIGINT_ASSERT(a, op, b) assert((a) op (b));
 
 bigint *bigint_create(
@@ -965,18 +967,24 @@ bigint* bigint_gcd(bigint *dst, const bigint *src_a, const bigint *src_b){
     return dst;
 }
 
-bigint* bigint_sqrt(bigint *dst, const bigint *src){
+bigint* bigint_sqrt(bigint *dst, const bigint *src, int round_up) {
     int bit;
     bigint sum[1], tmp[1];
-    const double MAX_INT_THAT_FITS_IN_DOUBLE = pow(2.0, 52.0);
+    if (! MAX_INT_THAT_FITS_IN_DOUBLE)
+        MAX_INT_THAT_FITS_IN_DOUBLE = pow(2.0, 52.0);
 
     dst->neg = 0;
     dst->size = 0;
 
     if (src->size == 0) return dst;
 
+    
     if (src->size == 1 && src->words[0] < MAX_INT_THAT_FITS_IN_DOUBLE){
-        bigint_from_word(dst, sqrt(src->words[0]));
+        double s = sqrt(src->words[0]);
+        if (round_up) {
+            s = ceil(s);
+        }
+        bigint_from_word(dst, s);
         return dst;
     }
 
@@ -1000,6 +1008,14 @@ bigint* bigint_sqrt(bigint *dst, const bigint *src){
         }
 
         bigint_shift_right(dst, dst, 1);
+    }
+
+    
+    if (round_up && tmp->words != 0) {
+        bigint o[1];
+        bigint_from_int(o, 1);
+        bigint_add(dst, dst, o);
+        bigint_free(o);
     }
 
     bigint_free(tmp);

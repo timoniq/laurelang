@@ -40,8 +40,8 @@ void laure_register_builtins(laure_session_t *session) {
         laure_scope_insert(scope, ins);
     }
     
-    for (int i = 0; i < (sizeof(BUILTIN_PREDICATES) / sizeof(struct BuiltinPred)); i++) {
-        struct BuiltinPred builtin = BUILTIN_PREDICATES[i];
+    for (int i = 0; i < (sizeof(BUILTIN_PREDICATES) / sizeof(laure_builtin_predicate)); i++) {
+        laure_builtin_predicate builtin = BUILTIN_PREDICATES[i];
 
         struct PredicateCImage *cimage = laure_alloc(sizeof(struct PredicateCImage));
 
@@ -210,4 +210,8 @@ Instance *laure_api_add_predicate(
 
     laure_scope_insert(session->scope, ins);
     return ins;
+}
+
+size_t rounding_atomu_size() {
+    return sizeof(ROUNDING_ATOMU);
 }

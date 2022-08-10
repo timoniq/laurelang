@@ -181,3 +181,17 @@ cons ~ never.
 : ?in('T', 'T'[]).
 ?in(x, arr) when
     arr[_] = x.
+
+__rounding ~ @{down, up}.
+
+: ?sqrtu(int) -> int.
+?sqrtu(n) -> x {
+    __rounding r = @up;
+    x = __sqrt_round(n, r);
+}
+
+: ?sqrtd(int) -> int.
+?sqrtd(n) -> x {
+    __rounding r = @down;
+    x = __sqrt_round(n, r);
+}

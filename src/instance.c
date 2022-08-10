@@ -2759,3 +2759,10 @@ Instance *instance_new_copy(
         return linked_deepcopy_deref(name, instance->image, scope);
     }
 }
+
+int laure_resolve_enum_atom(string atom, laure_enum_atom enum_atom[], size_t enum_sz) {
+    for (size_t i = 0; i < enum_sz; i++)
+        if (str_eq(atom, enum_atom[i].atom))
+            return enum_atom[i].enum_field;
+    return -1;
+}
