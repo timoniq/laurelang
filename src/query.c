@@ -296,6 +296,9 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
             response = laure_showcast(cctx);
         } else if (cctx->vpk->mode == SENDER) {
             response = laure_send(cctx);
+        } else if (cctx->vpk->mode == SENDSCOPE) {
+            cctx->vpk->single_var_processor(cctx->scope, NULL, cctx->vpk->payload);
+            response = respond(q_continue, NULL);
         }
     } else {
         response = respond(q_yield, YIELD_OK);
@@ -757,12 +760,12 @@ qresp laure_eval_assert(
             if (head.t == PREDICATE_FACT) {
                 struct PredicateImage *pim = (struct PredicateImage*)to->image;
                 if (! pim->header.resp || pim->header.resp->t != td_auto)
-                    RESPOND_ERROR(signature_err, e, "predicate response argument should be auto");
+                    RESPOND_ERROR(signature_err, e, "predicate response argument is not auto");
             }
 
-            if (! head.translator) {
+            if (! head.translator)
                 RESPOND_ERROR(internal_err, e, "%s is not assignable. Cannot assign to `%s`", vname, rexpression->s);
-            }
+            
             bool result = head.translator->invoke(rexpression, to->image, scope, link);
             if (!result) return RESPOND_FALSE;
 
@@ -904,6 +907,35 @@ qresp laure_eval_image(
             image_free(ins->image);
             ins->image = atom;
         }
+        return RESPOND_TRUE;
+    }
+
+    if (exp1->t == let_pred || exp2->t == let_pred) {
+        if (exp1->t == let_pred && exp2->t == let_pred)
+            RESPOND_ERROR(syntaxic_err, e, "invalid image Predicate to Predicate");
+        laure_expression_t *to, *pred;
+        if (exp1->t == let_pred) {
+            pred = exp1;
+            to = exp2;
+        } else {
+            pred = exp2;
+            to = exp1;
+        }
+        if (! PREDFLAG_IS_PRIMITIVE(pred->flag))
+            RESPOND_ERROR(syntaxic_err, e, "must be primitive (unnamed predicate signature)");
+        
+        if (to->t != let_var)
+            RESPOND_ERROR(syntaxic_err, to, "must be variable");
+
+        Instance *ins = laure_scope_find_by_key(scope, to->s, true);
+        if (ins) return RESPOND_FALSE;
+        
+        struct PredicateImage *predicate = (struct PredicateImage*) laure_apply_pred(pred, scope);
+        predicate->is_primitive = true;
+        
+        ins = instance_new(to->s, NULL, predicate);
+        ins->repr = predicate_repr;
+        laure_scope_insert(scope, ins);
         return RESPOND_TRUE;
     }
 
@@ -1299,7 +1331,7 @@ ARGPROC_RES pred_call_procvar(
                     
                     if (hint && hint->image && arg->image) {
                         void *Tim_copy = image_deepcopy(hint->image);
-                        if (! (read_head(arg->image).t == UUID && read_head(Tim_copy).t == PREDICATE_FACT))
+                        if (! (read_head(Tim_copy).t == PREDICATE_FACT))
                             if (! image_equals(arg->image, Tim_copy, prev_scope))
                                 return ARGPROC_RET_FALSE;
                         image_free(Tim_copy);
@@ -1347,6 +1379,9 @@ ARGPROC_RES pred_call_procvar(
                 hint = get_nested_instance(T, nesting, prev_scope);;
             } else {
                 hint = hint_opt->instance;
+            }
+            if (! hint) {
+                return_str_fmt("hint is undefined for %s [%s]", exp->fullstring, EXPT_NAMES[exp->t]);
             }
             Instance *arg = instance_new_copy(argn, hint, new_scope);
             
@@ -1625,15 +1660,39 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             }
 
             resp = pf->c.pred(pd, cctx);
-            preddata_free(pd);
 
             if (resp.state == q_bag_full) {
                 // from __bag_sz predicate
                 assert(qctx->next->bag);
                 resp.state = (resp.payload) ? q_true : q_false;
                 cctx->this_break = true;
-            } else if (resp.state == q_instantiate_first) 
-                RESPOND_ERROR(too_broad_err, e, "too broad, try instantiating %lu argument. auto instantiation not implemented yet", (uintptr_t)resp.payload);
+            } else if (resp.state == q_instantiate_first) {
+                laure_expression_set nset[1];
+                nset->expression = e;
+                nset->next = expset;
+                qcontext nqctx[1] = {qcontext_temp(qctx->next, nset, qctx->bag)};
+
+                uintptr_t argument_idx = (uintptr_t)resp.payload;
+                ulong link = pd_get_arg_link(pd, (int)argument_idx);
+
+                Instance *arg = laure_scope_find_by_link(prev, link, true);
+                assert(arg);
+
+                if (arg->locked)
+                    RESPOND_ERROR(instance_err, e, "instantiation requested for %lu argument but it is locked", argument_idx);
+                
+                cctx->qctx = nqctx;
+                cctx->scope = prev;
+                struct img_rec_ctx *ctx = img_rec_ctx_create(arg, cctx, nset, qr_process_default, link);
+                gen_resp gr = image_generate(prev, arg->image, image_rec_default, ctx);
+                cctx->qctx = qctx;
+                cctx->scope = scope;
+                laure_free(ctx);
+
+                resp = gen_resp_process(gr);
+            }
+
+            preddata_free(pd);
 
             if (resp.state == q_false) continue;
 
@@ -2462,4 +2521,17 @@ qcontext qcontext_temp(qcontext *next, laure_expression_set *expset, Bag *bag) {
     qctx.next = next;
     qctx.bag = bag;
     return qctx;
+}
+
+var_process_kit vpk_create_scope_sender(single_proc proc, void *payload) {
+    var_process_kit vpk;
+    vpk.mode = SENDSCOPE;
+    vpk.do_process = true;
+    vpk.interactive_by_name = false;
+    vpk.payload = payload;
+    vpk.single_var_processor = proc;
+    vpk.tracked_vars = NULL;
+    vpk.tracked_vars_len = 0;
+    vpk.sender_receiver = NULL;
+    return vpk;
 }

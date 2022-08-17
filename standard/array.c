@@ -159,7 +159,6 @@ DECLARE(laure_predicate_by_idx) {
 
                     idx_img->state = I;
                     idx_img->i_data = idx_bi;
-                    found = true;
 
                     laure_scope_t *nscope = laure_scope_create_copy(cctx, pd->scope);
 
@@ -493,5 +492,8 @@ DECLARE(laure_predicate_append) {
         }
         return respond(q_yield, (void*)found);
     }
-    return RESPOND_INSTANTIATE_FIRST(0);
+    if (! instantiated(to))
+        return RESPOND_INSTANTIATE_FIRST(0);
+    else
+        return RESPOND_INSTANTIATE_FIRST(1);
 }

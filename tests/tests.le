@@ -14,5 +14,6 @@
     abstract,
     formatting,
     bagof,
-    structure
+    structure,
+    map,
 ).

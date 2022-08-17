@@ -195,3 +195,8 @@ __rounding ~ @{down, up}.
     __rounding r = @down;
     x = __sqrt_round(n, r);
 }
+
+: ?map('T'[], (?('T') -> 'T')) -> 'T'[].
+?map(seq, mapping) -> mseq {
+    __map(seq, mapping) = mseq;
+}

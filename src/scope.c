@@ -390,12 +390,12 @@ laure_scope_t *laure_scope_create_global() {
 
 laure_scope_t *laure_scope_new(laure_scope_t *global, laure_scope_t *next) {
     laure_scope_t *scope = laure_alloc(sizeof(laure_scope_t));
-    scope->idx = next->idx + 1;
+    scope->idx = next ? next->idx + 1 : global->idx + 1;
     scope->count = 0;
     scope->glob = global;
     scope->next = next;
     scope->nlink = global->nlink;
-    scope->repeat = scope->repeat;
+    scope->repeat = 0;
     scope->owner = NULL;
     return scope;
 }

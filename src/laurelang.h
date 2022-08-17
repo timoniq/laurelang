@@ -533,4 +533,6 @@ void laure_allocator_reset_stats();
         else if (imgt == UUID) *(struct UUIDImage*)name1 = *(struct UUIDImage*)name2; \
         else if (imgt == FORMATTING) *(struct FormattingImage*)name1 = *(struct FormattingImage*)name2;
 
+extern laure_expression_t *CALL;
+
 #endif

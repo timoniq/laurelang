@@ -11,8 +11,23 @@ $date {
 // (day=25, month=12, year=-6)
 // (day=25, month=12, year=-5)
 // (day=25, month=12, year=-4)
-: ?test_structure_1(date).
-?test_structure_1((31, 07, 2022)).
-?test_structure_1((25, 12, x)) {
+: ?test_structure(date).
+?test_structure((31, 07, 2022)).
+?test_structure((25, 12, x)) {
     x = (-6 .. -4)?;
+}
+
+$ Single {
+    string i;
+}
+
+: ?test_structure_single_field(string).
+?test_structure_single_field(x) {
+    Single a = "hello world";
+    a = (x,);
+}
+
+?test_structure_single_field(x) {
+    Single a = ("hello world",);
+    a = (x,);
 }

@@ -150,6 +150,7 @@ Instance *get_nested_instance(Instance *atom, uint nesting, laure_scope_t *scope
 
         // create constant nested type
         // which will be used later for hinting
+        ins->locked = true;
         laure_scope_insert(scope->glob, ins);
         return ins;
     }
@@ -186,25 +187,32 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
         } else if (aexp->t == let_auto) {
             printf("Auto cannot be used in arguments\n");
             return NULL;
-        //} else if (str_eq(aexp->s, "_")) {
-        //    laure_typeset_push_instance(args_set, NULL);
         } else {
-            // datatype name
-            string tname;
-            if (nesting) {
-                Instance *to_nest = laure_scope_find_by_key(scope, aexp->s, true);
-                if (!to_nest) {
-                    return NULL;
+            if (aexp->t == let_var) {
+                // datatype name
+                string tname;
+                if (nesting) {
+                    Instance *to_nest = laure_scope_find_by_key(scope, aexp->s, true);
+                    if (!to_nest) {
+                        return NULL;
+                    }
+                    tname = get_nested_ins_name(to_nest, nesting, scope);
+                } else {
+                    tname = aexp->s;
                 }
-                tname = get_nested_ins_name(to_nest, nesting, scope);
+                Instance *arg = laure_scope_find_by_key(scope, tname, true);
+                if (! arg) 
+                    return NULL;
+                laure_typeset_push_instance(args_set, arg);
+            } else if (aexp->t == let_pred) {
+                struct PredicateImage *pred = (struct PredicateImage*) laure_apply_pred(aexp, scope);
+                pred->is_primitive = true;
+                Instance *ins = instance_new(MOCK_NAME, aexp->fullstring, pred);
+                ins->repr = predicate_repr;
+                laure_typeset_push_instance(args_set, ins);
             } else {
-                tname = aexp->s;
-            }
-            Instance *arg = laure_scope_find_by_key(scope, tname, true);
-            if (! arg) {
                 return NULL;
             }
-            laure_typeset_push_instance(args_set, arg);
         }
 
         nestings[idx] = nesting;

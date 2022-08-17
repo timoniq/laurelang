@@ -1601,7 +1601,7 @@ laure_structure *laure_structure_create_header(laure_expression_t *e) {
 bool structure_translator(laure_expression_t *expr, void *img_, laure_scope_t *scope, ulong link) {
     laure_structure *img = (laure_structure*)img_;
     assert(img->is_initted);
-    if (img->data.count == 1) {
+    if (img->data.count == 1 && expr->t != let_complex_data) {
         laure_structure_element element = img->data.data[0];
         if (element.is_construct) {
             printf("not impl\n");
@@ -2010,6 +2010,71 @@ Instance *linked_create_instance_structure_field(string name, ulong structure_li
     return instance;
 }
 
+int typedecls_cmp(
+    laure_typedecl td1, 
+    laure_typedecl td2,
+    uint nesting1,
+    uint nesting2
+) {
+    if (td1.t == td_generic && td1.t == td2.t) {
+        if (nesting1 != nesting2) return -1;
+    } else {
+        Instance *ins1 = td1.instance,
+                 *ins2 = td2.instance;
+        if (read_head(ins1->image).t != read_head(ins2->image).t)
+            return -1;
+    }
+    return 0;
+}
+
+int typesets_cmp(
+    laure_typeset *ts1, 
+    laure_typeset *ts2, 
+    uint *n1,
+    uint *n2
+) {
+    if (ts1->length != ts2->length)
+        return -1;
+    for (int i = 0; i < ts1->length; i++) {
+        laure_typedecl td1 = ts1->data[i];
+        laure_typedecl td2 = ts2->data[i];
+        if (typedecls_cmp(td1, td2, n1[i], n2[i]) != 0) return -2;
+    }
+    return 0;
+}
+
+// predicate equals predicate
+bool predicate_eq(
+    struct PredicateImage* img1, 
+    struct PredicateImage* img2
+) {
+    // predicates are never equal 
+    // unless they are the same image
+    if (img1->is_primitive == img2->is_primitive)
+        return img1 == img2;
+    // img1 is primitive
+    // img2 is real predicate
+    if (img2->is_primitive) {
+        struct PredicateImage *tmp = img1;
+        img1 = img2;
+        img2 = tmp;
+    }
+    if (img1->header.args->length != img2->header.args->length)
+        return false;
+    else if (
+        typesets_cmp(
+            img1->header.args, 
+            img2->header.args, 
+            img1->header.nestings, 
+            img2->header.nestings
+        ) != 0
+    )
+        return false;
+    img1->variations = img2->variations;
+    img1->is_primitive = false;
+    return true;
+}
+
 /*
    Global methods
 */
@@ -2070,6 +2135,9 @@ bool image_equals(void* img1, void* img2, laure_scope_t *scope) {
         }
         case STRUCTURE: {
             return structure_eq((laure_structure*) img1, (laure_structure*) img2);
+        }
+        case PREDICATE_FACT: {
+            return predicate_eq((struct PredicateImage*) img1, (struct PredicateImage*) img2);
         }
         default:
             return false;
@@ -2579,13 +2647,25 @@ string predicate_repr(Instance *ins) {
 
         if (td.t == td_instance) {
             argn = img->header.args->data[i].instance->name;
+            if (argn == MOCK_NAME)
+                argn = img->header.args->data[i].instance->doc;
         } else if (td.t == td_generic) {
             argn = img->header.args->data[i].generic;
         }
+
+        bool should_esc = argn[0] == '?' || argn[0] == '#';
+        
         if (i != 0) {
             strcat(argsbuff, ", ");
+            if (should_esc) strcat(argsbuff, "(");
             strcat(argsbuff, argn);
-        } else strcpy(argsbuff, argn);
+        } else {
+            if (should_esc) {
+                strcpy(argsbuff, "(");
+                strcat(argsbuff, argn);
+            } else
+                strcpy(argsbuff, argn);
+        }
         
         if (td.t == td_generic) {
             uint n = img->header.nestings[i];
@@ -2594,6 +2674,9 @@ string predicate_repr(Instance *ins) {
                 n--;
             }
         }
+        
+        if (should_esc)
+            strcat(argsbuff, ")");
     }
 
     if (img->header.resp != NULL) {
@@ -2749,6 +2832,8 @@ bool laure_safe_update(
     laure_scope_t *nscope,
     laure_scope_t *oscope
 ) {
+    if (ninstance->image && read_head(ninstance->image).t == PREDICATE_FACT)
+        return true;
     return image_equals(ninstance->image, oinstance->image, nscope);
 }
 

@@ -38,6 +38,7 @@ const laure_builtin_predicate BUILTIN_PREDICATES[] = {
     {"__by_idx", laure_predicate_by_idx, 2, "builtin array by idx predicate", {"arr:_ idx:int", "_"}, false},
     {"length", laure_predicate_length, 1, "builtin array length predicate", {"arr:_", "int"}, false},
     {"__append", laure_predicate_append, 2, "builtin array append predicate", {"to:_ with:_", "_"}, false},
+    {"__map", laure_predicate_map, 2, "builtin map", {"arr:_ mapping:_", "_"}, false},
 };
 
 void laure_register_builtins(laure_session_t*);

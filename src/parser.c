@@ -619,7 +619,7 @@ laure_parse_result laure_parse(string query) {
             lpr.is_ok = false;
             lpr.err = lpmr.err;
             return lpr;
-        } else if (lpmr.exps->next == NULL) {
+        } else if (lpmr.exps && lpmr.exps->next == NULL && lastc(query) != ',') {
             laure_parse_result lpr;
             lpr.is_ok = true;
             lpr.exp = lpmr.exps->expression;
@@ -627,7 +627,16 @@ laure_parse_result laure_parse(string query) {
         } else {
             laure_parse_result lpr;
             lpr.is_ok = true;
-            lpr.exp = laure_expression_create(let_complex_data, NULL, false, query, 0, laure_bodyargs_create(lpmr.exps, laure_expression_get_count(lpmr.exps), false), query);
+            lpr.exp = laure_expression_create(
+                let_complex_data, 
+                NULL, 
+                false, 
+                query, 
+                0, 
+                laure_bodyargs_create(lpmr.exps, 
+                laure_expression_get_count(lpmr.exps), false), 
+                query
+            );
             return lpr;
         }
     }
@@ -942,7 +951,7 @@ laure_parse_result laure_parse(string query) {
 
             laure_parse_result lpr;
             lpr.is_ok = true;
-            lpr.exp = laure_expression_create(type, "", false, name, PREDFLAG_GET(is_primitive, is_abstract_template, endexcl), ba, query);
+            lpr.exp = laure_expression_create(type, "", false, name, PREDFLAG_GET(is_primitive, is_abstract_template, endexcl), ba, originate);
             lpr.exp->link = linked_namespace;
 
             return lpr;

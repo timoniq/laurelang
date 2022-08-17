@@ -84,7 +84,9 @@ typedef enum VPKMode {
     INTERACTIVE,
     SENDER,
     SILENT,
+    SENDSCOPE,
 } vpk_mode_t;
+
 typedef struct laure_vpk {
 
     vpk_mode_t mode;
@@ -102,6 +104,8 @@ typedef struct laure_vpk {
 
 control_ctx *control_new(laure_session_t *session, laure_scope_t* scope, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig);
 qcontext *qcontext_new(laure_expression_set *expset);
+
+var_process_kit vpk_create_scope_sender(single_proc proc, void *payload);
 
 apply_result_t laure_consult_predicate(laure_session_t *session, laure_scope_t *scope, laure_expression_t *predicate_exp, char *address);
 qresp laure_start(control_ctx *cctx, laure_expression_set *expset);

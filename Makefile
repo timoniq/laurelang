@@ -41,7 +41,8 @@ LIB = src/parser.o \
 	  standard/integer.c \
 	  standard/utility.c \
 	  standard/bag.c \
-	  standard/array.c
+	  standard/array.c \
+	  standard/map.c
 
 OBJECTS = laure.o $(LIB)
 

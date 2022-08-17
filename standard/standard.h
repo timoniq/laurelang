@@ -22,6 +22,8 @@ qresp laure_predicate_by_idx(preddata*, control_ctx*);
 qresp laure_predicate_length(preddata*, control_ctx*);
 qresp laure_predicate_append(preddata*, control_ctx*);
 
+qresp laure_predicate_map(preddata*, control_ctx*);
+
 #define DECLARE(name) \
         qresp name(preddata *pd, control_ctx *cctx) 
 

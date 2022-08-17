@@ -48,13 +48,15 @@ void laure_backtrace_add(laure_backtrace *backtrace, laure_expression_t *e) {
         memcpy(backtrace->chain, nchain, (BACKTRACE_CHAIN_LIMIT-1) * sizeof(struct chain_p));
         backtrace->cursor = BACKTRACE_CHAIN_LIMIT-1;
     }
-    if (backtrace->cursor && str_eq(backtrace->chain[backtrace->cursor-1].e->fullstring, e->fullstring)) {
-        backtrace->chain[backtrace->cursor].times++;
-    } else {
-        struct chain_p p;
-        p.e = e;
-        p.times = 0;
-        backtrace->chain[backtrace->cursor++] = p;
+    if (e->fullstring) {
+        if (backtrace->cursor && str_eq(backtrace->chain[backtrace->cursor-1].e->fullstring, e->fullstring)) {
+            backtrace->chain[backtrace->cursor].times++;
+        } else {
+            struct chain_p p;
+            p.e = e;
+            p.times = 0;
+            backtrace->chain[backtrace->cursor++] = p;
+        }
     }
 }
 // pretty backtrace print
