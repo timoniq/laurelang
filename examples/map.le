@@ -11,11 +11,18 @@
 ?mapping(a + 1) -> a.
 ?mapping(a + 100) -> a.
 
+// try these simple queries:
 // map{int}([1,2,3], inc) = [2,3,4]
 // map{int}(x, mapping) = [1,2,3]
 
-: ?test(string).
-?test(maybe) {
-    string a = "Lowerme";
-    lower(a) = maybe;
-}
+string[] dictionary = [
+    "strives", "efficient", "to", 
+    "laurelang", "as", "be", 
+    "possible", "as"
+].
+
+: ?crypt(natural*) -> string.
+?crypt(i) -> dictionary[i].
+
+// try such mapping as an example:
+// map{int, string}([3, 0, 2, 5, 4, 1, 4, 6], crypt) = x

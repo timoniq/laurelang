@@ -70,11 +70,12 @@ typedef struct map_ctx {
     struct PredicateImage *predicate;
     struct ArrayImage *final_image;
     laure_scope_t *pd_scope;
-    bool dest;
+    bool dest, is_ok;
 } map_ctx;
 
 void map_processor(laure_scope_t *recscope, char *_, void *ctx_) {
     map_ctx *ctx = (map_ctx*) ctx_;
+    // if (! ctx->is_ok) return;
 
     Instance *mapped = NULL;
 
@@ -106,6 +107,8 @@ void map_processor(laure_scope_t *recscope, char *_, void *ctx_) {
         new.scope = nscope;
         
         qresp result = laure_start(&new, NULL);
+        if (result.state == q_false || (result.state == q_yield && result.payload == 0))
+            ctx->is_ok = false;
         return;
     }
 
@@ -148,6 +151,9 @@ void map_processor(laure_scope_t *recscope, char *_, void *ctx_) {
 
     laure_free(scope);
     laure_free(predicate_ins);
+
+    if (response.state == q_false || (response.state == q_yield && response.payload == 0))
+        ctx->is_ok = false;
 }
 
 
@@ -190,7 +196,7 @@ DECLARE(laure_predicate_map) {
 
         map_ctx ctx;
         ctx.cctx = cctx;
-        ctx.ary_el = left->arr_el;
+        ctx.ary_el = linst ? right->arr_el : left->arr_el;
         ctx.idx = 0;
         ctx.len = linst ? left->i_data.length : right->i_data.length;
         ctx.predicate = mapping_img;
@@ -200,9 +206,10 @@ DECLARE(laure_predicate_map) {
         ctx.final_image = linst ? right : left;
         ctx.pd_scope = pd->scope;
         ctx.dest = linst;
+        ctx.is_ok = true;
         map_processor(cctx->scope, NULL, &ctx);
         laure_free(ctx.write);
-        return RESPOND_YIELD((void*)1);
+        return RESPOND_YIELD((void*)ctx.is_ok);
     } else {
         return RESPOND_INSTANTIATE_FIRST(0);
     }

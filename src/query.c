@@ -1501,8 +1501,9 @@ int generic_process(
                 n = e->link->ba->set->expression->s;
                 nesting = e->link->ba->set->expression->flag;
             } else {
-                int gx = 0;
-                for (; gx <= ax && gx <= e->link->ba->body_len; gx++);
+                int gx = ax;
+                if (gx >= e->link->ba->body_len)
+                    gx = e->link->ba->body_len - 1;
                 laure_expression_t *ge = laure_expression_set_get_by_idx(e->link->ba->set, gx);
                 n = ge->s;
                 nesting = ge->flag;
