@@ -333,7 +333,7 @@ extern char* MOCK_NAME;
 char *get_dflag(char *flagname);
 void add_dflag(char *flagname, char *value);
 
-#define included_fp_max 128
+#define included_fp_max 256
 
 typedef struct {
     laure_scope_t *scope;

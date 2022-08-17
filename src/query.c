@@ -35,6 +35,9 @@
 #endif
 
 #define MAX_ARGS 32
+#define GENERIC_PLACES 26
+#define GENERIC_FIRST 'A'
+#define GENERIC_LAST 'Z'
 
 char *RESPN = NULL;
 char *CONTN = NULL;
@@ -53,6 +56,11 @@ void laure_upd_scope(ulong link, laure_scope_t *to, laure_scope_t *from) {
     bool res = image_equals(to_ins->image, from_ins->image, from);
     if (! res)
         printf("Error: cannot backtrack link %lu\n", link);
+}
+
+size_t count_generic_place_idx(int name) {
+    assert(name >= GENERIC_FIRST && name <= GENERIC_LAST);
+    return name - GENERIC_FIRST;
 }
 
 bool is_weighted_expression(laure_expression_t *exp) {
@@ -1247,7 +1255,7 @@ ARGPROC_RES pred_call_procvar(
     struct arg_rec_ctx *ctx, 
     bool                create_copy,
 
-    Instance *T,
+    Instance **Generics,
     uint nesting,
     struct PredicateImage *pred_img,
     bool allow_locked_mutability,
@@ -1270,6 +1278,7 @@ ARGPROC_RES pred_call_procvar(
                 if (hint_opt) {
                     Instance *hint;
                     if (hint_opt->t == td_generic) {
+                        Instance *T = Generics[count_generic_place_idx(hint_opt->generic[0])];
                         assert(T);
                         hint = get_nested_instance(T, nesting, prev_scope);
                     } else {
@@ -1324,6 +1333,7 @@ ARGPROC_RES pred_call_procvar(
                     // check variable corresponds the type
                     Instance *hint;
                     if (hint_opt->t == td_generic) {
+                        Instance *T = Generics[count_generic_place_idx(hint_opt->generic[0])];
                         assert(T);
                         hint = get_nested_instance(T, nesting, prev_scope);
                     } else
@@ -1375,6 +1385,7 @@ ARGPROC_RES pred_call_procvar(
                 return_str_fmt("cannot resolve meaning of %s; add hint", exp->s);
             Instance *hint;
             if (hint_opt->t == td_generic) {
+                Instance *T = Generics[count_generic_place_idx(hint_opt->generic[0])];
                 assert(T);
                 hint = get_nested_instance(T, nesting, prev_scope);;
             } else {
@@ -1466,6 +1477,64 @@ bool check_namespace(laure_scope_t *scope, Instance *T, laure_expression_t *ns) 
         return read_head(T->image).t == ATOM;
     }
     assert(false);
+}
+
+int generic_process(
+    Instance **Generics, 
+    laure_typedecl td,
+    laure_expression_t *e,
+    laure_scope_t *scope,
+    size_t ax,
+    struct PredicateHeaderImage header,
+    string predicate_name
+) {
+    if (td.t != td_generic) return 0;
+    int place = count_generic_place_idx(td.generic[0]);
+    if (! Generics[place]) {
+        Instance *T = NULL;
+        if (e->link && e->link->ba->set) {
+            // find generic by name
+            string n;
+            uint nesting;
+            if (e->link->ba->body_len == 1) {
+                // all generic should be this type
+                n = e->link->ba->set->expression->s;
+                nesting = e->link->ba->set->expression->flag;
+            } else {
+                int gx = 0;
+                for (; gx <= ax && gx <= e->link->ba->body_len; gx++);
+                laure_expression_t *ge = laure_expression_set_get_by_idx(e->link->ba->set, gx);
+                n = ge->s;
+                nesting = ge->flag;
+            }
+            T = laure_scope_find_by_key(scope->glob, n, true);
+            if (T) {
+                T = get_nested_instance(T, nesting, scope->glob);
+                T = instance_shallow_copy(T);
+            }
+            else
+                return 2;
+        }
+        if (! T) {
+            T = resolve_generic_T(header, e->ba->set, scope);
+            if (! T) {
+                string dname = laure_alloc(strlen(predicate_name) + 3);
+                strcpy(dname, "T:");
+                strcat(dname, predicate_name);
+                string Tdefault = get_dflag(dname);
+                laure_free(dname);
+                if (Tdefault) {
+                    T = laure_scope_find_by_key(scope, Tdefault, true);
+                    T = instance_shallow_copy(T);
+                    if (! T)
+                        return 1;
+                } else
+                    return 3;
+            }
+        }
+        Generics[place] = T;
+    }
+    return 0;
 }
 
 /* =-------=
@@ -1731,40 +1800,33 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 debug("predicate variation will result in global cut if succeed");
 
             // resolve generic type
-            Instance *T = NULL;
+            Instance *Generics[GENERIC_PLACES];
+            memset(Generics, 0, sizeof(Instance*) * GENERIC_PLACES);
+
             if (! laure_typeset_all_instances(pred_img->header.args)) {
-                if (e->docstring && strlen(e->docstring)) {
-                    // generic was set up manually
-                    uint nesting = e->flag;
-                    T = laure_scope_find_by_key(scope->glob, e->docstring, true);
-                    if (T) {
-                        T = get_nested_instance(T, nesting, scope->glob);
-                        T = instance_shallow_copy(T);
-                    }
-                    else
-                        RESPOND_ERROR(undefined_err, e, "instance %s is undefined, can't resolve the generic type", e->docstring);
+                int code;
+                for (int ax = 0; ax < pred_img->header.args->length; ax++) {
+                    code = generic_process(Generics, pred_img->header.args->data[ax], e, scope, ax, pred_img->header, predicate_name);
+                    if (code != 0)
+                        break;
                 }
-                if (! T) {
-                    T = resolve_generic_T(pred_img->header, e->ba->set, scope);
-                    if (! T) {
-                        string dname = laure_alloc(strlen(predicate_name) + 3);
-                        strcpy(dname, "T:");
-                        strcat(dname, predicate_name);
-                        string Tdefault = get_dflag(dname);
-                        laure_free(dname);
-                        if (Tdefault) {
-                            T = laure_scope_find_by_key(scope, Tdefault, true);
-                            T = instance_shallow_copy(T);
-                            if (! T)
-                                RESPOND_ERROR(undefined_err, e, "default T which was set for predicate %s is undefined", predicate_name);
-                        } else
-                            RESPOND_ERROR(signature_err, e, "unable to resolve generic datatype%s; add explicit cast or add hint to resolve", "");
+                if (pred_img->header.resp && code == 0) {
+                    code = generic_process(Generics, *pred_img->header.resp, e, scope, pred_img->header.args->length, pred_img->header, predicate_name);
+                }
+                if (code != 0) {
+                    if (code == 1) {
+                        RESPOND_ERROR(undefined_err, e, "default T which was set for predicate %s is undefined", predicate_name);
+                    } else if (code == 2) {
+                        RESPOND_ERROR(undefined_err, e, "instance is undefined, can't resolve the generic type");
+                    } else if (code == 3) {
+                        RESPOND_ERROR(signature_err, e, "unable to resolve generic datatype; add explicit cast or add hint to resolve");
                     }
                 }
             }
 
             // resolve namespace
             if (exp->link) {
+                Instance *T = Generics[count_generic_place_idx('T')];
                 if (! T)
                     RESPOND_ERROR(internal_err, e, "namespace declaration can be used only within generic type");
                 
@@ -1814,7 +1876,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     laure_get_argn(idx), 
                     &pred_img->header.args->data[idx], 
                     argexp, rec, 
-                    actx, true, T, pred_img->header.nestings[idx], pred_img, false, argi + idx);
+                    actx, true, Generics, pred_img->header.nestings[idx], pred_img, false, argi + idx);
 
                 ARGPROC_RES_(
                     res, 
@@ -1832,7 +1894,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     Instance *hint = NULL;
                     if (pred_img->header.resp) {
                         if (pred_img->header.resp->t == td_generic) {
-                            hint = get_nested_instance(T, pred_img->header.response_nesting, scope);
+                            hint = get_nested_instance(Generics[count_generic_place_idx(pred_img->header.resp->generic[0])], pred_img->header.response_nesting, scope);
                         } else {
                             hint = pred_img->header.resp->instance;
                         }
@@ -1858,7 +1920,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                         laure_get_respn(),
                         pred_img->header.resp,
                         exp, rec,
-                        actx, true, T, pred_img->header.response_nesting, pred_img, false, &respi);
+                        actx, true, Generics, pred_img->header.response_nesting, pred_img, false, &respi);
                     
                     ARGPROC_RES_(
                         res,
@@ -1870,7 +1932,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             } else
                 respi = false;
             
-            if (T) laure_free(T);
+            for (uint i = 0; i < GENERIC_PLACES; i++) laure_free(Generics[i]);
 
             if (uuid_instance) {
                 ulong l[1];
@@ -2205,6 +2267,7 @@ qresp laure_eval_cut(_laure_eval_sub_args) {
 }
 
 string get_work_dir_path(string f_addr) {
+    if (! f_addr) return NULL;
     string naddr = strdup(f_addr);
     strrev_via_swap(naddr);
     while (naddr[0] != '/') naddr++;

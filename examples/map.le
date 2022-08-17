@@ -11,8 +11,8 @@
 ?mapping(a + 1) -> a.
 ?mapping(a + 100) -> a.
 
-// map<int>([1,2,3], inc) = [2,3,4]
-// map<int>(x, mapping) = [1,2,3]
+// map{int}([1,2,3], inc) = [2,3,4]
+// map{int}(x, mapping) = [1,2,3]
 
 : ?test(string).
 ?test(maybe) {

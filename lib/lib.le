@@ -156,8 +156,8 @@ cons ~ never.
 }
 
 // links array head to array tail
-// `linked<int>(1, [2,3]) = x`
-// `linked<int>(1, tail) = [1,2,3]`
+// `linked{int}(1, [2,3]) = x`
+// `linked{int}(1, tail) = [1,2,3]`
 : ?linked('T', 'T'[]) -> 'T'[].
 
 ?linked(head, tail) -> arr {
@@ -166,7 +166,7 @@ cons ~ never.
 }
 
 // flattens array to one dimension
-// `flatten<int>([[1,2], [], [3], [4, 5]]) = x`
+// `flatten{int}([[1,2], [], [3], [4, 5]]) = x`
 !ordering.
 : ?flatten('T'[]) -> 'T'.
 
@@ -196,7 +196,7 @@ __rounding ~ @{down, up}.
     x = __sqrt_round(n, r);
 }
 
-: ?map('T'[], (?('T') -> 'T')) -> 'T'[].
+: ?map('T'[], (?('T') -> 'R')) -> 'R'[].
 ?map(seq, mapping) -> mseq {
     __map(seq, mapping) = mseq;
 }

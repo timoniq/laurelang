@@ -141,13 +141,13 @@
 
 : ?test_array_no_repeat().
 ?test_array_no_repeat() {
-    no_repeat<int>([1, 2, 3]);
-    no_repeat<int>([1, 2, 2]) -> fail();
-    no_repeat<int>([1, 1, 2]) -> fail();
-    no_repeat<int> of [];
-    no_repeat<int> of [1];
-    no_repeat<int> of [1, 2];
-    no_repeat<int> of [1, 1] -> fail();
+    no_repeat{int}([1, 2, 3]);
+    no_repeat{int}([1, 2, 2]) -> fail();
+    no_repeat{int}([1, 1, 2]) -> fail();
+    no_repeat{int} of [];
+    no_repeat{int} of [1];
+    no_repeat{int} of [1, 2];
+    no_repeat{int} of [1, 1] -> fail();
 }
 
 
@@ -158,14 +158,14 @@
 
 : ?test_array_append(int[]).
 
-?test_array_append(x) when append<int>([1,2], [3,4,5]) = x.
-?test_array_append(x) when append<int>([], []) = x.
+?test_array_append(x) { append{int}([1,2], [3,4,5]) = x }
+?test_array_append(x) { append{int}([], []) = x }
 ?test_array_append(x) {
-    append<int>([1,2], [3]) = [1] -> fail();
-    append<int>(x, [2,3]) = [1,2,3];
+    append{int}([1,2], [3]) = [1] -> fail();
+    append{int}(x, [2,3]) = [1,2,3];
 }
 ?test_array_append(x) {
-    append<int>([1, 2], x) = [1, 2, 3];
+    append{int}([1, 2], x) = [1, 2, 3];
 }
 
 // [1, 2, 3, 4, 5]

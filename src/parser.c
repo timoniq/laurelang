@@ -24,8 +24,8 @@ string ELLIPSIS = NULL;
 #endif
 
 #define NS_SEPARATOR ':'
-#define GENERIC_OPEN '<'
-#define GENERIC_CLOSE '>'
+#define GENERIC_OPEN '{'
+#define GENERIC_CLOSE '}'
 
 char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Complex Data", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Atom", "Command", "Generic DT/Char", "Atom Sign", "Auto", "Nested", "[Nope]"};
 
@@ -422,6 +422,10 @@ uint pop_nestings(string s) {
     return nesting;
 }
 
+bool is_fine_generic_name(int name) {
+    return name >= 65 && name <= 90;
+}
+
 string is_by_idx_call(string q) {
     if (lastc(q) != ']') return NULL;
     char *c = q + strlen(q) - 2;
@@ -448,7 +452,6 @@ string is_by_idx_call(string q) {
 
 uint pop_generic(string* name, string *tname, string *query) {
     string generic_before = read_til(*name, GENERIC_OPEN);
-    printf("%s|%s\n", *name, generic_before);
     uint t_nest = 0;
     if (generic_before && strlen(generic_before)) {
         string generic = (*name) + strlen(generic_before) + 1;
@@ -819,6 +822,7 @@ laure_parse_result laure_parse(string query) {
             if (nonbody) {
                 body = query + strlen(nonbody) + 1;
                 lastc(body) = 0;
+                body = string_clean(body);
                 query = nonbody;
             }
 
@@ -1324,26 +1328,22 @@ laure_parse_result laure_parse(string query) {
                             // `length of Something`
 
                             // add generic if needed
-                            string t_name = el1->ba ? el1->ba->set->expression->s : NULL;
-                            uint t_nest = el1->ba ? res1.flag : 0;
-
                             laure_expression_set *set = laure_expression_set_link(NULL, el3);
                             laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 1, 0);
-                            lpr.exp = laure_expression_create(let_pred_call, t_name ? t_name : "", false, el1->s, t_nest, ba, query);
+                            lpr.exp = laure_expression_create(let_pred_call, NULL, false, el1->s, 0, ba, query);
+                            lpr.exp->link = el1->ba ? el1 : NULL;
                             return lpr;
                         } else {
                             // predicate call with two arguments
                             // `A + 1`
 
-                            // add generic if needed
-                            string t_name = el2->ba ? el2->ba->set->expression->s : NULL;
-                            uint t_nest = el2->ba ? res2.flag : 0;
-                            
+                            // add generic if needed                            
                             laure_expression_set *set = laure_expression_set_link(NULL, el1);
                             set = laure_expression_set_link(set, el3);
                             laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
-                            lpr.exp = laure_expression_create(let_pred_call, t_name ? t_name : "", false, el2->s, t_nest, ba, query);
+                            lpr.exp = laure_expression_create(let_pred_call, NULL, false, el2->s, 0, ba, query);
                             lpr.exp->flag2 = strlen(temp) + 1;
+                            lpr.exp->link = el2->ba ? el2 : NULL;
                             return lpr;
                         }
                     }
@@ -1373,8 +1373,7 @@ laure_parse_result laure_parse(string query) {
                     }
 
                     string generic_before = read_til(name, GENERIC_OPEN);
-                    string t_name = NULL;
-                    uint t_nest = 0;
+                    laure_expression_set *t_names = NULL;
                     if (generic_before && strlen(generic_before)) {
                         string generic = name + strlen(generic_before) + 1;
 
@@ -1384,8 +1383,11 @@ laure_parse_result laure_parse(string query) {
                             if (l > 63) l = 63;
                             strncpy(type_name, generic, l);
                             type_name[l] = 0;
-                            t_name = strdup(type_name);
-                            t_nest = pop_nestings(t_name);
+                            laure_parse_many_result lpmr = laure_parse_many(strdup(type_name), ',', NULL);
+                            if (! lpmr.is_ok) {
+                                error_format("can't read generics: %s", lpmr.err);
+                            }
+                            t_names = lpmr.exps;
                             name = strdup(generic_before);
                             query += strlen(generic) + 1;
                         }
@@ -1418,7 +1420,8 @@ laure_parse_result laure_parse(string query) {
                     }
 
                     laure_expression_compact_bodyargs *ba = laure_bodyargs_create(args_exps, laure_expression_get_count(args_exps), 0);
-                    lpr.exp = laure_expression_create(let_pred_call, t_name ? t_name : "", false, name, t_nest, ba, originate);
+                    lpr.exp = laure_expression_create(let_pred_call, NULL, false, name, 0, ba, originate);
+                    lpr.exp->link = laure_expression_create(let_set, NULL, false, NULL, 0, laure_bodyargs_create(t_names, laure_expression_get_count(t_names), 0), originate);
                     return lpr;
                 }
 
@@ -1504,8 +1507,8 @@ laure_parse_result laure_parse(string query) {
 
                 if (is_fine_name_for_var(dup)) {
                     laure_expression_compact_bodyargs *ba = NULL;
-                    if (lastc(dup) == '>' && strstr(dup, "<") > dup) {
-                        string clarif = strstr(dup, "<") + 1;
+                    if (lastc(dup) == '}' && strstr(dup, "{") > dup) {
+                        string clarif = strstr(dup, "{") + 1;
                         lastc(clarif) = 0;
                         *(clarif - 1) = 0;
                         gnestings = pop_nestings(clarif);

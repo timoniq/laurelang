@@ -1,8 +1,8 @@
 !use (
-    "factorial.le",
-    "fibonacci.le",
-    "integers.le",
-    "prime.le",
-    "kb_prolog.le",
-    "methods.le"
+    factorial,
+    fibonacci,
+    integers,
+    prime,
+    kb_prolog,
+    methods
 ).
