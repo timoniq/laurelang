@@ -748,7 +748,7 @@ laure_parse_result laure_parse(string query) {
                         let_command,
                         NULL,
                         lock,
-                        name,
+                        strdup(name),
                         command_lock_unlock,
                         NULL,
                         query

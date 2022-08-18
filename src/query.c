@@ -1186,29 +1186,86 @@ Instance *prepare_T_instance(laure_scope_t *scope, Instance *resolved, uint nest
     return prepared;
 }
 
+#define IMAGET(im) (read_head(im).t)
+
+Instance *resolve_via_signature(
+    int name,
+    Instance **Generics,
+    struct PredicateHeaderImage header,
+    Instance *signed_predicate,
+    laure_scope_t *scope
+) {
+    assert(signed_predicate);
+    struct PredicateImage *predicate = (struct PredicateImage*) signed_predicate->image;
+
+    for (uint i = 0; i < header.args->length; i++) {
+        laure_typedecl td = header.args->data[i];
+        if (td.t == td_generic) {
+            int n = *td.generic;
+            size_t idx = count_generic_place_idx(n);
+            if (Generics[idx]) continue;
+            if (predicate->header.args->data[i].t == td_instance) {
+                Generics[idx] = prepare_T_instance(scope, predicate->header.args->data[i].instance, predicate->header.nestings[i]);
+            }
+            if (n == name) return Generics[idx];
+        } else if (td.t == td_instance && IMAGET(td.instance->image) == PREDICATE_FACT) {
+            Instance *ins = resolve_via_signature(name, Generics, ((struct PredicateImage*)td.instance->image)->header, predicate->header.args->data[i].instance, scope);
+            if (ins) return ins;
+        }
+    }
+    if (header.resp) {
+        laure_typedecl td = *header.resp;;
+        if (td.t == td_generic) {
+            int n = *td.generic;
+            size_t idx = count_generic_place_idx(n);
+            if (! Generics[idx] && predicate->header.resp->t == td_instance) {
+                Generics[idx] = prepare_T_instance(scope, predicate->header.resp->instance, predicate->header.response_nesting);
+            }
+            if (n == name) return Generics[idx];
+        } else if (td.t == td_instance && IMAGET(td.instance->image) == PREDICATE_FACT) {
+            Instance *ins = resolve_via_signature(name, Generics, ((struct PredicateImage*)td.instance->image)->header, predicate->header.resp->instance, scope);
+            if (ins) return ins;
+        }
+    }
+    return NULL;
+}
+
 Instance *resolve_generic_T(
+    int name,
+    Instance **Generics,
     struct PredicateHeaderImage header,
     laure_expression_set *set,
     laure_scope_t *scope
 ) {
-    if (header.resp && header.resp->t == td_generic) {
+    if (header.resp) {
         laure_expression_t *rexp = laure_expression_set_get_by_idx(set, header.args->length);
         if (rexp && rexp->t == let_var) {
             Instance *resolved = laure_scope_find_by_key(scope, rexp->s, false);
-            if (resolved) {
-                uint nesting = header.response_nesting;
-                debug("T resolved by response\n");
-                Instance *final =  prepare_T_instance(scope, resolved, nesting);
-                debug("Resolved instance: %s\n", final->repr(final));
-                return final;
+            if (header.resp->t == td_generic && *header.resp->generic == name) {
+                if (resolved) {
+                    uint nesting = header.response_nesting;
+                    debug("T resolved by response\n");
+                    Instance *final =  prepare_T_instance(scope, resolved, nesting);
+                    debug("Resolved instance: %s\n", final->repr(final));
+                    return final;
+                }
+            } else if (
+                resolved
+                && header.resp 
+                && header.resp->t == td_instance 
+                && IMAGET(header.resp->instance->image) == PREDICATE_FACT
+            ) {
+                return resolve_via_signature(name, Generics, ((struct PredicateImage*)header.resp->instance->image)->header, resolved, scope);
             }
         }
     }
+
     for (uint i = 0; i < header.args->length; i++) {
-        if (header.args->data[i].t == td_generic) {
-            laure_expression_t *exp = laure_expression_set_get_by_idx(set, i);
-            if (exp->t == let_var) {
-                Instance *resolved = laure_scope_find_by_key(scope, exp->s, true);
+        laure_expression_t *exp = laure_expression_set_get_by_idx(set, i);
+        if (exp->t == let_var) {
+            Instance *resolved = laure_scope_find_by_key(scope, exp->s, true);
+            laure_typedecl td = header.args->data[i];
+            if (td.t == td_generic && *td.generic == name) {
                 if (resolved) {
                     uint nesting = header.nestings[i];
                     debug("T resolved by argument %u\n", i);
@@ -1216,6 +1273,8 @@ Instance *resolve_generic_T(
                     debug("Resolved instance: %s\n", final->repr(final));
                     return final;
                 }
+            } else if (resolved && td.t == td_instance && IMAGET(td.instance->image) == PREDICATE_FACT) {
+                return resolve_via_signature(name, Generics, ((struct PredicateImage*)td.instance->image)->header, resolved, scope);
             }
         }
     }
@@ -1517,7 +1576,7 @@ int generic_process(
                 return 2;
         }
         if (! T) {
-            T = resolve_generic_T(header, e->ba->set, scope);
+            T = resolve_generic_T(td.generic[0], Generics, header, e->ba->set, scope);
             if (! T) {
                 string dname = laure_alloc(strlen(predicate_name) + 3);
                 strcpy(dname, "T:");

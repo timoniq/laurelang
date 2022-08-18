@@ -35,3 +35,14 @@
     generic2(x, ['a', 'b']);
     generic2_sc(x, ['c', 'd', 'e']);
 }
+
+: ##deepresolve((?('C', (?('A', 'B')))), 'B') -> 'A'.
+: ?resolutor(int, (?(int, string))).
+
+// "(string), <-inf..inf>"
+: ?test_generic_deepresolve(string).
+?test_generic_deepresolve(result) {
+    deepresolve(resolutor, x) = y;
+    !lock y;
+    result = format("{x}, {y}");
+}
