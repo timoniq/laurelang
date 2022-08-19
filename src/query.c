@@ -1197,6 +1197,7 @@ Instance *resolve_via_signature(
 ) {
     assert(signed_predicate);
     struct PredicateImage *predicate = (struct PredicateImage*) signed_predicate->image;
+    if (! predicate->header.args) return NULL;
 
     for (uint i = 0; i < header.args->length; i++) {
         laure_typedecl td = header.args->data[i];

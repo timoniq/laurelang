@@ -32,7 +32,7 @@
 // [5]
 : ?test_array_each_2(int[]).
 
-: ?test_array_each_2(element) {
+?test_array_each_2(element) {
     int[][] arr = [[1, 2], [3, 4], [5]];
     int[] x = [1, 2];
     each of arr = x -> fail();
@@ -52,7 +52,7 @@
 // ...
 : ?test_array_each_gen_array(int[]).
 
-: ?test_array_each_gen_array(arr) {
+?test_array_each_gen_array(arr) {
     int element = 1;
     element = each(arr);
     arr?;

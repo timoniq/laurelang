@@ -933,7 +933,7 @@ bool char_eq(struct CharImage *img1_t, struct CharImage *img2_t) {
             max->charset = strdup(buff);
             return true;
         }
-    } else if (img1_t->state || img2_t->state) {
+    } else if (img1_t->state == 0 || img2_t->state == 0) {
         if (! img1_t->state) {
             img1_t->state = img2_t->state;
             if (img2_t->state == 1) {
@@ -2643,14 +2643,15 @@ string predicate_repr(Instance *ins) {
 
     for (int i = 0; i < img->header.args->length; i++) {
         laure_typedecl td = img->header.args->data[i];
-        string argn;
+        char argn[32];
 
         if (td.t == td_instance) {
-            argn = img->header.args->data[i].instance->name;
-            if (argn == MOCK_NAME)
-                argn = img->header.args->data[i].instance->doc;
+            string n = img->header.args->data[i].instance->name;
+            strcpy(argn, n);
+            if (n == MOCK_NAME)
+                strcpy(argn, img->header.args->data[i].instance->doc);
         } else if (td.t == td_generic) {
-            argn = img->header.args->data[i].generic;
+            snprintf(argn, 32, "'%s'", img->header.args->data[i].generic);
         }
 
         bool should_esc = argn[0] == '?' || argn[0] == '#';
@@ -2680,14 +2681,17 @@ string predicate_repr(Instance *ins) {
     }
 
     if (img->header.resp != NULL) {
-        string rs = NULL;
+        char rs[32];
         if (img->header.resp->t == td_instance) {
-            rs = img->header.resp->instance->name;
+            string n = img->header.resp->instance->name;
+            strcpy(rs, n);
+            if (n == MOCK_NAME)
+                strcpy(rs, img->header.resp->instance->doc);
         } else if (img->header.resp->t == td_generic) {
-            rs = img->header.resp->generic;
+            snprintf(rs, 32, "'%s'", img->header.resp->generic);
         } else if (img->header.resp->t == td_auto) {
             switch (img->header.resp->auto_type) {
-                case AUTO_ID: rs = AUTO_ID_NAME; break;
+                case AUTO_ID: strcpy(rs, AUTO_ID_NAME); break;
             }
         }
         snprintf(respbuff, 64, " -> %s", rs);

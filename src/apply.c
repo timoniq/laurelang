@@ -275,8 +275,6 @@ apply_result_t laure_consult_predicate(
             return respond_apply(apply_error, "header should not contain body");
         }
 
-        Instance *maybe_header = pred_ins;
-
         struct PredicateImage *img = laure_apply_pred(predicate_exp, scope);
 
         if (! img) return respond_apply(apply_error, "predicate hint is undefined");
@@ -302,6 +300,8 @@ apply_result_t laure_consult_predicate(
 
         LAURE_DOC_BUFF = NULL;
         return respond_apply(apply_ok, NULL);
+    } else if (predicate_exp->is_header) {
+        return respond_apply(apply_error, "found duplicate header");
     } else {
         if (is_template) {
             return respond_apply(apply_error, "template can only be header");
