@@ -869,6 +869,8 @@ Instance *ready_instance(laure_scope_t *scope, laure_expression_t *expr) {
     return NULL;
 }
 
+#define IMAGET(im) (read_head(im).t)
+
 /* =-------=
 Imaging.
 * Never creates a choicepoint
@@ -989,25 +991,31 @@ qresp laure_eval_image(
 
         } else if (var1 || var2) {
             Instance *from;
-            string    new_var_name;
+            laure_expression_t *new_var, *old_var;
             uint nesting;
             uint secondary_nesting;
 
             if (var1) {
                 from = var1;
-                new_var_name = exp2->s;
+                new_var = exp2;
+                old_var = exp1;
                 nesting = exp1->flag;
                 secondary_nesting = exp2->flag;
             } else {
                 from = var2;
-                new_var_name = exp1->s;
+                new_var = exp1;
+                old_var = exp2;
                 nesting = exp2->flag;
                 secondary_nesting = exp1->flag;
             }
 
+            if (old_var->ba)
+                if (IMAGET(from->image) != PREDICATE_FACT)
+                    RESPOND_ERROR(instance_err, e, "type can only be bound to predicate");
+
             absorb(nesting, secondary_nesting);
 
-            Instance *ins = instance_deepcopy(new_var_name, from);
+            Instance *ins = instance_deepcopy(new_var->s, from);
 
             if (nesting) {
                 while (nesting) {
@@ -1016,8 +1024,18 @@ qresp laure_eval_image(
                     ins->repr = array_repr;
                     nesting--;
                 }
-                ins->name = strdup(new_var_name);
+                ins->name = strdup(new_var->s);
                 ins->repr = array_repr;
+            }
+
+            if (old_var->ba) {
+                predicate_bound_types_result pbtr = laure_dom_predicate_bound_types(scope, ins->image, old_var->ba->set);
+                if (pbtr.code != 0) {
+                    RESPOND_ERROR(internal_err, e, "cannot bound types; %s, code=%d", pbtr.err, pbtr.code);
+                } else {
+                    laure_free(ins->image);
+                    ins->image = pbtr.bound_predicate;
+                }
             }
 
             laure_scope_insert(scope, ins);
@@ -1186,8 +1204,6 @@ Instance *prepare_T_instance(laure_scope_t *scope, Instance *resolved, uint nest
     return prepared;
 }
 
-#define IMAGET(im) (read_head(im).t)
-
 Instance *resolve_via_signature(
     int name,
     Instance **Generics,
@@ -1208,10 +1224,8 @@ Instance *resolve_via_signature(
             if (predicate->header.args->data[i].t == td_instance) {
                 Generics[idx] = prepare_T_instance(scope, predicate->header.args->data[i].instance, predicate->header.nestings[i]);
             }
-            if (n == name) return Generics[idx];
         } else if (td.t == td_instance && IMAGET(td.instance->image) == PREDICATE_FACT) {
             Instance *ins = resolve_via_signature(name, Generics, ((struct PredicateImage*)td.instance->image)->header, predicate->header.args->data[i].instance, scope);
-            if (ins) return ins;
         }
     }
     if (header.resp) {
@@ -1222,13 +1236,11 @@ Instance *resolve_via_signature(
             if (! Generics[idx] && predicate->header.resp->t == td_instance) {
                 Generics[idx] = prepare_T_instance(scope, predicate->header.resp->instance, predicate->header.response_nesting);
             }
-            if (n == name) return Generics[idx];
         } else if (td.t == td_instance && IMAGET(td.instance->image) == PREDICATE_FACT) {
             Instance *ins = resolve_via_signature(name, Generics, ((struct PredicateImage*)td.instance->image)->header, predicate->header.resp->instance, scope);
-            if (ins) return ins;
         }
     }
-    return NULL;
+    return Generics[count_generic_place_idx(name)];
 }
 
 Instance *resolve_generic_T(
@@ -1596,6 +1608,14 @@ int generic_process(
         Generics[place] = T;
     }
     return 0;
+}
+
+void show_generics(Instance **Generics) {
+    for (int i = 0; i < GENERIC_PLACES; i++) {
+        if (Generics[i]) {
+            printf("%c: %s\n", GENERIC_FIRST + i, Generics[i]->repr(Generics[i]));
+        }
+    }
 }
 
 /* =-------=

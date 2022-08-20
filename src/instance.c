@@ -2867,3 +2867,99 @@ int laure_resolve_enum_atom(string atom, laure_enum_atom enum_atom[], size_t enu
             return enum_atom[i].enum_field;
     return -1;
 }
+
+predicate_bound_types_result laure_dom_predicate_bound_types(
+    laure_scope_t *scope,
+    struct PredicateImage *predicate_im_unbound,
+    laure_expression_set *clarifiers
+) {
+    struct PredicateImage *copy = laure_alloc(sizeof(struct PredicateImage));
+    *copy = *predicate_im_unbound;
+    copy->header.args = laure_typeset_new();
+    copy->header.args->length = predicate_im_unbound->header.args->length;
+    copy->header.args->data = laure_alloc(sizeof(laure_typedecl) * predicate_im_unbound->header.args->length);
+    copy->header.resp = NULL;
+    copy->header.response_nesting = 0;
+    copy->header.nestings = laure_alloc(sizeof(uint) * predicate_im_unbound->header.args->length);
+    memset(copy->header.nestings, 0, predicate_im_unbound->header.args->length);
+
+    bool is_set[LAURE_PREDICATE_ARGC_MAX];
+    memset(is_set, 0, LAURE_PREDICATE_ARGC_MAX);
+    bool response_is_set = false;
+
+    // clarify in common order
+    while (clarifiers && clarifiers->expression->t == let_var) {
+        Instance *clarifier = laure_scope_find_by_key(scope, clarifiers->expression->s, true);
+        if (! clarifier) {
+            return pbtr_error(-1, clarifiers->expression->s);
+        }
+        clarifier = get_nested_instance(clarifier, clarifiers->expression->flag, scope);
+        bool changed = false;
+        for (uint i = 0; predicate_im_unbound->header.args->length; i++) {
+            if (is_set[i]) continue;
+            uint nesting = predicate_im_unbound->header.nestings[i];
+            laure_typedecl td = predicate_im_unbound->header.args->data[i];
+            if (td.t == td_generic) {
+                int name = *td.generic;
+                td.t = td_instance;
+                td.instance = get_nested_instance(clarifier, nesting, scope);
+                // set current to name
+                copy->header.args->data[i] = td;
+                is_set[i] = true;
+                // set others generics with same name to given clarifier
+                for (uint j = i + 1; j < predicate_im_unbound->header.args->length; j++) {
+                    laure_typedecl td2 = predicate_im_unbound->header.args->data[j];
+                    if (! is_set[j] && td2.t == td_generic && *td.generic == name) {
+                        td.instance = get_nested_instance(clarifier, predicate_im_unbound->header.nestings[j], scope);
+                        copy->header.args->data[j] = td;
+                        is_set[j] = true;
+                    }
+                }
+                if (
+                    ! response_is_set
+                    && predicate_im_unbound->header.resp 
+                    && predicate_im_unbound->header.resp->t == td_generic 
+                    && *predicate_im_unbound->header.resp->generic == name
+                ) {
+                    td.instance =  get_nested_instance(clarifier, predicate_im_unbound->header.response_nesting, scope);
+                    copy->header.resp = laure_alloc(sizeof(laure_typedecl));
+                    *copy->header.resp = td;
+                    response_is_set = true;
+                }
+                changed = true;
+                break;
+            }
+        }
+        if (! changed) {
+            if (
+                ! response_is_set
+                && predicate_im_unbound->header.resp 
+                && predicate_im_unbound->header.resp->t == td_generic
+            ) {
+                // response has separate generic type
+                laure_typedecl td = *predicate_im_unbound->header.resp;
+                td.t = td_instance;
+                td.instance =  get_nested_instance(clarifier, predicate_im_unbound->header.response_nesting, scope);
+                copy->header.resp = laure_alloc(sizeof(laure_typedecl));
+                *copy->header.resp = td;
+                response_is_set = true;
+            }
+        }
+        clarifiers = clarifiers->next;
+    }
+    return pbtr_ok(copy);
+}
+
+predicate_bound_types_result pbtr_error(int code, string err) {
+    predicate_bound_types_result pbcr;
+    pbcr.code = code;
+    pbcr.err = err;
+    return pbcr;
+}
+
+predicate_bound_types_result pbtr_ok(struct PredicateImage *image) {
+    predicate_bound_types_result pbcr;
+    pbcr.code = 0;
+    pbcr.bound_predicate = image;
+    return pbcr;
+}

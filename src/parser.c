@@ -94,6 +94,10 @@ bool is_fine_name_for_var(string s) {
         if (ch == DIGITS[i]) return false;
     }
 
+    if (lastc(s) == '}' && strstr(s, "{") > s) {
+        sz = strstr(s, "{") - s;
+    }
+
     for (int i = 0; i < sz; i++) {
         int c = laure_string_char_at_pos(s, strlen(s), i);
         for (int j = 0; j < strlen(RESTRICTED); j++) {
@@ -1499,7 +1503,6 @@ laure_parse_result laure_parse(string query) {
                 }
 
                 uint nesting = 0;
-                uint gnestings = 0;
                 while (strlen(dup) > 2 && str_eq(dup + strlen(dup) - 2, "[]")) {
                     nesting++;
                     dup[strlen(dup) - 2] = 0;
@@ -1511,7 +1514,6 @@ laure_parse_result laure_parse(string query) {
                         string clarif = strstr(dup, "{") + 1;
                         lastc(clarif) = 0;
                         *(clarif - 1) = 0;
-                        gnestings = pop_nestings(clarif);
                         laure_parse_many_result lpr = laure_parse_many(clarif, ',', NULL);
                         if (! lpr.is_ok) {
                             error_format("error parsing clarification: %s", lpr.err);
@@ -1525,7 +1527,6 @@ laure_parse_result laure_parse(string query) {
                         ba = laure_bodyargs_create(lpr.exps, laure_expression_get_count(lpr.exps), 0);
                     }
                     lpr.exp = laure_expression_create(let_var, "", false, dup, nesting, ba, query);
-                    lpr.flag = gnestings;
                     return lpr;
                 }
 
@@ -1927,6 +1928,21 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
                     || arg_exp->t == let_singlq
                     || arg_exp->t == let_complex_data
                 ) {
+                    if (arg_exp->t == let_var && arg_exp->ba) {
+                        // variable with clarifier will be carried out to imaging
+                        char buff[16];
+                        snprintf(buff, 16, "$%lu", laure_scope_generate_link());
+
+                        laure_expression_t *var = laure_expression_create(let_var, arg_exp->s, false, strdup(buff), 0, NULL, exp->fullstring);
+
+                        laure_expression_set *image_set = laure_expression_set_link(NULL, var);
+                        image_set = laure_expression_set_link(image_set, arg_exp);
+
+                        laure_expression_compact_bodyargs *ba = laure_bodyargs_create(image_set, 2, false);
+                        laure_expression_t *image_exp = laure_expression_create(let_image, NULL, false, NULL, 0, ba, exp->fullstring);
+                        set = laure_expression_set_link_branch(set, laure_expression_compose_one(image_exp));
+                        arg_exp = var;
+                    }
                     args = laure_expression_set_link(args, arg_exp);
                 } else {
                     char buff[16];

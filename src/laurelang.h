@@ -20,6 +20,7 @@
 
 extern ulong *LAURE_LINK_ID;
 typedef enum {false, true} bool;
+#define LAURE_PREDICATE_ARGC_MAX 32
 
 typedef unsigned int uint;
 

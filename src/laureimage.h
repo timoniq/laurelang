@@ -284,7 +284,6 @@ struct StructureElement {
     int link_id;
 };
 
- //! todo structure image
 // fully_instantiated - structure is instantiated
 // next_uid - next uid for uname generation
 
@@ -368,6 +367,23 @@ struct PredicateHeaderImage {
     bool do_ordering;
 };
 
+typedef struct predicate_bound_types_result {
+    int code;
+    union {
+        struct PredicateImage *bound_predicate;
+        string err;
+    };
+} predicate_bound_types_result;
+
+predicate_bound_types_result pbtr_error(int code, string err);
+predicate_bound_types_result pbtr_ok(struct PredicateImage *image);
+
+// creates bound version of predicate
+predicate_bound_types_result laure_dom_predicate_bound_types(
+    laure_scope_t *scope,
+    struct PredicateImage *predicate_im_unbound,
+    laure_expression_set *clarifiers
+);
 
 struct PredicateImage {
     IMAGE_HEAD
