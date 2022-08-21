@@ -2555,7 +2555,7 @@ void laure_typeset_push_decl(laure_typeset *ts, string generic_name) {
     ts->length++;
     ts->data = laure_realloc(ts->data, sizeof(laure_typedecl) * ts->length);
     ts->data[ts->length - 1].t = td_generic;
-    ts->data[ts->length - 1].generic = generic_name;
+    ts->data[ts->length - 1].generic = *generic_name;
 }
 
 void laure_typeset_push_auto(laure_typeset *ts, laure_auto_type auto_type) {
@@ -2582,7 +2582,7 @@ laure_typedecl *laure_typedecl_instance_create(Instance *instance) {
 laure_typedecl *laure_typedecl_generic_create(string generic_name) {
     laure_typedecl *td = laure_alloc(sizeof(laure_typedecl));
     td->t = td_generic;
-    td->generic = generic_name;
+    td->generic = *generic_name;
     return td;
 }
 
@@ -2651,7 +2651,7 @@ string predicate_repr(Instance *ins) {
             if (n == MOCK_NAME)
                 strcpy(argn, img->header.args->data[i].instance->doc);
         } else if (td.t == td_generic) {
-            snprintf(argn, 32, "'%s'", img->header.args->data[i].generic);
+            snprintf(argn, 32, "'%c'", img->header.args->data[i].generic);
         }
 
         bool should_esc = argn[0] == '?' || argn[0] == '#';
@@ -2688,7 +2688,7 @@ string predicate_repr(Instance *ins) {
             if (n == MOCK_NAME)
                 strcpy(rs, img->header.resp->instance->doc);
         } else if (img->header.resp->t == td_generic) {
-            snprintf(rs, 32, "'%s'", img->header.resp->generic);
+            snprintf(rs, 32, "'%c'", img->header.resp->generic);
         } else if (img->header.resp->t == td_auto) {
             switch (img->header.resp->auto_type) {
                 case AUTO_ID: strcpy(rs, AUTO_ID_NAME); break;
@@ -2868,84 +2868,129 @@ int laure_resolve_enum_atom(string atom, laure_enum_atom enum_atom[], size_t enu
     return -1;
 }
 
+#define apply_clarifier(DATA, IS_SET, td, nesting, all_clarifiers, check) \
+            if (td.t == td_generic && check) { \
+                td.t = td_instance; \
+                td.instance = get_nested_instance(clarifier, nesting, scope); \
+                DATA = td; \
+                IS_SET = true; \
+            } else if (td.t == td_instance && read_head(td.instance->image).t == PREDICATE_FACT) { \
+                predicate_bound_types_result pbtr_inner = laure_dom_predicate_bound_types(scope, (struct PredicateImage*) td.instance->image, all_clarifiers); \
+                if (pbtr_inner.code != 0) { \
+                    laure_free(copy->header.nestings); \
+                    laure_free(copy->header.args->data); \
+                    laure_free(copy->header.args); \
+                    laure_free(copy); \
+                    return pbtr_inner; \
+                } \
+                Instance *pred_ins = instance_shallow_copy(td.instance); \
+                pred_ins->image = pbtr_inner.bound_predicate; \
+                pred_ins->doc = pred_ins->repr(pred_ins); \
+                td.t = td_instance; \
+                td.instance = pred_ins; \
+                DATA = td; \
+                IS_SET = true; \
+            }
+
 predicate_bound_types_result laure_dom_predicate_bound_types(
     laure_scope_t *scope,
-    struct PredicateImage *predicate_im_unbound,
+    struct PredicateImage *unbound,
     laure_expression_set *clarifiers
 ) {
     struct PredicateImage *copy = laure_alloc(sizeof(struct PredicateImage));
-    *copy = *predicate_im_unbound;
+    *copy = *unbound;
     copy->header.args = laure_typeset_new();
-    copy->header.args->length = predicate_im_unbound->header.args->length;
-    copy->header.args->data = laure_alloc(sizeof(laure_typedecl) * predicate_im_unbound->header.args->length);
+    copy->header.args->length = unbound->header.args->length;
+    copy->header.args->data = laure_alloc(sizeof(laure_typedecl) * unbound->header.args->length);
     copy->header.resp = NULL;
     copy->header.response_nesting = 0;
-    copy->header.nestings = laure_alloc(sizeof(uint) * predicate_im_unbound->header.args->length);
-    memset(copy->header.nestings, 0, predicate_im_unbound->header.args->length);
+    copy->header.nestings = laure_alloc(sizeof(uint) * unbound->header.args->length);
+    memset(copy->header.nestings, 0, unbound->header.args->length);
 
     bool is_set[LAURE_PREDICATE_ARGC_MAX];
     memset(is_set, 0, LAURE_PREDICATE_ARGC_MAX);
     bool response_is_set = false;
+    laure_expression_set *all_clarifiers = clarifiers;
 
-    // clarify in common order
-    while (clarifiers && clarifiers->expression->t == let_var) {
+    if (! clarifiers->next && clarifiers->expression->t == let_var) {
+        // clarification 1-type
+        // mapints ~ map{int[]}
+        // (?map(int[][], (?(int) -> int)) -> int[])
+
         Instance *clarifier = laure_scope_find_by_key(scope, clarifiers->expression->s, true);
         if (! clarifier) {
             return pbtr_error(-1, clarifiers->expression->s);
         }
         clarifier = get_nested_instance(clarifier, clarifiers->expression->flag, scope);
-        bool changed = false;
-        for (uint i = 0; predicate_im_unbound->header.args->length; i++) {
-            if (is_set[i]) continue;
-            uint nesting = predicate_im_unbound->header.nestings[i];
-            laure_typedecl td = predicate_im_unbound->header.args->data[i];
-            if (td.t == td_generic) {
-                int name = *td.generic;
-                td.t = td_instance;
-                td.instance = get_nested_instance(clarifier, nesting, scope);
-                // set current to name
-                copy->header.args->data[i] = td;
-                is_set[i] = true;
-                // set others generics with same name to given clarifier
-                for (uint j = i + 1; j < predicate_im_unbound->header.args->length; j++) {
-                    laure_typedecl td2 = predicate_im_unbound->header.args->data[j];
-                    if (! is_set[j] && td2.t == td_generic && *td.generic == name) {
-                        td.instance = get_nested_instance(clarifier, predicate_im_unbound->header.nestings[j], scope);
-                        copy->header.args->data[j] = td;
-                        is_set[j] = true;
-                    }
-                }
-                if (
-                    ! response_is_set
-                    && predicate_im_unbound->header.resp 
-                    && predicate_im_unbound->header.resp->t == td_generic 
-                    && *predicate_im_unbound->header.resp->generic == name
-                ) {
-                    td.instance =  get_nested_instance(clarifier, predicate_im_unbound->header.response_nesting, scope);
-                    copy->header.resp = laure_alloc(sizeof(laure_typedecl));
-                    *copy->header.resp = td;
-                    response_is_set = true;
-                }
-                changed = true;
-                break;
+
+        // all types will be set to one type
+        for (uint i = 0; i < unbound->header.args->length; i++) {
+            laure_typedecl td = unbound->header.args->data[i];
+            uint nesting = unbound->header.nestings[i];
+
+            apply_clarifier(copy->header.args->data[i], is_set[i], td, nesting, all_clarifiers, true)
+            else {
+                copy->header.args->data[i] = unbound->header.args->data[i];
             }
         }
-        if (! changed) {
-            if (
-                ! response_is_set
-                && predicate_im_unbound->header.resp 
-                && predicate_im_unbound->header.resp->t == td_generic
-            ) {
-                // response has separate generic type
-                laure_typedecl td = *predicate_im_unbound->header.resp;
-                td.t = td_instance;
-                td.instance =  get_nested_instance(clarifier, predicate_im_unbound->header.response_nesting, scope);
+        if (unbound->header.resp) {
+            copy->header.resp = laure_alloc(sizeof(laure_typedecl));
+            laure_typedecl td = (*unbound->header.resp);
+            apply_clarifier((*copy->header.resp), response_is_set, td, unbound->header.response_nesting, all_clarifiers, true)
+            else {
+                *copy->header.resp = *unbound->header.resp;
+            }
+        }
+    } else {
+        // clarification 2-type
+        // map_2 ~ map{T=int, R=string}
+
+        while (clarifiers) {
+            if (clarifiers->expression->t != let_assert) 
+                return pbtr_error(-2, clarifiers->expression->fullstring);
+            
+            char *tname = clarifiers->expression->ba->set->expression->s, 
+                 *cname = clarifiers->expression->ba->set->next->expression->s;
+
+            if (strlen(tname) > 1) {
+                return pbtr_error(-3, tname);
+            }
+
+            int name = (int)*tname;
+            
+            Instance *clarifier = laure_scope_find_by_key(scope, cname, true);
+            if (! clarifier) {
+                return pbtr_error(-1, cname);
+            }
+
+            clarifier = get_nested_instance(clarifier, clarifiers->expression->ba->set->next->expression->flag, scope);
+
+            for (uint i = 0; i < unbound->header.args->length; i++) {
+                laure_typedecl td = unbound->header.args->data[i];
+                uint nesting = unbound->header.nestings[i];
+                apply_clarifier(copy->header.args->data[i], is_set[i], td, nesting, all_clarifiers, td.generic == name)
+            }
+
+            if (unbound->header.resp) {
                 copy->header.resp = laure_alloc(sizeof(laure_typedecl));
-                *copy->header.resp = td;
-                response_is_set = true;
+                laure_typedecl td = (*unbound->header.resp);
+                apply_clarifier((*copy->header.resp), response_is_set, td, unbound->header.response_nesting, all_clarifiers, (*unbound->header.resp).generic == name)
+                else {
+                    laure_free(copy->header.resp);
+                }
             }
+
+            clarifiers = clarifiers->next;
         }
-        clarifiers = clarifiers->next;
+
+        for (uint i = 0; i < unbound->header.args->length; i++) {
+            if (! is_set[i])
+                copy->header.args->data[i] = unbound->header.args->data[i];
+        }
+        if (! response_is_set) {
+            copy->header.resp = laure_alloc(sizeof(laure_typedecl));
+            *copy->header.resp = *unbound->header.resp;
+        }
     }
     return pbtr_ok(copy);
 }

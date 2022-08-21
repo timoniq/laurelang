@@ -1520,7 +1520,7 @@ laure_parse_result laure_parse(string query) {
                         }
                         laure_expression_t *ptr;
                         EXPSET_ITER(lpr.exps, ptr, {
-                            if (! (ptr->t == let_var || ptr->t == let_singlq)) {
+                            if (! (ptr->t == let_var || ptr->t == let_singlq || ptr->t == let_assert)) {
                                 error_format("invalid clarification, clarificator can't be %s", EXPT_NAMES[ptr->t]);
                             }
                         });

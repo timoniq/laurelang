@@ -46,3 +46,34 @@
     !lock y;
     result = format("{x}, {y}");
 }
+
+: ?same('T') -> 'T'.
+?same(x) -> x.
+
+: ?test_clarification_1().
+?test_clarification_1() {
+    map{int}([-1,-2,-3], absolute) = [1,2,3];
+    map{char}(['a', 'b', 'c'], absolute) = ['a', 'b', 'c'] -> fail();
+    map([1,2,3], same{int}) = x;
+    x = [1,2,3];
+}
+?test_clarification_1() {
+    m ~ map{int};
+    repr(m) = "(?m(int[], (?(int) -> int)) -> int[])";
+}
+?test_clarification_1() {
+    m ~ map{int[]};
+    repr(m) = "(?m(int[][], (?(int[]) -> int[])) -> int[][])";
+}
+
+: ?increpr(int) -> string.
+?increpr(x) -> repr(x + 1).
+
+: ?test_clarification_2().
+?test_clarification_2() {
+    // should fail because absolute does not correspond (?(int) -> string) signature
+    map{T=int, R=string}([1,2,3], absolute) = x -> fail();
+    // should succeed
+    map{T=int, R=string}([1,2,3], increpr) = x;
+    x = ["2", "3", "4"];
+}

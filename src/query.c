@@ -34,11 +34,6 @@
 #define further_with_decision_accuracy(A) do {return RESPOND_FALSE;} while (0)
 #endif
 
-#define MAX_ARGS 32
-#define GENERIC_PLACES 26
-#define GENERIC_FIRST 'A'
-#define GENERIC_LAST 'Z'
-
 char *RESPN = NULL;
 char *CONTN = NULL;
 char *MARKER_NODELETE = NULL;
@@ -324,7 +319,7 @@ void laure_init_name_buffs() {
     CONTN = strdup("$C");
     MARKER_NODELETE = strdup("$NODELETE");
     DUMMY_FLAGV = strdup("true");
-    for (uint idx = 0; idx < MAX_ARGS; idx++) {
+    for (uint idx = 0; idx < LAURE_PREDICATE_ARGC_MAX; idx++) {
         char name[4];
         snprintf(name, 4, "$%u", idx);
         ARGN_BUFF[idx] = strdup(name);
@@ -334,7 +329,7 @@ void laure_init_name_buffs() {
 
 string laure_get_argn(uint idx) {
     assert(IS_BUFFN_INITTED);
-    assert(idx < MAX_ARGS);
+    assert(idx < LAURE_PREDICATE_ARGC_MAX);
     return ARGN_BUFF[idx];
 }
 
@@ -1218,7 +1213,7 @@ Instance *resolve_via_signature(
     for (uint i = 0; i < header.args->length; i++) {
         laure_typedecl td = header.args->data[i];
         if (td.t == td_generic) {
-            int n = *td.generic;
+            int n = td.generic;
             size_t idx = count_generic_place_idx(n);
             if (Generics[idx]) continue;
             if (predicate->header.args->data[i].t == td_instance) {
@@ -1231,7 +1226,7 @@ Instance *resolve_via_signature(
     if (header.resp) {
         laure_typedecl td = *header.resp;;
         if (td.t == td_generic) {
-            int n = *td.generic;
+            int n = td.generic;
             size_t idx = count_generic_place_idx(n);
             if (! Generics[idx] && predicate->header.resp->t == td_instance) {
                 Generics[idx] = prepare_T_instance(scope, predicate->header.resp->instance, predicate->header.response_nesting);
@@ -1254,7 +1249,7 @@ Instance *resolve_generic_T(
         laure_expression_t *rexp = laure_expression_set_get_by_idx(set, header.args->length);
         if (rexp && rexp->t == let_var) {
             Instance *resolved = laure_scope_find_by_key(scope, rexp->s, false);
-            if (header.resp->t == td_generic && *header.resp->generic == name) {
+            if (header.resp->t == td_generic && header.resp->generic == name) {
                 if (resolved) {
                     uint nesting = header.response_nesting;
                     debug("T resolved by response\n");
@@ -1278,7 +1273,7 @@ Instance *resolve_generic_T(
         if (exp->t == let_var) {
             Instance *resolved = laure_scope_find_by_key(scope, exp->s, true);
             laure_typedecl td = header.args->data[i];
-            if (td.t == td_generic && *td.generic == name) {
+            if (td.t == td_generic && td.generic == name) {
                 if (resolved) {
                     uint nesting = header.nestings[i];
                     debug("T resolved by argument %u\n", i);
@@ -1350,7 +1345,7 @@ ARGPROC_RES pred_call_procvar(
                 if (hint_opt) {
                     Instance *hint;
                     if (hint_opt->t == td_generic) {
-                        Instance *T = Generics[count_generic_place_idx(hint_opt->generic[0])];
+                        Instance *T = Generics[count_generic_place_idx(hint_opt->generic)];
                         assert(T);
                         hint = get_nested_instance(T, nesting, prev_scope);
                     } else {
@@ -1405,7 +1400,7 @@ ARGPROC_RES pred_call_procvar(
                     // check variable corresponds the type
                     Instance *hint;
                     if (hint_opt->t == td_generic) {
-                        Instance *T = Generics[count_generic_place_idx(hint_opt->generic[0])];
+                        Instance *T = Generics[count_generic_place_idx(hint_opt->generic)];
                         assert(T);
                         hint = get_nested_instance(T, nesting, prev_scope);
                     } else
@@ -1457,7 +1452,7 @@ ARGPROC_RES pred_call_procvar(
                 return_str_fmt("cannot resolve meaning of %s; add hint", exp->s);
             Instance *hint;
             if (hint_opt->t == td_generic) {
-                Instance *T = Generics[count_generic_place_idx(hint_opt->generic[0])];
+                Instance *T = Generics[count_generic_place_idx(hint_opt->generic)];
                 assert(T);
                 hint = get_nested_instance(T, nesting, prev_scope);;
             } else {
@@ -1561,24 +1556,34 @@ int generic_process(
     string predicate_name
 ) {
     if (td.t != td_generic) return 0;
-    int place = count_generic_place_idx(td.generic[0]);
+    int place = count_generic_place_idx(td.generic);
     if (! Generics[place]) {
         Instance *T = NULL;
         if (e->link && e->link->ba->set) {
             // find generic by name
-            string n;
-            uint nesting;
-            if (e->link->ba->body_len == 1) {
+            string n = NULL;
+            uint nesting = 0;
+            if (e->link->ba->body_len == 1 && e->link->ba->set->expression->t == let_var) {
                 // all generic should be this type
                 n = e->link->ba->set->expression->s;
                 nesting = e->link->ba->set->expression->flag;
             } else {
-                int gx = ax;
-                if (gx >= e->link->ba->body_len)
-                    gx = e->link->ba->body_len - 1;
-                laure_expression_t *ge = laure_expression_set_get_by_idx(e->link->ba->set, gx);
-                n = ge->s;
-                nesting = ge->flag;
+                laure_expression_set *set = e->link->ba->set;
+                while (set) {
+                    assert(set->expression->t == let_assert);
+                    char *tn = set->expression->ba->set->expression->s,
+                         *cn = set->expression->ba->set->next->expression->s;
+                    nesting = set->expression->ba->set->next->expression->flag;
+                    int name = (int)tn[0];
+                    Instance *instance = laure_scope_find_by_key(scope, cn, true);
+                    if (! instance)
+                        return 2;
+                    T = get_nested_instance(instance, nesting, scope->glob);
+                    T = instance_shallow_copy(T);
+                    Generics[count_generic_place_idx(name)] = T;
+                    set = set->next;
+                }
+                return 0;
             }
             T = laure_scope_find_by_key(scope->glob, n, true);
             if (T) {
@@ -1589,7 +1594,7 @@ int generic_process(
                 return 2;
         }
         if (! T) {
-            T = resolve_generic_T(td.generic[0], Generics, header, e->ba->set, scope);
+            T = resolve_generic_T(td.generic, Generics, header, e->ba->set, scope);
             if (! T) {
                 string dname = laure_alloc(strlen(predicate_name) + 3);
                 strcpy(dname, "T:");
@@ -1975,7 +1980,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     Instance *hint = NULL;
                     if (pred_img->header.resp) {
                         if (pred_img->header.resp->t == td_generic) {
-                            hint = get_nested_instance(Generics[count_generic_place_idx(pred_img->header.resp->generic[0])], pred_img->header.response_nesting, scope);
+                            hint = get_nested_instance(Generics[count_generic_place_idx(pred_img->header.resp->generic)], pred_img->header.response_nesting, scope);
                         } else {
                             hint = pred_img->header.resp->instance;
                         }

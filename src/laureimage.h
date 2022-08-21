@@ -6,6 +6,11 @@
 #include "domain.h"
 #include <uuid/uuid.h>
 
+#define MAX_ARGS 32
+#define GENERIC_PLACES 26
+#define GENERIC_FIRST 'A'
+#define GENERIC_LAST 'Z'
+
 // U (0) - not instantiated
 // I (1) - instantiated
 enum ImageState {
@@ -69,7 +74,7 @@ typedef struct laure_typedecl {
     laure_typedecl_t t;
     union {
         Instance *instance;
-        string generic;
+        int generic;
         laure_auto_type auto_type;
     };
 } laure_typedecl;
