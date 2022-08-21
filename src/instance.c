@@ -2136,6 +2136,7 @@ bool image_equals(void* img1, void* img2, laure_scope_t *scope) {
         case STRUCTURE: {
             return structure_eq((laure_structure*) img1, (laure_structure*) img2);
         }
+        case CONSTRAINT_FACT:
         case PREDICATE_FACT: {
             return predicate_eq((struct PredicateImage*) img1, (struct PredicateImage*) img2);
         }
@@ -2868,13 +2869,15 @@ int laure_resolve_enum_atom(string atom, laure_enum_atom enum_atom[], size_t enu
     return -1;
 }
 
+bool is_callable(void *image);
+
 #define apply_clarifier(DATA, IS_SET, td, nesting, all_clarifiers, check) \
             if (td.t == td_generic && check) { \
                 td.t = td_instance; \
                 td.instance = get_nested_instance(clarifier, nesting, scope); \
                 DATA = td; \
                 IS_SET = true; \
-            } else if (td.t == td_instance && read_head(td.instance->image).t == PREDICATE_FACT) { \
+            } else if (td.t == td_instance && is_callable(td.instance->image)) { \
                 predicate_bound_types_result pbtr_inner = laure_dom_predicate_bound_types(scope, (struct PredicateImage*) td.instance->image, all_clarifiers); \
                 if (pbtr_inner.code != 0) { \
                     laure_free(copy->header.nestings); \
@@ -2987,7 +2990,7 @@ predicate_bound_types_result laure_dom_predicate_bound_types(
             if (! is_set[i])
                 copy->header.args->data[i] = unbound->header.args->data[i];
         }
-        if (! response_is_set) {
+        if (! response_is_set && unbound->header.resp) {
             copy->header.resp = laure_alloc(sizeof(laure_typedecl));
             *copy->header.resp = *unbound->header.resp;
         }

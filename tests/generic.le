@@ -77,3 +77,10 @@
     map{T=int, R=string}([1,2,3], increpr) = x;
     x = ["2", "3", "4"];
 }
+
+// "#dr((?(string[], (?('A', int)))), int) -> 'A'"
+: ?test_clarification_by_repr(string).
+?test_clarification_by_repr(x) {
+    dr ~ deepresolve{B=int, C=string[]};
+    x = repr(dr);
+}

@@ -53,6 +53,11 @@ void laure_upd_scope(ulong link, laure_scope_t *to, laure_scope_t *from) {
         printf("Error: cannot backtrack link %lu\n", link);
 }
 
+bool is_callable(void *image) {
+    struct ImageHead head = read_head(image);
+    return head.t == PREDICATE_FACT || head.t == CONSTRAINT_FACT;
+}
+
 size_t count_generic_place_idx(int name) {
     assert(name >= GENERIC_FIRST && name <= GENERIC_LAST);
     return name - GENERIC_FIRST;
@@ -1005,7 +1010,7 @@ qresp laure_eval_image(
             }
 
             if (old_var->ba)
-                if (IMAGET(from->image) != PREDICATE_FACT)
+                if (IMAGET(from->image) != PREDICATE_FACT && IMAGET(from->image) != CONSTRAINT_FACT)
                     RESPOND_ERROR(instance_err, e, "type can only be bound to predicate");
 
             absorb(nesting, secondary_nesting);
@@ -1261,7 +1266,7 @@ Instance *resolve_generic_T(
                 resolved
                 && header.resp 
                 && header.resp->t == td_instance 
-                && IMAGET(header.resp->instance->image) == PREDICATE_FACT
+                && is_callable(header.resp->instance->image)
             ) {
                 return resolve_via_signature(name, Generics, ((struct PredicateImage*)header.resp->instance->image)->header, resolved, scope);
             }
@@ -1281,7 +1286,7 @@ Instance *resolve_generic_T(
                     debug("Resolved instance: %s\n", final->repr(final));
                     return final;
                 }
-            } else if (resolved && td.t == td_instance && IMAGET(td.instance->image) == PREDICATE_FACT) {
+            } else if (resolved && td.t == td_instance && is_callable(td.instance->image)) {
                 return resolve_via_signature(name, Generics, ((struct PredicateImage*)td.instance->image)->header, resolved, scope);
             }
         }
