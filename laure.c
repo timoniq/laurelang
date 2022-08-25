@@ -478,7 +478,7 @@ int laure_compiler_cli(laure_session_t *comp_session, int argc, char *argv[]);
 int main(int argc, char *argv[]) {
     signal(SIGINT, sigint_handler);
 
-    if (argc >= 2 && str_eq(argv[1], "help")) {
+    if (argc >= 2 && (str_eq(argv[1], "help") || str_eq(argv[1], "--help"))) {
         if (argc == 2) {
             help1: {};
             printf("This laurelang interpreter version %s%s%s\n", LAURUS_NOBILIS, VERSION, NO_COLOR);

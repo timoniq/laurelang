@@ -1017,6 +1017,14 @@ qresp laure_eval_image(
 
             Instance *ins = instance_deepcopy(new_var->s, from);
 
+            if (IMAGET(ins->image) == STRUCTURE) {
+                qresp r = structure_init(ins->image, scope);
+                if (r.state != q_true) {
+                    laure_free(ins);
+                    return r;
+                }
+            }
+
             if (nesting) {
                 while (nesting) {
                     void *img = laure_create_array_u(ins);
@@ -1185,6 +1193,8 @@ Instance *get_derived_instance(laure_scope_t *scope, Instance *resolved_instance
         return resolved_instance;
     } else if (head.translator->identificator == STRING_TRANSLATOR->identificator) {
         return laure_scope_find_by_key(scope->glob, "string", false);
+    } else if (head.translator->identificator == STRUCTURE_TRANSLATOR->identificator) {
+        return resolved_instance;
     }
     return NULL;
 }
@@ -1552,7 +1562,7 @@ bool check_namespace(laure_scope_t *scope, Instance *T, laure_expression_t *ns) 
 }
 
 int generic_process(
-    Instance **Generics, 
+    Instance *Generics[GENERIC_PLACES], 
     laure_typedecl td,
     laure_expression_t *e,
     laure_scope_t *scope,
@@ -1572,6 +1582,13 @@ int generic_process(
                 // all generic should be this type
                 n = e->link->ba->set->expression->s;
                 nesting = e->link->ba->set->expression->flag;
+                T = laure_scope_find_by_key(scope->glob, n, true);
+                if (T) {
+                    T = get_nested_instance(T, nesting, scope->glob);
+                    T = instance_shallow_copy(T);
+                }
+                else
+                    return 2;
             } else {
                 laure_expression_set *set = e->link->ba->set;
                 while (set) {
@@ -1588,15 +1605,11 @@ int generic_process(
                     Generics[count_generic_place_idx(name)] = T;
                     set = set->next;
                 }
-                return 0;
+                if (Generics[place])
+                    return 0;
+                else
+                    T = NULL;
             }
-            T = laure_scope_find_by_key(scope->glob, n, true);
-            if (T) {
-                T = get_nested_instance(T, nesting, scope->glob);
-                T = instance_shallow_copy(T);
-            }
-            else
-                return 2;
         }
         if (! T) {
             T = resolve_generic_T(td.generic, Generics, header, e->ba->set, scope);

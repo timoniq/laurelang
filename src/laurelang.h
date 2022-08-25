@@ -358,7 +358,8 @@ extern struct Translator
         *CHAR_TRANSLATOR, 
         *STRING_TRANSLATOR,
         *ARRAY_TRANSLATOR,
-        *ATOM_TRANSLATOR;
+        *ATOM_TRANSLATOR,
+        *STRUCTURE_TRANSLATOR;
 
 char *get_dflag(char *flagname);
 void add_dflag(char *flagname, char *value);

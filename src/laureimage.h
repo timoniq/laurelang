@@ -603,7 +603,8 @@ struct predicate_arg *predicate_arg_set_new();
 control_ctx *create_control_ctx(laure_scope_t* scope, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig);
 qresp        image_control     (void *inst_img, control_ctx* ctx);
 
-// used to determine if instance is instantiated or not
+// used to determine if image/instance is instantiated or not
+bool image_instantiated(void *image);
 bool instantiated(Instance*);
 
 // translators

@@ -155,6 +155,13 @@ cons ~ never.
     };
 }
 
+: ?all_distinct('T'[]).
+?all_distinct([]).
+?all_distinct([H|T]) {
+    H in T -> fail();
+    all_distinct(T);
+}
+
 // links array head to array tail
 // `linked{int}(1, [2,3]) = x`
 // `linked{int}(1, tail) = [1,2,3]`

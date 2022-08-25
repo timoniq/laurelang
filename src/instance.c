@@ -9,7 +9,8 @@ struct Translator *INT_TRANSLATOR        = NULL,
                   *PREDICATE_AUTO_TRANSLATOR = NULL,
                   *FORMATTING_TRANSLATOR = NULL,
                   *STRUCTURE_TRANSLATOR  = NULL,
-                  *LINKED_TRANSLATOR     = NULL;
+                  *LINKED_TRANSLATOR     = NULL,
+                  *UUID_TRANSLATOR       = NULL;
 
 string MOCK_NAME;
 qresp  MOCK_QRESP;
@@ -1366,7 +1367,7 @@ laure_uuid_image *laure_create_uuid(string bound, uuid_t uu) {
     laure_uuid_image *im = laure_alloc(sizeof(laure_uuid_image));
     im->bound = bound;
     im->t = UUID;
-    im->translator = NULL;
+    im->translator = UUID_TRANSLATOR;
     if (uu[0] != 0) {
         uuid_copy(im->uuid, uu);
         im->unset = false;
@@ -1374,6 +1375,20 @@ laure_uuid_image *laure_create_uuid(string bound, uuid_t uu) {
         im->unset = true;
     }
     return im;
+}
+
+bool uuid_translator(
+    laure_expression_t *expr, 
+    struct UUIDImage *uuid, 
+    laure_scope_t *scope, 
+    ulong link
+) {
+    if (! expr->s) return false;
+    string uu_str = expr->s;
+    uu_str = rough_strip_string(uu_str);
+    uuid_t uu;
+    if (uuid_parse(uu_str, uu) != 0) return false;
+    return uuid_compare(uuid->uuid, uu) == 0;
 }
 
 /* auto */
@@ -1388,6 +1403,8 @@ bool predicate_auto_translator(laure_expression_t *expr, struct PredicateImage *
     switch (img->header.resp->auto_type) {
         case AUTO_ID: {
             // check exists
+            if (! img->variations->finals)
+                return false;
             assert(img->variations->finals);
             for (uint i = 0; i < img->variations->len; i++) {
                 if (uuid_compare(img->variations->finals[i]->uu, uu)) {
@@ -1395,7 +1412,7 @@ bool predicate_auto_translator(laure_expression_t *expr, struct PredicateImage *
                     struct UUIDImage *uu_image = laure_realloc(img, sizeof(laure_uuid_image));
                     uu_image->t = UUID;
                     uu_image->bound = bound;
-                    uu_image->translator = NULL;
+                    uu_image->translator = UUID_TRANSLATOR;
                     uu_image->unset = false;
                     uuid_copy(uu_image->uuid, uu);
                     return true;
@@ -1411,7 +1428,7 @@ void force_predicate_to_uuid(struct PredicateImage *predicate_img) {
     struct UUIDImage *uu_image = laure_realloc(predicate_img, sizeof(laure_uuid_image));
     uu_image->t = UUID;
     uu_image->bound = bound;
-    uu_image->translator = NULL;
+    uu_image->translator = UUID_TRANSLATOR;
     uu_image->unset = true;
 }
 
@@ -1653,6 +1670,10 @@ bool structure_translator(laure_expression_t *expr, void *img_, laure_scope_t *s
                     if (! instantiated(var)) fully_inst = false;
                 } else {
 
+                    if (! read_head(instance->image).translator) {
+                        return false;
+                    }
+
                     bool result = read_head(instance->image).translator->invoke(ptr, instance->image, scope, link);
                     if (! result) {
                         return false;
@@ -1793,13 +1814,19 @@ laure_structure *structure_deepcopy(laure_structure *img) {
     return structure;
 }
 
-bool structure_eq(laure_structure* img1, laure_structure* img2) {
+bool structure_eq(laure_structure* img1, laure_structure* img2, laure_scope_t *scope) {
     if (! img1->is_initted && ! img2->is_initted) 
         return img1->header == img2->header;
     if (! img1->is_initted || ! img2->is_initted) 
         return false;
     if (img1->data.count != img2->data.count)
         return false;
+
+    void **temp = laure_alloc(sizeof(void*) * img1->data.count * 2);
+    size_t sz = img1->data.count;
+
+    memset(temp, 0, sizeof(void*) * img1->data.count * 2);
+    
     for (size_t i = 0; i < img1->data.count; i++) {
         if (img1->data.data[i].is_construct != img2->data.data[i].is_construct) {
             printf("not impl 2\n");
@@ -1808,16 +1835,38 @@ bool structure_eq(laure_structure* img1, laure_structure* img2) {
             printf("not impl 3\n");
             return false;
         } else {
+
+            void *image_1 = img1->data.data[i].instance->image,
+                 *image_2 = img2->data.data[i].instance->image;
+            
+            temp[i]        = image_1;
+            (temp + sz)[i] = image_2;
+
+            void *copy_1 = image_deepcopy(image_1),
+                 *copy_2 = image_deepcopy(image_2);
             
             bool result = image_equals(
-                img1->data.data[i].instance->image, 
-                img2->data.data[i].instance->image, 
-                NULL
+                copy_1, 
+                copy_2, 
+                scope
             );
-            if (! result)
+
+            img1->data.data[i].instance->image = copy_1;
+            img2->data.data[i].instance->image = copy_2;
+
+            if (! result) {
+                for (size_t j = 0; j < i; j++) {
+                    image_free(img1->data.data[j].instance->image);
+                    image_free(img2->data.data[j].instance->image);
+                    img1->data.data[j].instance->image = temp[j];
+                    img2->data.data[j].instance->image = (temp + sz)[j];
+                }
+                laure_free(temp);
                 return false;
+            }
         }
     }
+    laure_free(temp);
     return true;
 }
 
@@ -2091,6 +2140,7 @@ void laure_set_translators() {
     PREDICATE_AUTO_TRANSLATOR = new_translator('p', predicate_auto_translator);
     STRUCTURE_TRANSLATOR = new_translator('$', structure_translator);
     LINKED_TRANSLATOR = new_translator('l', linked_translator);
+    UUID_TRANSLATOR = new_translator('u', uuid_translator);
     MOCK_NAME = strdup( "$mock_name" );
     MOCK_QRESP.state = q_true;
     MOCK_QRESP.payload = 0;
@@ -2134,7 +2184,7 @@ bool image_equals(void* img1, void* img2, laure_scope_t *scope) {
             return true;
         }
         case STRUCTURE: {
-            return structure_eq((laure_structure*) img1, (laure_structure*) img2);
+            return structure_eq((laure_structure*) img1, (laure_structure*) img2, scope);
         }
         case CONSTRAINT_FACT:
         case PREDICATE_FACT: {
@@ -2225,13 +2275,13 @@ void *image_deepcopy(void *img) {
     return NULL;
 }
 
-bool instantiated(Instance *ins) {
-    struct ImageHead head = read_head(ins->image);
+bool image_instantiated(void *image) {
+    struct ImageHead head = read_head(image);
     switch (head.t) {
         case INTEGER:
-            return ((struct IntImage*)ins->image)->state == I;
+            return ((struct IntImage*)image)->state == I;
         case ARRAY: {
-            struct ArrayImage *ary = ((struct ArrayImage*)ins->image);
+            struct ArrayImage *ary = ((struct ArrayImage*)image);
             if (ary->state != I) return false;
             uint i = 0;
             array_linked_t *linked = ary->i_data.linked;
@@ -2244,19 +2294,23 @@ bool instantiated(Instance *ins) {
         }
         case UUID: return true;
         case ATOM:
-            return ((struct AtomImage*)ins->image)->single;
+            return ((struct AtomImage*)image)->single;
         case CONSTRAINT_FACT:
         case PREDICATE_FACT:
             return true;
         case CHAR:
-            return ((struct CharImage*)ins->image)->state == I;
+            return ((struct CharImage*)image)->state == I;
         case STRUCTURE:
-            return ((laure_structure*)ins->image)->is_initted && ((laure_structure*)ins->image)->data.fully_instantiated;
+            return ((laure_structure*)image)->is_initted && ((laure_structure*)image)->data.fully_instantiated;
         case LINKED: {
             return true;
         }
         default: return true;
     }
+}
+
+bool instantiated(Instance *ins) {
+    return image_instantiated(ins->image);
 }
 
 // Image laure_free
@@ -2642,6 +2696,11 @@ string predicate_repr(Instance *ins) {
 
     struct PredicateImage *img = (struct PredicateImage*)ins->image;
 
+    if (img->t == UUID) {
+        ins->repr = uuid_repr;
+        return ins->repr(ins);
+    }
+
     for (int i = 0; i < img->header.args->length; i++) {
         laure_typedecl td = img->header.args->data[i];
         char argn[32];
@@ -2900,6 +2959,9 @@ predicate_bound_types_result laure_dom_predicate_bound_types(
     struct PredicateImage *unbound,
     laure_expression_set *clarifiers
 ) {
+    if (! clarifiers) {
+        return pbtr_error(-4, NULL);
+    }
     struct PredicateImage *copy = laure_alloc(sizeof(struct PredicateImage));
     *copy = *unbound;
     copy->header.args = laure_typeset_new();
