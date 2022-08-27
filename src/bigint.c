@@ -852,18 +852,22 @@ bigint* bigint_div(
     bigint *dst,
     const bigint *numerator,
     const bigint *denominator,
-    int nomod
+    bigint *mod
 ){
-    bigint unused[1];
-    bigint_init(unused);
+    bigint mod_[1];
+    bigint_init(mod_);
 
-    bigint_div_mod(dst, unused, numerator, denominator);
+    bigint_div_mod(dst, mod_, numerator, denominator);
 
-    if (nomod && bigint_cmp_to_z(unused) != 0) {
+    if (mod == NULL && bigint_cmp_to_z(mod_) != 0) {
+        bigint_free(mod_);
         return NULL;
     }
+    if (mod != NULL) {
+        bigint_cpy(mod, mod_);
+    }
 
-    bigint_free(unused);
+    bigint_free(mod_);
     return dst;
 }
 

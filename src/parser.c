@@ -616,7 +616,11 @@ laure_parse_result laure_parse(string query) {
     if (len == 0)
         error_result("query is empty");
 
-    if (query[0] == '(' && lastc(query) == ')'){
+    if (query[0] == '(' && lastc(query) == ')') {
+        string rt = read_til(query + 1, ')');
+        if (strlen(rt) != strlen(query) - 2) {
+            goto pstart;
+        }
         query = strdup(query);
         query++;
         lastc(query) = 0;
@@ -631,7 +635,7 @@ laure_parse_result laure_parse(string query) {
             lpr.is_ok = true;
             lpr.exp = lpmr.exps->expression;
             return lpr;
-        } else {
+        } else if (lpmr.exps) {
             laure_parse_result lpr;
             lpr.is_ok = true;
             lpr.exp = laure_expression_create(
@@ -659,6 +663,8 @@ laure_parse_result laure_parse(string query) {
         lpr.exp = laure_expression_create(let_auto, NULL, 0, NULL, AUTO_ID, NULL, query);
         return lpr;
     }
+
+    pstart: {};
     
     char det = query[0];
     query++;

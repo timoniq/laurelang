@@ -49,7 +49,7 @@ void laure_backtrace_add(laure_backtrace *backtrace, laure_expression_t *e) {
         backtrace->cursor = BACKTRACE_CHAIN_LIMIT-1;
     }
     if (e->fullstring) {
-        if (backtrace->cursor && str_eq(backtrace->chain[backtrace->cursor-1].e->fullstring, e->fullstring)) {
+        if (backtrace->cursor && backtrace->chain[backtrace->cursor-1].e && str_eq(backtrace->chain[backtrace->cursor-1].e->fullstring, e->fullstring)) {
             backtrace->chain[backtrace->cursor].times++;
         } else {
             struct chain_p p;

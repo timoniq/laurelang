@@ -159,6 +159,8 @@ DECLARE(laure_predicate_integer_multiply) {
     Instance *var2 = pd_get_arg(pd, 1);
     Instance *prod = pd->resp;
 
+    Instance *remainder = pd_get_arg(pd, 2);
+
     cast_image(var1_im, struct IntImage) var1->image;
     cast_image(var2_im, struct IntImage) var2->image;
     cast_image(prod_im, struct IntImage) prod->image;
@@ -185,16 +187,48 @@ DECLARE(laure_predicate_integer_multiply) {
     } else if (var1_i && !var2_i && prod_i) {
         bigint *bi = laure_alloc(sizeof(bigint));
         bigint_init(bi);
-        void *success = bigint_div(bi, prod_im->i_data, var1_im->i_data, true);
-        if (success == NULL) return respond(q_false, NULL);
+        bigint mod[1];
+        if (remainder) {
+            bigint_init(mod);
+        }
+        void *success = bigint_div(bi, prod_im->i_data, var1_im->i_data, remainder == NULL ? NULL : mod);
+        if (success == NULL) {
+            bigint_free(bi);
+            laure_free(bi);
+            if (remainder) bigint_free(mod);
+            return respond(q_false, NULL);
+        }
+        if (remainder) {
+            int_domain_free(((struct IntImage*)remainder->image)->u_data);
+            ((struct IntImage*)remainder->image)->state = I;
+            ((struct IntImage*)remainder->image)->i_data = bigint_copy(mod);
+            bigint_free(mod);
+        }
+        
         INT_ASSIGN(var2_im, bi);
         return True;
 
     } else if (!var1_i && var2_i && prod_i) {
         bigint *bi = laure_alloc(sizeof(bigint));
         bigint_init(bi);
-        void *success = bigint_div(bi, prod_im->i_data, var2_im->i_data, true);
-        if (success == NULL) return respond(q_false, NULL);
+        bigint mod[1];
+        if (remainder) {
+            bigint_init(mod);
+        }
+        void *success = bigint_div(bi, prod_im->i_data, var2_im->i_data, remainder == NULL ? NULL : mod);
+        if (success == NULL) {
+            bigint_free(bi);
+            laure_free(bi);
+            if (remainder) bigint_free(mod);
+            return respond(q_false, NULL);
+        }
+        if (remainder) {
+            int_domain_free(((struct IntImage*)remainder->image)->u_data);
+            ((struct IntImage*)remainder->image)->state = I;
+            ((struct IntImage*)remainder->image)->i_data = bigint_copy(mod);
+            bigint_free(mod);
+        }
+
         INT_ASSIGN(var1_im, bi);
         return True;
     } else {

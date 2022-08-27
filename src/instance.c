@@ -1793,7 +1793,6 @@ void laure_initialization(laure_scope_t *scope) {
             qresp r = structure_init(instance->image, scope);
             if (r.state == q_error) {
                 printf("error while initializing structure\n");
-                printf("  %s\n", (string)r.payload);
             }
         }
     });

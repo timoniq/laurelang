@@ -207,3 +207,21 @@ __rounding ~ @{down, up}.
 ?map(seq, mapping) -> mseq {
     __map(seq, mapping) = mseq;
 }
+
+$ divmod_t {
+    int div;
+    int mod;
+}
+
+// `X / Y = R + Mod`
+: ?divmod(int, int) -> divmod_t.
+?divmod(x, y) -> dm {
+    __*mod(a, y, r) = x;
+    dm = (a, r);
+}
+
+: ?/_(int, int) -> int.
+?/_(x, y) -> z {
+    divmod(x, y) = dm;
+    dm = (z, _);
+}

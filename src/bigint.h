@@ -116,7 +116,7 @@ bigint* bigint_div(
     bigint *dst,
     const bigint *numerator,
     const bigint *denominator,
-    int nomod
+    bigint *mod
 );
 
 bigint* bigint_mod(
