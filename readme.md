@@ -12,7 +12,9 @@ Laurelang stands for Logic, Abstraction and Unification with Readability and Eff
 
 Language aims to become reasonable choice for declarative, logic, constraint programming research, performant for quering and reasoning in big data.
 
-```
+Sample prime number predicate declaration:
+
+```laurelang
 : ?prime(natural).
 
 ?prime(1).
@@ -25,6 +27,21 @@ Language aims to become reasonable choice for declarative, logic, constraint pro
             fail();
     };
 }
+```
+
+Further reasoning on this predicate:
+
+```laurelang
+?- prime(11)
+   true
+?- prime(20..22)
+   false
+?- prime(x)
+   x = 1; x = 2; x = 3; 
+   x = 5; x = 7; x = 11...
+?- prime(x), sized_bagof(15, x) = y
+  x = 43,
+  y = [1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43].
 ```
 
 # Getting started

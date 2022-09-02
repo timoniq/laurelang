@@ -19,6 +19,7 @@ gender ~ @{male, female}.
 ?person("Olga", @female, (01, 02, 2003)).
 ?person("Oleg", @male, (04, 05, 2002)).
 ?person("Selma", @female, (18, 03, 2000)).
+?person("Akiv", @female, (27, 05, 2005)).
 
 ?parent(person("Joseph", _, _), person("Ellen", _, _)).
 ?parent(person("Marine", _, _), person("Ellen", _, _)).
@@ -34,8 +35,9 @@ gender ~ @{male, female}.
 ?parent(person("Annie", _, _), person("Oscar", _, _)).
 ?parent(person("Joseph", _, _), person("John", _, _)).
 ?parent(person("Joseph", _, _), person("Oscar", _, _)).
+?parent(person("Ellen", _, _), person("Akiv", _, _)).
 
-?age(person(_, dob)) -> years {
+?age(person(_, _, dob)) -> years {
     delta = date_subtract(today, dob);
     delta = (_, _, years);
 }
@@ -44,4 +46,9 @@ gender ~ @{male, female}.
 ?mother(x) -> y {
     parent(y, x);
     y = person(_, @female, _);
+}
+
+: ?is_full_age(person).
+?is_full_age(p) {
+    age(p) >= 18;
 }

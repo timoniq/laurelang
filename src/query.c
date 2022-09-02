@@ -1429,6 +1429,9 @@ ARGPROC_RES pred_call_procvar(
                         image_free(Tim_copy);
                     }
                 }
+                if (read_head(arg->image).t == LINKED) {
+                    arg = linked_resolve(arg->image, prev_scope);
+                }
                 Instance *existing_same = new_scope ? laure_scope_find_by_link(new_scope, *link, false) : NULL;
                 if (existing_same && recorder) {
                      arg = instance_new(argn, MARKER_NODELETE, existing_same->image);
