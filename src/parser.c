@@ -811,6 +811,16 @@ laure_parse_result laure_parse(string query) {
         }
         case '?':
         case '#': {
+            if (det == '#' && query[0] == '{') {
+                // Isolated set (feature #10)
+                laure_parse_result lpr = laure_parse(query);
+                if (! lpr.is_ok) {
+                    return lpr;
+                }
+                lpr.exp->flag = 1;
+                return lpr;
+            }
+
             bool endexcl = false;
             if (lastc(query) == '\r') {
                 endexcl = true;
@@ -1048,16 +1058,6 @@ laure_parse_result laure_parse(string query) {
             return lpr;
         }
         case '&': {
-            if (query[0] == '{') {
-                // Isolated set (feature #10)
-                laure_parse_result lpr = laure_parse(query);
-                if (! lpr.is_ok) {
-                    return lpr;
-                }
-                lpr.exp->flag = 1;
-                return lpr;
-            }
-
             // Quantified expression
             // 1 - all
             // 2 - exists

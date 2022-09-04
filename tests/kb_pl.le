@@ -26,8 +26,8 @@
 // "marcellus";"vincent"
 : ?test_kbpl_jealous(string, string).
 ?test_kbpl_jealous(var1, var2) {
-    &{jealous(x, y) -> jealous(y, x)};
-    &{jealous(x, y) -> jealous(x, x) -> fail()};
+    #{jealous(x, y) -> jealous(y, x)};
+    #{jealous(x, y) -> jealous(x, x) -> fail()};
     jealous(var1, var2);
 }
 
