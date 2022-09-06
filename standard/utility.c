@@ -160,11 +160,14 @@ DECLARE(laure_predicate_repr) {
                 buff[i] = '\0';
                 linked = linked->next;
             }
-            laure_expression_t exp[1];
-            exp->s = strdup(buff);
-            exp->t = let_custom;
-            bool result = read_head(instance->image).translator->invoke(exp, instance->image, cctx->scope, 0);
-            if (! result) laure_free(exp->s);
+            laure_parse_result lpr = laure_parse(buff);
+            if (! lpr.is_ok)
+                return False;
+            bool result = read_head(instance->image).translator->invoke(lpr.exp, instance->image, cctx->scope, 0);
+            //! fixme: parse result is memory leak
+            //! todo: proper garbage expression collector
+            // maybe there is a need to implement
+            // some new unsafe_data datatype to feed it to translators
             return from_boolean(result);
         }
     } else {
@@ -174,6 +177,7 @@ DECLARE(laure_predicate_repr) {
     return False;
 }
 
+// count arguments in linked formatting
 size_t groups_count(struct FormattingPart *first) {
     size_t sz = 0;
     while (first) {
