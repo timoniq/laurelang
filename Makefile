@@ -4,7 +4,7 @@ WS_FLAGS =
 GIT_VER = "$(shell git describe --always --tags)"
 
 CFLAGS = -Isrc \
-		 -Istandard -Icompiler -I/usr/local/include \
+		 -Istd -Icompiler -I/usr/local/include \
 		 -g $(LIBFLAG) -fPIC \
 		 ${ADDFLAGS} ${WS_FLAGS} \
 		 -Wno-incompatible-function-pointer-types \
@@ -38,11 +38,11 @@ LIB = src/parser.o \
 	  src/weight.o \
 	  src/order.o \
 	  src/alloc.o \
-	  standard/integer.c \
-	  standard/utility.c \
-	  standard/bag.c \
-	  standard/array.c \
-	  standard/map.c
+	  std/integer.c \
+	  std/utility.c \
+	  std/bag.c \
+	  std/array.c \
+	  std/map.c
 
 OBJECTS = laure.o $(LIB)
 
