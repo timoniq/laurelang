@@ -1924,6 +1924,20 @@ gen_resp structure_generate(laure_scope_t *scope, laure_structure *img, REC_TYPE
 
 /* Working with linked */
 
+Instance *linked_resolve(laure_linked_image *im, laure_scope_t *scope) {
+    switch (im->linked_type) {
+        case LINKED_STRUCTURE_FIELD: {
+            Instance *instance = laure_scope_find_by_link(scope, im->link, true);
+            assert(instance);
+            instance = ((laure_structure*)instance->image)->data.data[im->idx].instance;
+            return instance;
+        }
+        default:
+            break;
+    }
+    return NULL;
+}
+
 bool linked_translator(laure_expression_t *expr, laure_linked_image *img, laure_scope_t *scope, ulong link) {
     switch (img->linked_type) {
         case LINKED_STRUCTURE_FIELD: {

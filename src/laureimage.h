@@ -274,6 +274,7 @@ struct FormattingImage {
 };
 
 struct FormattingImage *laure_create_formatting_image(struct FormattingPart *linked);
+Instance *linked_resolve(laure_linked_image *im, laure_scope_t *scope);
 struct FormattingPart *laure_parse_formatting(string fmt);
 string formatting_repr(Instance *instance);
 int formatting_to_pattern(
