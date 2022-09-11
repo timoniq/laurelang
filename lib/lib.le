@@ -1,9 +1,12 @@
 int natural = 1...
 int natural* = 0...
 
+index_t ~ natural*.
+
 // locks
 !lock natural.
 !lock natural*.
+!lock index_t.
 
 // Read docs at /docs/builtin.md#integer-add
 // ```a + b = c;
@@ -225,3 +228,36 @@ $ divmod_t {
     divmod(x, y) = dm;
     dm = (z, _);
 }
+
+: ?from('T'[], index_t) -> 'T'[].
+?from(arr, 0) -> arr.
+?from(arr, n) -> tail {
+    linked(_, t) = arr;
+    from(t, n - 1) = tail;
+}
+
+: ?max_of_two(int, int) -> int.
+?max_of_two(a, b) -> a when a >= b.
+?max_of_two(a, b) -> b when b > a.
+
+: ?min_of_two(int, int) -> int.
+?min_of_two(a, b) -> a when max_of_two(a, b) = b.
+?min_of_two(a, b) -> b when max_of_two(a, b) = a.
+
+: ?choose_one('T'[], (?('T', 'T') -> 'T')) -> 'T'.
+?choose_one(arr, _) -> arr[0] when 
+    length(arr) = 1.
+?choose_one(arr, choose) -> choose(arr[0], arr[1]) when 
+    length(arr) = 2.
+?choose_one(arr, choose) -> x {
+    a = arr[0];
+    b = arr[1];
+    t = from(arr, 2);
+    x = choose(choose(a, b), choose_one(t, choose));
+}
+
+: ?max(int[]) -> int.
+?max(arr) -> choose_one(arr, max_of_two).
+
+: ?min(int[]) -> int.
+?min(arr) -> choose_one(arr, min_of_two).
