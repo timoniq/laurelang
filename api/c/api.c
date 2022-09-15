@@ -120,6 +120,72 @@ struct laure_api_query_receiver_context {
     void *payload;
 };
 
+int get_type_snippet(void *image, string buff, int cnt) {
+    char b[128] = {0};
+    switch (read_head(image).t) {
+        case INTEGER: {
+            strcpy(b, "int");
+            break;
+        }
+        case ARRAY: {
+            get_type_snippet(((struct ArrayImage*)image)->arr_el->image, b, 128);
+            strcat(b, "[]");
+            break;
+        }
+        case CHAR: {
+            strcpy(b, "char");
+            break;
+        }
+        case ATOM: {
+            strcpy(b, "atom");
+            break;
+        }
+        case PREDICATE_FACT: {
+            strcpy(b, "predicate");
+            break;
+        }
+        case CONSTRAINT_FACT: {
+            strcpy(b, "constraint");
+            break;
+        }
+        case STRUCTURE: {
+            strcpy(b, "structure:");
+            strcat(b, ((laure_structure*)image)->header->s);
+            break;
+        }
+        case IMG_CUSTOM_T: {
+            strcpy(b, "custom");
+            break;
+        }
+        case UNION: {
+            strcpy(b, "union");
+            break;
+        }
+        case UUID: {
+            strcpy(b, "uuid:");
+            strcat(b, ((laure_uuid_image*)image)->bound);
+            break;
+        }
+        case FORMATTING: {
+            strcpy(b, "formatting");
+            break;
+        }
+        case LINKED: {
+            strcpy(b, "linked");
+            break;
+        }
+        default: {
+            strcpy(b, "unknown");
+            break;
+        }
+    }
+    if (cnt > strlen(b)) {
+        strcat(buff, b);
+        cnt -= strlen(b);
+    }
+    return cnt;
+}
+
 qresp laure_api_query_scope_receiver(control_ctx *cctx, void *ctx__) {
     laure_scope_t *scope = cctx->scope;
     struct laure_api_query_receiver_context *ctx = (struct laure_api_query_receiver_context*)ctx__;
@@ -131,21 +197,37 @@ qresp laure_api_query_scope_receiver(control_ctx *cctx, void *ctx__) {
     for (int i = 0; i < cctx->vpk->tracked_vars_len; i++) {
         Instance *ins = laure_scope_find_by_key(scope, cctx->vpk->tracked_vars[i], false);
         int c = strlen(cctx->vpk->tracked_vars[i]);
-        if (cnt - c <= 1)
+        if (cnt - c <= 2)
             break;
         
         if (ins) {
+            if (i != 0) {
+                strcat(json, ",");
+            }
             string repr = ins->repr(ins);
-            c += strlen(repr);
             if (cnt - c <= 1) {
                 free(repr);
                 break;
             }
+            cnt -= c + 15;
             strcat(json, "\"");
             strcat(json, ins->name);
             strcat(json, "\":{\"data\":\"");
             
-            strcat(json, repr);
+            for (int j = 0; j < strlen(repr) && cnt > 2; j++) {
+                char ch = repr[j];
+                if (ch == '\"') {
+                    strcat(json, "\\");
+                    cnt--;
+                }
+                char ch_[2];
+                ch_[0] = ch;
+                ch_[1] = 0;
+                strcat(json, ch_);
+                cnt--;
+            }
+            strcat(json, "\",\"type\":\"");
+            cnt = get_type_snippet(ins->image, json, cnt);
             strcat(json, "\"}");
             free(repr);
         }
@@ -159,6 +241,9 @@ qresp laure_api_query_scope_receiver(control_ctx *cctx, void *ctx__) {
         return respond(q_stop, NULL);
 }
 
+/* query
+Runs laurelang query. Sends json into receiver
+*/
 laure_api_query_result laure_api_query(
     laure_api_session *session,
     string query,

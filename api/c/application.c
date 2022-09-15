@@ -11,7 +11,6 @@ int main(int argc, char *argv[]) {
     laure_api_set_log_level(&session, DEBUG);
     laure_api_session_prepare(&session);
     laure_api_consultion_result result = laure_api_consult_path(&session, argv[1]);
-    printf("Consult result: %s\n", result.t == 0 ? "ok" : "failed");
-    laure_api_query(&session, "x + 1 = 10", receiver, NULL, 0);
+    laure_api_query(&session, "message(x), n ~ int, x = repr(n), fac(n) = y", receiver, NULL, 0);
     return 0;
 }
