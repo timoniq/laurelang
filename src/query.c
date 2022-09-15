@@ -284,7 +284,7 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
 
     qresp response;
     if (! cctx->silent && cctx->vpk && cctx->vpk->do_process) {
-        debug("sending data (mode=%s%s%s)\n", BOLD_WHITE, cctx->vpk->mode == INTERACTIVE ? "INTERACTIVE" : (cctx->vpk->mode == SENDER ? "SENDER" : "OTHER"), NO_COLOR);
+        debug("sending data (mode=%s%s%s)\n", BOLD_WHITE, cctx->vpk->mode == INTERACTIVE ? "INTERACTIVE" : (cctx->vpk->mode == SENDER_REPRS ? "SENDER_REPRS" : "OTHER"), NO_COLOR);
 
         #ifndef DISABLE_WS
         if (LAURE_WS) {
@@ -302,10 +302,10 @@ qresp laure_start(control_ctx *cctx, laure_expression_set *expset) {
         #endif
         if (cctx->vpk->mode == INTERACTIVE) {
             response = laure_showcast(cctx);
-        } else if (cctx->vpk->mode == SENDER) {
+        } else if (cctx->vpk->mode == SENDER_REPRS) {
             response = laure_send(cctx);
         } else if (cctx->vpk->mode == SENDSCOPE) {
-            cctx->vpk->single_var_processor(cctx->scope, NULL, cctx->vpk->payload);
+            cctx->vpk->scope_receiver(cctx, cctx->vpk->payload);
             response = respond(q_continue, NULL);
         }
     } else {
@@ -2693,15 +2693,16 @@ qcontext qcontext_temp(qcontext *next, laure_expression_set *expset, Bag *bag) {
     return qctx;
 }
 
-var_process_kit vpk_create_scope_sender(single_proc proc, void *payload) {
+var_process_kit vpk_create_scope_sender(scope_rec proc, void *payload) {
     var_process_kit vpk;
     vpk.mode = SENDSCOPE;
     vpk.do_process = true;
     vpk.interactive_by_name = false;
     vpk.payload = payload;
-    vpk.single_var_processor = proc;
+    vpk.scope_receiver = proc;
     vpk.tracked_vars = NULL;
     vpk.tracked_vars_len = 0;
     vpk.sender_receiver = NULL;
+    vpk.single_var_processor = NULL;
     return vpk;
 }

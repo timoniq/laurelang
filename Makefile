@@ -70,6 +70,9 @@ $(TARGET): $(OBJECTS)
 shared: $(LIB)
 	$(CC) -fPIC -shared -g -o laurelang.so $(LIB) $(LDFLAGS)
 
+api: shared
+	$(CC) -fPIC -shared -ldl -o laure_api.so api/c/api.c laurelang.so $(LDFLAGS)
+
 packages: shared
 	python3 utility/build_pkg.py
 

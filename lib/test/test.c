@@ -275,7 +275,7 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         payload->got_invalid = NULL;
 
         ncctx->vpk->payload = payload;
-        ncctx->vpk->mode = SENDER;
+        ncctx->vpk->mode = SENDER_REPRS;
 
         LAURE_CLOCK = clock();
         qresp response = laure_start(ncctx, expset);

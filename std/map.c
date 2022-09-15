@@ -73,8 +73,9 @@ typedef struct map_ctx {
     bool dest, is_ok;
 } map_ctx;
 
-void map_processor(laure_scope_t *recscope, char *_, void *ctx_) {
-    map_ctx *ctx = (map_ctx*) ctx_;
+qresp map_processor(control_ctx *cctx, void *ctx__) {
+    laure_scope_t *recscope = cctx->scope;
+    map_ctx *ctx = (map_ctx*) ctx__;
     // if (! ctx->is_ok) return;
 
     Instance *mapped = NULL;
@@ -109,7 +110,7 @@ void map_processor(laure_scope_t *recscope, char *_, void *ctx_) {
         qresp result = laure_start(&new, NULL);
         if (result.state == q_false || (result.state == q_yield && result.payload == 0))
             ctx->is_ok = false;
-        return;
+        return Continue;
     }
 
     ensure_call();
@@ -154,6 +155,8 @@ void map_processor(laure_scope_t *recscope, char *_, void *ctx_) {
 
     if (response.state == q_false || (response.state == q_yield && response.payload == 0))
         ctx->is_ok = false;
+    
+    return Continue;
 }
 
 
@@ -207,7 +210,7 @@ DECLARE(laure_predicate_map) {
         ctx.pd_scope = pd->scope;
         ctx.dest = linst;
         ctx.is_ok = true;
-        map_processor(cctx->scope, NULL, &ctx);
+        map_processor(cctx, &ctx);
         laure_free(ctx.write);
         return RESPOND_YIELD((void*)ctx.is_ok);
     } else {

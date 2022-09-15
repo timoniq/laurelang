@@ -30,6 +30,7 @@ qresp laure_predicate_map(preddata*, control_ctx*);
 #define from_boolean(boolean) respond(boolean ? q_true : q_false, NULL)
 #define True respond(q_true, NULL)
 #define False respond(q_false, NULL)
+#define Continue respond(q_continue, NULL)
 #define cast_image(name, type) type *name = (type*)
 #define array_assign(ary_im, i_data) \
         
