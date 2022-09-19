@@ -49,6 +49,9 @@ DECLARE(laure_predicate_repr) {
         RESPOND_ERROR(internal_err, NULL, "instance is unknown");
     }
 
+    if (read_head(representation->image).t != ARRAY)
+        RESPOND_ERROR(internal_err, NULL, "representation must be array");
+
     cast_image(repr_ary, struct ArrayImage) representation->image;
     bool instance_inst = instantiated(instance);
     bool repr_known = repr_ary->state == I;
@@ -173,7 +176,6 @@ DECLARE(laure_predicate_repr) {
     } else {
         goto set_representation;
     }
-    printf("err\n");
     return False;
 }
 

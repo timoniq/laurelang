@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <time.h>
 
+#define LLAPI_FLAG_TYPE 0
+
 typedef enum laure_api_log_level {
     DEBUG,
     INFO,
@@ -68,15 +70,12 @@ typedef struct laure_api_query_result {
 
 typedef int (*laure_api_query_receiver_t)(laure_api_session*, char*, void*);
 
-typedef struct laure_api_query_flag {
-    char *name;
-    char *value;
-} laure_api_query_flag;
-
 laure_api_query_result laure_api_query(
     laure_api_session *session,
     char *query,
     laure_api_query_receiver_t json_receiver,
     void *payload,
-    laure_api_query_flag flags[LLAPI_FLAGS_MAX]
+    int *flags
 );
+
+void laure_api_flags_zeros(int *flags);

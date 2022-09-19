@@ -118,6 +118,7 @@ struct laure_api_query_receiver_context {
     laure_api_session *session;
     laure_api_query_receiver_t json_receiver;
     void *payload;
+    int flags[LLAPI_FLAGS_MAX];
 };
 
 int get_type_snippet(void *image, string buff, int cnt) {
@@ -212,7 +213,15 @@ qresp laure_api_query_scope_receiver(control_ctx *cctx, void *ctx__) {
             cnt -= c + 15;
             strcat(json, "\"");
             strcat(json, ins->name);
-            strcat(json, "\":{\"data\":\"");
+            strcat(json, "\":{");
+
+            if (ctx->flags[LLAPI_FLAG_TYPE]) {
+                strcat(json, "\"type\":\"");
+                cnt = get_type_snippet(ins->image, json, cnt);
+                strcat(json, "\",");
+            }
+
+            strcat(json, "\"data\":\"");
             
             for (int j = 0; j < strlen(repr) && cnt > 2; j++) {
                 char ch = repr[j];
@@ -226,8 +235,6 @@ qresp laure_api_query_scope_receiver(control_ctx *cctx, void *ctx__) {
                 strcat(json, ch_);
                 cnt--;
             }
-            strcat(json, "\",\"type\":\"");
-            cnt = get_type_snippet(ins->image, json, cnt);
             strcat(json, "\"}");
             free(repr);
         }
@@ -249,7 +256,7 @@ laure_api_query_result laure_api_query(
     string query,
     laure_api_query_receiver_t json_receiver,
     void *payload,
-    laure_api_query_flag flags[LLAPI_FLAGS_MAX]
+    int *flags
 ) {
     laure_parse_many_result parse_result = laure_parse_many(query, ',', NULL);
     if (! parse_result.is_ok) {
@@ -261,6 +268,11 @@ laure_api_query_result laure_api_query(
     qcontext *qctx = qcontext_new(laure_expression_compose(set));
 
     struct laure_api_query_receiver_context rctx[1];
+    if (flags) {
+        memcpy(rctx->flags, flags, LLAPI_FLAGS_MAX * sizeof(int));
+    } else {
+        memset(rctx->flags, 0, LLAPI_FLAGS_MAX * sizeof(int));
+    }
     rctx->session = session;
     rctx->json_receiver = json_receiver;
     rctx->payload = payload;
@@ -281,4 +293,8 @@ laure_api_query_result laure_api_query(
 
     laure_api_query_result lqr = {api_qr_ok, NULL};
     return lqr;
+}
+
+void laure_api_flags_zeros(int *flags) {
+    memset(flags, 0, sizeof(int) * LLAPI_FLAGS_MAX);
 }

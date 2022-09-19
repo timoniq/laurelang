@@ -11,6 +11,9 @@ int main(int argc, char *argv[]) {
     laure_api_set_log_level(&session, DEBUG);
     laure_api_session_prepare(&session);
     laure_api_consultion_result result = laure_api_consult_path(&session, argv[1]);
-    laure_api_query(&session, "message(x), n ~ int, x = repr(n), fac(n) = y", receiver, NULL, 0);
+    int flags[LLAPI_FLAGS_MAX];
+    laure_api_flags_zeros(flags);
+    flags[LLAPI_FLAG_TYPE] = 1;
+    laure_api_query(&session, "message(x), n ~ int, x = repr(n), fac(n) = y", receiver, NULL, flags);
     return 0;
 }
