@@ -358,7 +358,7 @@ bool compile_expression_with_bitstream(
                 return compile_expression_with_bitstream(expr2, bits);
             }
         }
-        case let_custom: {
+        case let_data: {
             write_header(bits, CH_data);
             write_name(bits, expr->s);
             break;

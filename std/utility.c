@@ -32,7 +32,7 @@ DECLARE(laure_predicate_message) {
         snprintf(buff, 128, "\"%s\"", s);
         laure_free(s);
         laure_expression_t exp[1];
-        exp->t = let_custom;
+        exp->t = let_data;
         exp->s = buff;
         bool result = img->translator->invoke(exp, img, cctx->scope, 0);
         return from_boolean(result);
@@ -249,7 +249,7 @@ DECLARE(laure_predicate_format) {
                         }
                     } else {
                         laure_expression_t exp[1];
-                        exp->t = let_custom;
+                        exp->t = let_data;
                         bool should_free = false;
                         if (read_head(instance->image).translator->invoke == string_translator) {
                             char buff[128];
@@ -302,7 +302,7 @@ DECLARE(laure_predicate_format) {
         }
         strcat(formatted, "\"");
         laure_expression_t exp[1];
-        exp->t = let_custom;
+        exp->t = let_data;
         exp->s = formatted;
         bool result = sim->translator->invoke(exp, sim, cctx->scope, 0);
         return from_boolean(result);

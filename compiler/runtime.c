@@ -382,7 +382,7 @@ consultS consult_expression(
 
             laure_expression_t value[1];
             memset(value, 0, sizeof(laure_expression_t));
-            value->t = let_custom;
+            value->t = let_data;
             value->s = s;
 
             laure_expression_set set2[1];
@@ -404,7 +404,7 @@ consultS consult_expression(
         }
         case CH_data: {
             string value = read_name(bits);
-            expr->t = let_custom;
+            expr->t = let_data;
             expr->s = value;
             break;
         }

@@ -124,7 +124,7 @@ typedef unsigned char H;
 */
 #define CH_isol_start   20
 
-/* DATA (expression let_custom)
+/* DATA (expression let_data)
    {SIMILAR TO NAME DECLARATION}
 */
 #define CH_data         21

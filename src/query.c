@@ -64,7 +64,7 @@ size_t count_generic_place_idx(int name) {
 }
 
 bool is_weighted_expression(laure_expression_t *exp) {
-    if (exp->t == let_name || exp->t == let_command || exp->t == let_cut || exp->t == let_custom)
+    if (exp->t == let_name || exp->t == let_command || exp->t == let_cut || exp->t == let_data)
         return false;
     return true;
 }
@@ -852,7 +852,7 @@ Instance *ready_instance(laure_scope_t *scope, laure_expression_t *expr) {
                     ary->length_lid = *link;
                     return nested;
                 }
-                case let_custom: {
+                case let_data: {
                     uint length = (uint)atoi(idx_expr->s);
                     known_length: {};
                     Instance *nested = get_nested_fixed(typevar, length, scope);
@@ -1737,7 +1737,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     }
                     uuid_instance = uuid_ins;
                     
-                } else if (resp_expression->t == let_custom) {
+                } else if (resp_expression->t == let_data) {
                     if (uuid_parse(resp_expression->s, uu) != 0)
                         RESPOND_ERROR(syntaxic_err, resp_expression, "cannot parse UUID");
                 } else

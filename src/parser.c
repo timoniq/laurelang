@@ -1474,7 +1474,7 @@ laure_parse_result laure_parse(string query) {
                             error_format("error parsing atomic set: %s", lpmr.err);
                         }
                         laure_expression_t *ptr; EXPSET_ITER(lpmr.exps, ptr, {
-                            if (ptr->t != let_var && ptr->t != let_custom) {
+                            if (ptr->t != let_var && ptr->t != let_data) {
                                 error_format("error parsing atomic set, atom -> `%s`, Atom declaration cannot be %s\nMust be var-like or data-like", ptr->s, ptr->t != let_atom ? EXPT_NAMES[ptr->t] : "another atom");
                             }
                         });
@@ -1497,7 +1497,7 @@ laure_parse_result laure_parse(string query) {
                         }
                         laure_parse_result lpr = laure_parse(query);
                         if (! lpr.is_ok) error_format("cannot read atom `@%s`", query);
-                        else if (lpr.exp->t != let_var && lpr.exp->t != let_custom) {
+                        else if (lpr.exp->t != let_var && lpr.exp->t != let_data) {
                             error_format(
                                 "error parsing atom -> `%s`, Atom declaration cannot be %s\nMust be var-like or data-like", 
                                 query, lpr.exp->t != let_atom ? EXPT_NAMES[lpr.exp->t] : "another atom"
@@ -1549,7 +1549,7 @@ laure_parse_result laure_parse(string query) {
                 // integer/string/custom image macros
                 laure_parse_result lpr;
                 lpr.is_ok = true;
-                lpr.exp = laure_expression_create(let_custom, "", false, dup, nesting, NULL, query);
+                lpr.exp = laure_expression_create(let_data, "", false, dup, nesting, NULL, query);
                 return lpr;
             }
 
@@ -1681,7 +1681,7 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
             break;
         }
 
-        case let_custom: {
+        case let_data: {
             printindent(indent);
             printf("data {%s%s%s}\n", GRAY_COLOR, exp->s, NO_COLOR);
             break;
@@ -1928,7 +1928,7 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
                 // (data-like expressions)
                 if (
                     arg_exp->t == let_var 
-                    || arg_exp->t == let_custom 
+                    || arg_exp->t == let_data 
                     || arg_exp->t == let_array 
                     || arg_exp->t == let_atom 
                     || arg_exp->t == let_singlq

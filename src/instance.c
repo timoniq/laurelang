@@ -120,7 +120,7 @@ struct IntImage *laure_create_integer_u(Domain *dom) {
 }
 
 bool int_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, ulong link) {
-    if (exp->t != let_custom) return false;
+    if (exp->t != let_data) return false;
     string raw = exp->s;
     struct IntImage *img = (struct IntImage*)img_;
 
@@ -487,6 +487,14 @@ string array_repr(Instance *ins) {
 }
 
 bool array_eq(struct ArrayImage *img1_t, struct ArrayImage *img2_t, laure_scope_t *scope) {
+    if (
+        img1_t->arr_el->image
+        && img2_t->arr_el->image 
+        && read_head(img1_t->arr_el->image).t != read_head(img2_t->arr_el->image).t
+    ) {
+        // todo: this is not valid for 1-el structures
+        return false;
+    }
     if (img1_t->state == I && img2_t->state == I) {
         if (img1_t->i_data.length != img2_t->i_data.length) return false;
 
@@ -767,24 +775,24 @@ int laure_convert_esc_ch(int c, char *write) {
 }
 
 bool char_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, ulong link) {
-    if (exp->t != let_custom && exp->t != let_singlq) return false;
+    if (exp->t != let_data && exp->t != let_singlq) return false;
 
     struct CharImage *img = (struct CharImage*)img_;
     
-    if (exp->t == let_custom) {
+    if (exp->t == let_data) {
         if (! ((exp->s[0] == '\'' && lastc(exp->s) == '\'') || (exp->s[0] == '\"' && lastc(exp->s) == '\"'))) return false;
     } else if (exp->t == let_singlq) {
         if (exp->flag > 0) return false;
     }
 
-    if (strlen(exp->s) - (exp->t == let_custom ? 2 : 0) >= 127)
+    if (strlen(exp->s) - (exp->t == let_data ? 2 : 0) >= 127)
         return false;
     
     char buff[128];
     uint l = 0;
 
     uint align_left, align_right;
-    if (exp->t == let_custom) {
+    if (exp->t == let_data) {
         align_left = 1;
         align_right = 2;
     } else {
@@ -1059,7 +1067,7 @@ string string_repr(Instance *ins) {
 
 bool string_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, ulong link) {
     if (exp->t == let_array) return array_translator(exp, img_, scope, link);
-    if (exp->t != let_custom) return false;
+    if (exp->t != let_data) return false;
     struct ArrayImage *strarr = (struct ArrayImage*)img_;
     if (! str_starts(exp->s, "\"") && lastc(exp->s) == '\"') return false;
     int len = (int)laure_string_strlen(exp->s + 1) - 1;
@@ -1128,7 +1136,7 @@ void write_atom_name(string r, char *write_to) {
 bool atom_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, ulong link) {
     struct AtomImage *atom = (struct AtomImage*)img_;
 
-    if (exp->t == let_custom || (exp->t == let_atom && (! exp->flag))) {
+    if (exp->t == let_data || (exp->t == let_atom && (! exp->flag))) {
         // single name passed
         char name[ATOM_LEN_MAX];
         write_atom_name(exp->s, name);
@@ -1628,6 +1636,11 @@ bool structure_translator(laure_expression_t *expr, void *img_, laure_scope_t *s
             return result;
         }
     } else {
+        if (img->data.count == 0) {
+            // structure 0-el
+            // only data expr type can be empty
+            return expr->t == let_data && streq(expr->s, "");
+        }
         if (expr->t != let_complex_data)
             return false;
         if (expr->ba->body_len != img->data.count)
