@@ -384,7 +384,7 @@ bool array_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope,
             laure_expression_t *el_exp = laure_expression_set_get_by_idx(exp->ba->set, i);
 
             void *img;
-            if (el_exp->t == let_var) {
+            if (el_exp->t == let_name) {
                 Instance *el;
                 if (str_eq(el_exp->s, "_")) {
                     el = array->arr_el;
@@ -1657,7 +1657,7 @@ bool structure_translator(laure_expression_t *expr, void *img_, laure_scope_t *s
             } else {
                 Instance *instance = element.instance;
 
-                if (ptr->t == let_var) {
+                if (ptr->t == let_name) {
                     if (str_eq(ptr->s, "_"))
                         continue;
 
@@ -1719,7 +1719,7 @@ qresp structure_init(laure_structure *structure, laure_scope_t *scope) {
         laure_expression_t *l = ptr->ba->set->expression;
         laure_expression_t *r = ptr->ba->set->next->expression;
 
-        if (r->t != let_var) {
+        if (r->t != let_name) {
             laure_free(data.data);
             RESPOND_ERROR(syntaxic_err, ptr, "right side of structure field declaration should be name of field");
         }
@@ -1727,7 +1727,7 @@ qresp structure_init(laure_structure *structure, laure_scope_t *scope) {
         element.name = r->s;
 
         switch (l->t) {
-            case let_var: {
+            case let_name: {
                 Instance *instance = laure_scope_find_by_key(scope, l->s, true);
                 if (! instance) {
                     RESPOND_ERROR(undefined_err, ptr, "type %s in structure declaration is undefined", l->s);
@@ -2511,20 +2511,20 @@ predfinal *get_pred_final(struct PredicateImage *pred, struct PredicateImageVari
             // changing arg names
             char *argn = laure_get_argn(i);
 
-            if (arg->t == let_var) {
+            if (arg->t == let_name) {
                 // |  cast naming |
                 // |   var to var |
-                laure_expression_t *old_name_var = laure_expression_create(let_var, "", false, argn, 0, NULL, arg->fullstring);
+                laure_expression_t *old_name_var = laure_expression_create(let_name, "", false, argn, 0, NULL, arg->fullstring);
                 laure_expression_set *set = laure_expression_set_link(NULL, old_name_var);
                 set = laure_expression_set_link(set, arg);
                 laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
-                laure_expression_t *name_expression = laure_expression_create(let_name, "", false, NULL, 0, ba, arg->fullstring);
+                laure_expression_t *name_expression = laure_expression_create(let_rename, "", false, NULL, 0, ba, arg->fullstring);
                 nset = laure_expression_set_link(nset, name_expression);
                 argn = arg->s;
             } else {
                 // |  cast assert |
                 // | var to value |
-                laure_expression_t *var = laure_expression_create(let_var, "", false, argn, 0, NULL, arg->fullstring);
+                laure_expression_t *var = laure_expression_create(let_name, "", false, argn, 0, NULL, arg->fullstring);
                 laure_expression_set *set = laure_expression_set_link(NULL, var);
                 set = laure_expression_set_link(set, arg);
                 laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
@@ -2545,19 +2545,19 @@ predfinal *get_pred_final(struct PredicateImage *pred, struct PredicateImageVari
                 pf->interior.respn = DEFAULT_ANONVAR;
             }
 
-            else if (exp->t == let_var) {
+            else if (exp->t == let_name) {
                 // cast naming
                 // var to var
                 
-                laure_expression_t *old_name_var = laure_expression_create(let_var, "", false, pf->interior.respn, 0, NULL, exp->fullstring);
+                laure_expression_t *old_name_var = laure_expression_create(let_name, "", false, pf->interior.respn, 0, NULL, exp->fullstring);
                 laure_expression_set *set = laure_expression_set_link(NULL, old_name_var);
                 set = laure_expression_set_link(set, exp);
                 laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
-                laure_expression_t *name_expression = laure_expression_create(let_name, "", false, NULL, 0, ba, exp->fullstring);
+                laure_expression_t *name_expression = laure_expression_create(let_rename, "", false, NULL, 0, ba, exp->fullstring);
                 nset = laure_expression_set_link(nset, name_expression);
                 
             } else {
-                laure_expression_t *var = laure_expression_create(let_var, "", false, pf->interior.respn, 0, NULL, exp->fullstring);
+                laure_expression_t *var = laure_expression_create(let_name, "", false, pf->interior.respn, 0, NULL, exp->fullstring);
                 laure_expression_set *set = laure_expression_set_link(NULL, var);
                 set = laure_expression_set_link(set, exp);
                 laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
@@ -3003,7 +3003,7 @@ predicate_bound_types_result laure_dom_predicate_bound_types(
     bool response_is_set = false;
     laure_expression_set *all_clarifiers = clarifiers;
 
-    if (! clarifiers->next && clarifiers->expression->t == let_var) {
+    if (! clarifiers->next && clarifiers->expression->t == let_name) {
         // clarification 1-type
         // mapints ~ map{int[]}
         // (?map(int[][], (?(int) -> int)) -> int[])

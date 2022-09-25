@@ -4,7 +4,7 @@
 
 typedef enum {
     let_set,
-    let_var,
+    let_name,
     let_pred_call,
     let_decl,
     let_assert,
@@ -12,7 +12,7 @@ typedef enum {
     let_pred,
     let_choice_1,
     let_choice_2,
-    let_name,
+    let_rename,
     let_data,
     let_constraint,
     let_complex_data,

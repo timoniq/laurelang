@@ -64,7 +64,7 @@ size_t count_generic_place_idx(int name) {
 }
 
 bool is_weighted_expression(laure_expression_t *exp) {
-    if (exp->t == let_name || exp->t == let_command || exp->t == let_cut || exp->t == let_data)
+    if (exp->t == let_rename || exp->t == let_command || exp->t == let_cut || exp->t == let_data)
         return false;
     return true;
 }
@@ -547,8 +547,8 @@ void laure_vpk_free(var_process_kit *vpk) {
 #define _laure_eval_sub_args control_ctx *cctx, laure_expression_t *e, laure_expression_set *expset
 qresp laure_eval_assert(_laure_eval_sub_args);
 qresp laure_eval_image(_laure_eval_sub_args);
+qresp laure_eval_rename(_laure_eval_sub_args);
 qresp laure_eval_name(_laure_eval_sub_args);
-qresp laure_eval_var(_laure_eval_sub_args);
 qresp laure_eval_unify(_laure_eval_sub_args);
 qresp laure_eval_pred_call(_laure_eval_sub_args);
 qresp laure_eval_callable_decl(_laure_eval_sub_args);
@@ -575,12 +575,12 @@ qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set 
         case let_image: {
             return laure_eval_image(cctx, e, expset);
         }
-        case let_name: {
-            return laure_eval_name(cctx, e, expset);
+        case let_rename: {
+            return laure_eval_rename(cctx, e, expset);
         }
         #ifndef FORBID_NAME_EVAL
-        case let_var: {
-            return laure_eval_var(cctx, e, expset);
+        case let_name: {
+            return laure_eval_name(cctx, e, expset);
         }
         #endif
         #ifndef FORBID_FORCEUNIFY
@@ -654,7 +654,7 @@ qresp laure_eval_assert(
     laure_expression_t *lvar = laure_expression_set_get_by_idx(e->ba->set, 0);
     laure_expression_t *rvar = laure_expression_set_get_by_idx(e->ba->set, 1);
     
-    if (lvar->t == let_var && rvar->t == let_var) {
+    if (lvar->t == let_name && rvar->t == let_name) {
         // When var asserted to var
         // check whether they exist or not
 
@@ -750,9 +750,9 @@ qresp laure_eval_assert(
         } else {
             RESPOND_ERROR(undefined_err, e, "both variables %s and %s are undefined and cannot be asserted", lvar->s, rvar->s);
         }
-    } else if (lvar->t == let_var || rvar->t == let_var) {
-        string vname = lvar->t == let_var ? lvar->s : rvar->s;
-        laure_expression_t *rexpression = lvar->t == let_var ? rvar : lvar;
+    } else if (lvar->t == let_name || rvar->t == let_name) {
+        string vname = lvar->t == let_name ? lvar->s : rvar->s;
+        laure_expression_t *rexpression = lvar->t == let_name ? rvar : lvar;
         ulong link;
         Instance *to = laure_scope_find_by_key_l(scope, vname, &link, true);
 
@@ -810,7 +810,7 @@ Instance *get_nested_fixed(Instance *atom, uint length, laure_scope_t *scope) {
 }
 
 Instance *ready_instance(laure_scope_t *scope, laure_expression_t *expr) {
-    if (expr->t == let_var) {
+    if (expr->t == let_name) {
         Instance *ins = laure_scope_find_by_key(scope, expr->s, true);
         if (! ins) return NULL;
         return instance_deepcopy(ins->name, ins);
@@ -826,7 +826,7 @@ Instance *ready_instance(laure_scope_t *scope, laure_expression_t *expr) {
 
             if (! typevar) return NULL;
             switch (idx_expr->t) {
-                case let_var: {
+                case let_name: {
                     unsigned long link[1];
                     Instance *ins = laure_scope_find_by_key_l(scope, idx_expr->s, link, true);
                     if (! ins) {
@@ -894,7 +894,7 @@ qresp laure_eval_image(
 
     if (exp2->t == let_atom && exp2->flag == 1) {
         // Feature: atom universum declaration
-        if (exp1->t != let_var) RESPOND_ERROR(syntaxic_err, e, "left value imaged to atomic set %s should be a variable", exp2->s);
+        if (exp1->t != let_name) RESPOND_ERROR(syntaxic_err, e, "left value imaged to atomic set %s should be a variable", exp2->s);
         Instance *ins = laure_scope_find_by_key(scope, exp1->s, true);
         if (ins) {
             if (read_head(ins->image).t != ATOM) return RESPOND_FALSE;
@@ -934,7 +934,7 @@ qresp laure_eval_image(
         if (! PREDFLAG_IS_PRIMITIVE(pred->flag))
             RESPOND_ERROR(syntaxic_err, e, "must be primitive (unnamed predicate signature)");
         
-        if (to->t != let_var)
+        if (to->t != let_name)
             RESPOND_ERROR(syntaxic_err, to, "must be variable");
 
         Instance *ins = laure_scope_find_by_key(scope, to->s, true);
@@ -949,7 +949,7 @@ qresp laure_eval_image(
         return RESPOND_TRUE;
     }
 
-    if (exp1->t == let_var && exp2->t == let_var) {
+    if (exp1->t == let_name && exp2->t == let_name) {
 
         Instance *var1 = laure_scope_find_var(scope, exp1, true);
         Instance *var2 = laure_scope_find_var(scope, exp2, true);
@@ -1050,7 +1050,7 @@ qresp laure_eval_image(
             return RESPOND_TRUE;
         } else
             RESPOND_ERROR(undefined_err, e, "both variables %s and %s are unknown", exp1->s, exp2->s);
-    } else if (exp1->t == let_var && (exp2->t == let_pred_call || exp2->t == let_nested)) {
+    } else if (exp1->t == let_name && (exp2->t == let_pred_call || exp2->t == let_nested)) {
         // valid nested:
         // `arr ~ int[i][]
         // valid predcall:
@@ -1078,8 +1078,8 @@ Renames instance.
     should only be performed right
     after private scope initialization.
 =-------= */
-qresp laure_eval_name(_laure_eval_sub_args) {
-    assert(e->t == let_name);
+qresp laure_eval_rename(_laure_eval_sub_args) {
+    assert(e->t == let_rename);
     UNPACK_CCTX(cctx);
     laure_expression_t *v1_exp = e->ba->set->expression;
     laure_expression_t *v2_exp = e->ba->set->next->expression;
@@ -1135,8 +1135,8 @@ qresp laure_eval_unify(_laure_eval_sub_args) {
 /* =-------=
 Shows variable.
 =-------= */
-qresp laure_eval_var(_laure_eval_sub_args) {
-    assert(e->t == let_var);
+qresp laure_eval_name(_laure_eval_sub_args) {
+    assert(e->t == let_name);
     UNPACK_CCTX(cctx);
 
     if (e->ba) {
@@ -1262,7 +1262,7 @@ Instance *resolve_generic_T(
 ) {
     if (header.resp) {
         laure_expression_t *rexp = laure_expression_set_get_by_idx(set, header.args->length);
-        if (rexp && rexp->t == let_var) {
+        if (rexp && rexp->t == let_name) {
             Instance *resolved = laure_scope_find_by_key(scope, rexp->s, false);
             if (header.resp->t == td_generic && header.resp->generic == name) {
                 if (resolved) {
@@ -1285,7 +1285,7 @@ Instance *resolve_generic_T(
 
     for (uint i = 0; i < header.args->length; i++) {
         laure_expression_t *exp = laure_expression_set_get_by_idx(set, i);
-        if (exp->t == let_var) {
+        if (exp->t == let_name) {
             Instance *resolved = laure_scope_find_by_key(scope, exp->s, true);
             laure_typedecl td = header.args->data[i];
             if (td.t == td_generic && td.generic == name) {
@@ -1344,7 +1344,7 @@ ARGPROC_RES pred_call_procvar(
     bool *is_inst
 ) {
     switch (exp->t) {
-        case let_var: {
+        case let_name: {
             // name of var in prev_scope
             string vname = exp->s;
             if (isanonvar(vname))
@@ -1544,7 +1544,7 @@ void pd_show(preddata *pd) {
 }
 
 bool check_namespace(laure_scope_t *scope, Instance *T, laure_expression_t *ns) {
-    if (ns->t == let_var) {
+    if (ns->t == let_name) {
         Instance *var = laure_scope_find_var(scope, ns, true);
         if (! var) return false;
         if (read_head(var->image).t != read_head(T->image).t)
@@ -1581,7 +1581,7 @@ int generic_process(
             // find generic by name
             string n = NULL;
             uint nesting = 0;
-            if (e->link->ba->body_len == 1 && e->link->ba->set->expression->t == let_var) {
+            if (e->link->ba->body_len == 1 && e->link->ba->set->expression->t == let_name) {
                 // all generic should be this type
                 n = e->link->ba->set->expression->s;
                 nesting = e->link->ba->set->expression->flag;
@@ -1705,7 +1705,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     resp_expression->s
                 );
                 uuid_t uu;
-                if (resp_expression->t == let_var) {
+                if (resp_expression->t == let_name) {
                     Instance *uuid_ins = laure_scope_find_var(prev, resp_expression, true);
                     if (uuid_ins) {
                         enum ImageT uuid_imt = read_head(uuid_ins->image).t;
@@ -2509,7 +2509,7 @@ qresp laure_eval_command(_laure_eval_sub_args) {
         }
         case command_error: {
             switch (e->link->t) {
-                case let_var: {
+                case let_name: {
                     Instance *runtime_instance = laure_scope_find_by_key(scope, e->link->s, true);
                     if (runtime_instance) {
                         RESPOND_ERROR(runtime_err, e, "error from variable %s: %s", runtime_instance->name, runtime_instance->repr(runtime_instance));

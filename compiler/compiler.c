@@ -204,12 +204,12 @@ bool compile_expression_with_bitstream(
 ) {
     init_settings();
     switch (expr->t) {
-        case let_var: 
+        case let_name: 
         case let_unify: {
             if (! is_known_name(expr->s)) {
                 write_give_id(bits, expr->s);
             }
-            if (expr->t == let_var) {
+            if (expr->t == let_name) {
                 if (expr->flag > 0)
                     write_header(bits, CH_nestedvar);
                 else
@@ -326,7 +326,7 @@ bool compile_expression_with_bitstream(
             if (! is_known_name(expr2->s)) {
                 write_give_id(bits, expr2->s);
             }
-            if (expr1->t == let_var && expr2->t == let_var && ! expr1->flag && ! expr2->flag) {
+            if (expr1->t == let_name && expr2->t == let_name && ! expr1->flag && ! expr2->flag) {
                 write_header(bits, CH_img);
                 write_name_ID(bits, expr1->s, 0);
                 write_name_ID(bits, expr2->s, 0);
@@ -343,11 +343,11 @@ bool compile_expression_with_bitstream(
         case let_assert: {
             laure_expression_t *expr1 = expr->ba->set->expression;
             laure_expression_t *expr2 = expr->ba->set->next->expression;
-            if (expr1->t != let_var) {
+            if (expr1->t != let_name) {
                 printf("%spanic%s: assertion left value must be variable\n", RED_COLOR, NO_COLOR);
                 return false;
             }
-            if (expr2->t == let_var) {
+            if (expr2->t == let_name) {
                 write_header(bits, CH_assertV2V);
                 write_name_ID(bits, expr1->s, 0);
                 write_name_ID(bits, expr2->s, 0);
