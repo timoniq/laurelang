@@ -191,7 +191,7 @@ DECLARE(laure_predicate_map) {
             linked2 = linked2->next;
         }
         return True;
-    } else if (instantiated(sequence) | instantiated(mapped)) {
+    } else if (instantiated(sequence) || instantiated(mapped)) {
         struct ArrayImage *left = seq_img, 
                           *right = mapped_img;
         
