@@ -231,7 +231,7 @@ consultS consult_expression(
         case CH_nestedvar:
         case CH_unify: {
             if (h == CH_var || h == CH_nestedvar)
-                expr->t = let_var;
+                expr->t = let_name;
             else expr->t = let_unify;
 
             ID id = read_ID(bits);
@@ -328,8 +328,8 @@ consultS consult_expression(
             memset(left, 0, sizeof(laure_expression_t));
             memset(right, 0, sizeof(laure_expression_t));
 
-            left->t = let_var;
-            right->t = let_var;
+            left->t = let_name;
+            right->t = let_name;
             left->flag2 = lid;
             right->flag2 = rid;
             left->s = NAME_BY_ID[lid];
@@ -377,7 +377,7 @@ consultS consult_expression(
 
             laure_expression_t var[1];
             memset(var, 0, sizeof(laure_expression_t));
-            var->t = let_var;
+            var->t = let_name;
             var->flag2 = id;
 
             laure_expression_t value[1];

@@ -187,7 +187,7 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
             printf("Auto cannot be used in arguments\n");
             return NULL;
         } else {
-            if (aexp->t == let_var) {
+            if (aexp->t == let_name) {
                 // datatype name
                 string tname;
                 if (nesting) {
@@ -286,7 +286,7 @@ apply_result_t laure_consult_predicate(
             laure_expression_set *set = NULL;
             for (uint i = 0; i < l; i++) set = laure_expression_set_link(
                 set,
-                laure_expression_create(let_var, NULL, false, "_", 0, NULL, "")
+                laure_expression_create(let_name, NULL, false, "_", 0, NULL, "")
             );
             laure_expression_t *e = laure_expression_create(let_pred, NULL, false, name, true, laure_bodyargs_create(set, 0, img->header.resp != NULL), "");
             predicate_addvar(img, e);

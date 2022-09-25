@@ -896,7 +896,7 @@ laure_parse_result laure_parse(string query) {
                     laure_expression_t *ptr;
                     EXPSET_ITER(ns_exp->ba->set, ptr, {
                         if (
-                            ptr->t != let_var 
+                            ptr->t != let_name 
                             && ptr->t != let_singlq 
                             && ptr->t != let_atom_sign
                             && ptr->t != let_array
@@ -907,8 +907,8 @@ laure_parse_result laure_parse(string query) {
                         }
                     });
                 }
-                if (ns_exp->t != let_var && ns_exp->t != let_singlq && ns_exp->t != let_array)
-                    error_format("namespace must be %s, @ or 'T' (single quoted), not %s", EXPT_NAMES[let_var], EXPT_NAMES[ns_exp->t]);
+                if (ns_exp->t != let_name && ns_exp->t != let_singlq && ns_exp->t != let_array)
+                    error_format("namespace must be %s, @ or 'T' (single quoted), not %s", EXPT_NAMES[let_name], EXPT_NAMES[ns_exp->t]);
                 linked_namespace = ns_exp;
             }
 
@@ -1196,7 +1196,7 @@ laure_parse_result laure_parse(string query) {
                         break;
                     }
                     case 2: {
-                        type = let_name;
+                        type = let_rename;
                         break;
                     }
                     default:
@@ -1303,7 +1303,7 @@ laure_parse_result laure_parse(string query) {
                     }
                     laure_expression_t *el2 = res2.exp;
 
-                    if (el1->t != let_var) {
+                    if (el1->t != let_name) {
                         error_result("second element in declaration should be var");
                     }
 
@@ -1376,8 +1376,8 @@ laure_parse_result laure_parse(string query) {
                         laure_parse_result lpr_ns = laure_parse(ns);
                         if (! lpr_ns.is_ok) error_format("failed to parse namespace: %s", lpr_ns.err);
                         laure_expression_t *ns_exp = lpr_ns.exp;
-                        // if (ns_exp->t != let_var)
-                        //    error_format("namespace must be %s not %s", EXPT_NAMES[let_var], EXPT_NAMES[ns_exp->t]);
+                        // if (ns_exp->t != let_name)
+                        //    error_format("namespace must be %s not %s", EXPT_NAMES[let_name], EXPT_NAMES[ns_exp->t]);
                         first_linked_argument = ns_exp;
                         query += strlen(ns) + 1;
                     }
@@ -1474,7 +1474,7 @@ laure_parse_result laure_parse(string query) {
                             error_format("error parsing atomic set: %s", lpmr.err);
                         }
                         laure_expression_t *ptr; EXPSET_ITER(lpmr.exps, ptr, {
-                            if (ptr->t != let_var && ptr->t != let_data) {
+                            if (ptr->t != let_name && ptr->t != let_data) {
                                 error_format("error parsing atomic set, atom -> `%s`, Atom declaration cannot be %s\nMust be var-like or data-like", ptr->s, ptr->t != let_atom ? EXPT_NAMES[ptr->t] : "another atom");
                             }
                         });
@@ -1497,7 +1497,7 @@ laure_parse_result laure_parse(string query) {
                         }
                         laure_parse_result lpr = laure_parse(query);
                         if (! lpr.is_ok) error_format("cannot read atom `@%s`", query);
-                        else if (lpr.exp->t != let_var && lpr.exp->t != let_data) {
+                        else if (lpr.exp->t != let_name && lpr.exp->t != let_data) {
                             error_format(
                                 "error parsing atom -> `%s`, Atom declaration cannot be %s\nMust be var-like or data-like", 
                                 query, lpr.exp->t != let_atom ? EXPT_NAMES[lpr.exp->t] : "another atom"
@@ -1526,13 +1526,13 @@ laure_parse_result laure_parse(string query) {
                         }
                         laure_expression_t *ptr;
                         EXPSET_ITER(lpr.exps, ptr, {
-                            if (! (ptr->t == let_var || ptr->t == let_singlq || ptr->t == let_assert)) {
+                            if (! (ptr->t == let_name || ptr->t == let_singlq || ptr->t == let_assert)) {
                                 error_format("invalid clarification, clarificator can't be %s", EXPT_NAMES[ptr->t]);
                             }
                         });
                         ba = laure_bodyargs_create(lpr.exps, laure_expression_get_count(lpr.exps), 0);
                     }
-                    lpr.exp = laure_expression_create(let_var, "", false, dup, nesting, ba, query);
+                    lpr.exp = laure_expression_create(let_name, "", false, dup, nesting, ba, query);
                     return lpr;
                 }
 
@@ -1608,13 +1608,13 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
             break;
         }
 
-        case let_var: {
+        case let_name: {
             printindent(indent);
             printf("var %s : nesting %d\n", exp->s, exp->flag);
             break;
         }
 
-        case let_name: {
+        case let_rename: {
             printindent(indent);
             printf("naming [\n");
             laure_expression_t *ptr = NULL;
@@ -1765,7 +1765,7 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
 laure_expression_set *laure_get_all_vars_in(laure_expression_t *exp, laure_expression_set *linked) {
     if (!exp) return NULL;
     switch (exp->t) {
-    case let_var:
+    case let_name:
     case let_unify:
     case let_decl: {
         if (! exp->s) {
@@ -1873,7 +1873,7 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
 
             if (left->t == let_pred_call && right->t == let_pred_call) {
                 string vname = laure_scope_generate_unique_name();
-                laure_expression_t *var = laure_expression_create(let_var, left->s, false, vname, 0, NULL, exp->fullstring);
+                laure_expression_t *var = laure_expression_create(let_name, left->s, false, vname, 0, NULL, exp->fullstring);
                 left->ba->set = laure_expression_set_link(left->ba->set, var);
                 left->ba->has_resp = true;
                 right->ba->set = laure_expression_set_link(right->ba->set, var);
@@ -1910,7 +1910,7 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
                         unify = right;
                     }
                     laure_expression_set *set_ = laure_expression_compose_one(unify);
-                    (*unify).t = let_var;
+                    (*unify).t = let_name;
                     laure_expression_t *last = laure_expression_set_get_by_idx(set_, laure_expression_get_count(set_) - 1);
                     (*unify).s = last->s;
                     set_ = laure_expression_set_link(set_, exp);
@@ -1927,19 +1927,19 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
                 // expressions with won't be carried out
                 // (data-like expressions)
                 if (
-                    arg_exp->t == let_var 
+                    arg_exp->t == let_name 
                     || arg_exp->t == let_data 
                     || arg_exp->t == let_array 
                     || arg_exp->t == let_atom 
                     || arg_exp->t == let_singlq
                     || arg_exp->t == let_complex_data
                 ) {
-                    if (arg_exp->t == let_var && arg_exp->ba) {
+                    if (arg_exp->t == let_name && arg_exp->ba) {
                         // variable with clarifier will be carried out to imaging
                         char buff[16];
                         snprintf(buff, 16, "$%lu", laure_scope_generate_link());
 
-                        laure_expression_t *var = laure_expression_create(let_var, arg_exp->s, false, strdup(buff), 0, NULL, exp->fullstring);
+                        laure_expression_t *var = laure_expression_create(let_name, arg_exp->s, false, strdup(buff), 0, NULL, exp->fullstring);
 
                         laure_expression_set *image_set = laure_expression_set_link(NULL, var);
                         image_set = laure_expression_set_link(image_set, arg_exp);
@@ -1954,7 +1954,7 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
                     char buff[16];
                     snprintf(buff, 16, "$%lu", laure_scope_generate_link());
 
-                    laure_expression_t *var = laure_expression_create(let_var, arg_exp->s, false, strdup(buff), 0, NULL, exp->fullstring);
+                    laure_expression_t *var = laure_expression_create(let_name, arg_exp->s, false, strdup(buff), 0, NULL, exp->fullstring);
 
                     laure_expression_set *assert_set = laure_expression_set_link(NULL, var);
                     assert_set = laure_expression_set_link(assert_set, arg_exp);
@@ -1982,7 +1982,7 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
                     laure_expression_set_link(
                         laure_expression_set_link(
                             NULL,
-                            laure_expression_create(let_var, NULL, false, vname, 0, NULL, exp->fullstring)
+                            laure_expression_create(let_name, NULL, false, vname, 0, NULL, exp->fullstring)
                         ),
                         exp->link
                     ),

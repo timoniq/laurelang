@@ -80,14 +80,14 @@ double get_initialization(ordering_scope_mock *mock, laure_expression_t *expr) {
             double b = 0;
             laure_expression_t *argptr;
             EXPSET_ITER(expr->ba->set, argptr, {
-                if (argptr->t == let_var) {
+                if (argptr->t == let_name) {
                     if (get_mock_var_is_instantiated(mock, argptr->s))
                         b++;
                 }
             });
             return b / (double)laure_expression_get_count(expr->ba->set);
         }
-        case let_var: {
+        case let_name: {
             return get_mock_var_is_instantiated(mock, expr->s);
         }
         default: break;
@@ -104,7 +104,7 @@ laure_expression_t *get_most_initted(
     if (! set->next) {
         *set_ptr = NULL;
         return set->expression;
-    } else if (set->expression->t == let_name) {
+    } else if (set->expression->t == let_rename) {
         laure_expression_t *expr = set->expression;
         *set_ptr = set->next;
         laure_free(set);
@@ -146,7 +146,7 @@ void apply_knowledge_to_mock(ordering_scope_mock *mock, laure_expression_t *expr
         case let_pred_call: {
             laure_expression_t *argptr;
             EXPSET_ITER(expr->ba->set, argptr, {
-                if (argptr->t == let_var) {
+                if (argptr->t == let_name) {
                     set_initted_variable(mock, argptr->s);
                 }
             });
@@ -155,10 +155,10 @@ void apply_knowledge_to_mock(ordering_scope_mock *mock, laure_expression_t *expr
         case let_assert: {
             laure_expression_t *l = expr->ba->set->expression;
             laure_expression_t *r = expr->ba->set->next->expression;
-            if (l->t == let_var) {
+            if (l->t == let_name) {
                 set_initted_variable(mock, l->s);
             }
-            if (r->t == let_var) {
+            if (r->t == let_name) {
                 set_initted_variable(mock, r->s);
             }
             break;
@@ -167,7 +167,7 @@ void apply_knowledge_to_mock(ordering_scope_mock *mock, laure_expression_t *expr
             set_initted_variable(mock, expr->s);
             break;
         }
-        case let_name: {
+        case let_rename: {
             link_name(mock, expr->ba->set->expression->s, expr->ba->set->next->expression->s);
             break;
         }

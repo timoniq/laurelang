@@ -4,8 +4,8 @@ laure_expression_t *CALL = NULL;
 
 void ensure_call() {
     if (! CALL) {
-        laure_expression_t *v = laure_expression_create(let_var, NULL, false, laure_get_argn(0), false, NULL, "");
-        laure_expression_t *r = laure_expression_create(let_var, NULL, false, laure_get_respn(), 0, NULL, "");
+        laure_expression_t *v = laure_expression_create(let_name, NULL, false, laure_get_argn(0), false, NULL, "");
+        laure_expression_t *r = laure_expression_create(let_name, NULL, false, laure_get_respn(), 0, NULL, "");
 
         laure_expression_set *set = laure_expression_set_link(
             laure_expression_set_link(NULL, v), r

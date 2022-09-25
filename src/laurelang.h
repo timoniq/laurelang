@@ -173,13 +173,13 @@ typedef struct laure_expression {
     struct laure_expression *link;
     /*
     Flag:
-    + nesting for let_var
+    + nesting for let_name
     + is isolated for let_set
     Flag2:
     + cursor pointer for error tracing
-    + ID for vars with ID access let_var / pred call predicate name (when s is NULL)
+    + ID for vars with ID access let_name / pred call predicate name (when s is NULL)
     */
-    uint flag, flag2; // nesting for let_var, cursor position for error handling
+    uint flag, flag2; // nesting for let_name, cursor position for error handling
     laure_expression_compact_bodyargs *ba;
 } laure_expression_t;
 
