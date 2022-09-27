@@ -1,3 +1,7 @@
+// Packages/facts application
+// * linking packages
+// * parsing docstrings
+
 #include "laurelang.h"
 #include "laureimage.h"
 #include "predpub.h"
@@ -11,8 +15,6 @@
 #ifndef DOC_BUFFER_LEN
 #define DOC_BUFFER_LEN 512
 #endif
-
-#define GENERIC_T "T"
 
 short int LAURE_ASK_IGNORE = 0;
 char     *NESTED_DOC_AUTOGEN = NULL;
@@ -112,6 +114,7 @@ int laure_load_shared(laure_session_t *session, char *path) {
 }
 
 void strrev_via_swap(string s) {
+    // not working with unicode
     int l = strlen(s);
 
     for (int i = 0; i < l / 2; i++) {
@@ -182,6 +185,7 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
         } else if (aexp->t == let_atom_sign) {
             // atomic type
             // (variable must be known)
+            // current atomic declaration is kinda strange maybe adding some atomic validators would be nice
             laure_typeset_push_decl(args_set, "@");
         } else if (aexp->t == let_auto) {
             printf("Auto cannot be used in arguments\n");
@@ -260,6 +264,11 @@ apply_result_t laure_consult_predicate(
     laure_expression_t *predicate_exp, 
     string address
 ) {
+    /* predicates are not memory-safe
+    due to 1) absence of predicate deletion operations
+    and 2) bad error tracing mechanisms
+    todo!
+    */
     assert(predicate_exp->t == let_pred || predicate_exp->t == let_constraint);
 
     Instance *pred_ins;
@@ -481,9 +490,9 @@ string consult_single(
             LAURE_CURRENT_ADDRESS = fname;
             apply_result_t result = fact_receiver(session, line_);
             if (result.status == apply_error) {
+                // result payload may be unset, todo! (error tracing)
                 *failed = 0;
                 return 0;
-                // printf("Error:\n  %s\n    %s%s%s\n", line_, RED_COLOR, result.error, NO_COLOR);
             }
             LAURE_CURRENT_ADDRESS = o;
             buff[0] = 0;
@@ -509,6 +518,8 @@ void laure_consult_recursive(laure_session_t *session, string path, int *failed)
 }
 
 bool endswith(string s, string end) {
+    // bruh strange stuff
+    // + surely not working with unicode FIXME
     char *c = s + strlen(s) - strlen(end);
     for (size_t i = 0; i < strlen(end); i++) {
         if (*c != end[i]) return false;

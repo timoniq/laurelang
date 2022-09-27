@@ -1,3 +1,6 @@
+// Constrainting, iterating and etc over integer domains
+// todo: rewrite
+
 #include "laurelang.h"
 #include "domain.h"
 

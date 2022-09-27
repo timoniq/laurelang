@@ -1,3 +1,6 @@
+// Building builtin instances
+// parsing hints
+
 #include "builtin.h"
 #include <stdio.h>
 

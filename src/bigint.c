@@ -1,3 +1,7 @@
+// Bigint calculations
+// karatsuba multiplication
+// division with[out] remainder
+
 #include "bigint.h"
 
 #include <assert.h>

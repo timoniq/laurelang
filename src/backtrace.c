@@ -1,3 +1,5 @@
+// Backtrace storage
+
 #include "laurelang.h"
 
 #ifndef BACKTRACE_CHAIN_LIMIT
@@ -59,9 +61,9 @@ void laure_backtrace_add(laure_backtrace *backtrace, laure_expression_t *e) {
         }
     }
 }
+
 // pretty backtrace print
 // predcall
-// 
 void laure_backtrace_print(laure_backtrace *backtrace) {
     if (! backtrace) return;
     struct chain_p *chain = backtrace->chain;
