@@ -27,7 +27,7 @@ string ELLIPSIS = NULL;
 #define GENERIC_OPEN '{'
 #define GENERIC_CLOSE '}'
 
-char* EXPT_NAMES[] = {"Expression Set", "Variable", "Predicate Call", "Declaration", "Assertion", "Imaging", "Predicate Declaration", "Choice (Packed)", "Choice (Unpacked)", "Naming", "Value", "Constraint", "Complex Data", "Structure", "Array", "Unify", "Quantified Expression", "Domain", "Implication", "Reference", "Cut", "Atom", "Command", "Generic DT/Char", "Atom Sign", "Auto", "Nested", "[Nope]"};
+char* EXPT_NAMES[] = {"set", "name", "predicate call", "declaration", "assertion", "imaging", "predicate statement", "choice (packed)", "choice (unpacked)", "naming", "value", "constraint", "complex data", "structure statement", "array", "forced unification", "quantor statement", "domain", "implication", "reference", "cut", "atom", "command", "character", "atom sign", "auto", "nested", "?"};
 
 laure_expression_t *laure_expression_create(
     laure_expression_type t, 

@@ -68,19 +68,19 @@ void laure_backtrace_print(laure_backtrace *backtrace) {
     if (! backtrace) return;
     struct chain_p *chain = backtrace->chain;
     if (chain[0].e) {
-        printf("\n  ━━ Backtrace ━━\n");
+        printf("\n");
     }
     uint i = 0;
     while (chain[0].e && i <= backtrace->cursor) {
         struct chain_p p = chain[0];
-        printf("  %s↪%s because of %s:\n", GREEN_COLOR, NO_COLOR, EXPT_NAMES[p.e->t]);
+        printf("  %s↪%s because of %s%s%s:\n", GREEN_COLOR, NO_COLOR, BOLD_DEC, EXPT_NAMES[p.e->t], NO_COLOR);
         if (p.times) printf("    %s%s%s (%u times)\n", GRAY_COLOR, p.e->fullstring, NO_COLOR, p.times);
         else printf("      %s%s%s\n", GRAY_COLOR, p.e->fullstring, NO_COLOR);
         chain++;
         i++;
     }
     if (backtrace->chain != chain) {
-        printf("  ━━━━━━━━━━━━━━━\n\n");
+        printf("\n");
     }
     if (backtrace->log)
         printf("in %s\n", backtrace->log);
