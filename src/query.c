@@ -757,7 +757,7 @@ qresp laure_eval_assert(
         Instance *to = laure_scope_find_by_key_l(scope, vname, &link, true);
 
         if (!to)
-            RESPOND_ERROR(undefined_err, e, "variable %s", vname);
+            RESPOND_ERROR(undefined_err, e, "name %s", vname);
         
         if (to->locked)
             RESPOND_ERROR(access_err, e, "%s is locked", vname);
@@ -1118,7 +1118,7 @@ qresp laure_eval_unify(_laure_eval_sub_args) {
     ulong link[1];
     Instance *to_unif = laure_scope_find_by_key_l(scope, e->s, link, false);
     if (! to_unif)
-        RESPOND_ERROR(undefined_err, e, "variable %s", e->s);
+        RESPOND_ERROR(undefined_err, e, "name %s", e->s);
     else if (to_unif->locked)
         RESPOND_ERROR(access_err, e, "%s is locked", e->s);
     struct img_rec_ctx *ctx = img_rec_ctx_create(to_unif, cctx, expset, proc_unify_response, *link);
@@ -1150,7 +1150,7 @@ qresp laure_eval_name(_laure_eval_sub_args) {
         RESPOND_ERROR(instance_err, e, "cannot evaluate nesting of %s, use infer op.", vname);
     
     Instance *var = laure_scope_find_by_key(scope, vname, true);
-    if (!var) RESPOND_ERROR(undefined_err, e, "variable %s", vname);
+    if (!var) RESPOND_ERROR(undefined_err, e, "name %s", vname);
 
     vpk->single_var_processor(scope, vname, vpk->payload);
     // cctx->silent = true;
@@ -2212,7 +2212,7 @@ qresp laure_eval_quant(_laure_eval_sub_args) {
     ulong link[1];
     Instance *ins = laure_scope_find_by_key_l(scope, vname, link, false);
     if (! ins)
-        RESPOND_ERROR(undefined_err, e, "variable %s", vname);
+        RESPOND_ERROR(undefined_err, e, "name %s", vname);
     
     bool dp = cctx->vpk->do_process;
     
@@ -2512,7 +2512,7 @@ qresp laure_eval_command(_laure_eval_sub_args) {
                 case let_name: {
                     Instance *runtime_instance = laure_scope_find_by_key(scope, e->link->s, true);
                     if (runtime_instance) {
-                        RESPOND_ERROR(runtime_err, e, "error from variable %s: %s", runtime_instance->name, runtime_instance->repr(runtime_instance));
+                        RESPOND_ERROR(runtime_err, e, "error from name %s: %s", runtime_instance->name, runtime_instance->repr(runtime_instance));
                     }
                 }
                 default: break;
@@ -2523,7 +2523,7 @@ qresp laure_eval_command(_laure_eval_sub_args) {
             string name = e->s;
             Instance *ins = laure_scope_find_by_key(scope, name, true);
             if (! ins) 
-                RESPOND_ERROR(undefined_err, e, "variable %s is undefined", name);
+                RESPOND_ERROR(undefined_err, e, "name %s is undefined", name);
             ins->locked = e->is_header;
             return RESPOND_TRUE;
         }

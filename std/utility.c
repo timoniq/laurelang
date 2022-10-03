@@ -287,7 +287,7 @@ DECLARE(laure_predicate_format) {
             if (part->name) {
                 Instance *instance = laure_scope_find_by_key(cctx->scope->next, part->name, true);
                 if (! instance)
-                    RESPOND_ERROR(undefined_err, NULL, "formatting variable %s is undefined", part->name);
+                    RESPOND_ERROR(undefined_err, NULL, "formatting name %s is undefined", part->name);
                 string repr;
                 if (instance->repr != string_repr || ! instantiated(instance))
                     repr = instance->repr(instance);
