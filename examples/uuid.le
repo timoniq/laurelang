@@ -5,14 +5,6 @@
 ?person("Helena", 19).
 ?person("Max", 9).
 
-: ?predicate(person, person).
-?predicate(p1, person(name, _)) {
-    p1 = person(_, age);
-    // ^ here age of p1 resolved
-    p2 = person(name, some_age);
-    // ^ p2 points to person with specific name
-}
-
 : ?marriage(person, person).
 ?marriage(person("Anya", _), person("John", _)).
 ?marriage(person("Nick", _), person("Helena", _)).
@@ -39,7 +31,6 @@
 // ?- person(name, _), sized_bagof(x, name) = bag, x >= 3
 // * Get marriages where age difference between 
 //   two partners is greater than 5
-// ?- marriage(person(n1, a1), 
-//    person(n2, a2)), 
+// ?- marriage('person(n1, a1), 'person(n2, a2)), 
 //    absolute(a1 - a2) > 5, 
 //    bag <-- format("{n1} with {n2}").

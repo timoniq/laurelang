@@ -671,6 +671,24 @@ laure_parse_result laure_parse(string query) {
 
     switch (det) {
         case '\'': {
+            
+            // this may be a grounded expression or 
+            // char/generic expression
+            if (lastc(query) != '\'' && laure_string_strlen(query) > 2 && query[1] != '\'') {
+                // this is a grounded expression
+                // example:
+                // marriage('person(n, _), 'person(_, age))
+                // person predcall is grounded in this inplace predicate calls
+                laure_parse_result lpr = laure_parse(query);
+                if (lpr.is_ok) {
+                    if (lpr.exp->t != let_pred_call) {
+                        error_result("must be predicate call");
+                    }
+                    lpr.exp->flag = 1;
+                }
+                return lpr;
+            }
+            
             string dup = strdup(query);
 
             uint nesting = 0;
@@ -1630,7 +1648,7 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
             printindent(indent);
             printf("call pred %s [\n", exp->s);
             printindent(indent + 2);
-            printf("docstring: %s; nesting: %d\n", exp->docstring, exp->flag);
+            printf("docstring: %s; grounded: %d; nesting: %d\n", exp->docstring, exp->flag2, exp->flag);
             laure_expression_t *ptr = NULL;
             EXPSET_ITER(exp->ba->set, ptr, {
                 laure_expression_show(ptr, indent + 2);
@@ -1921,11 +1939,13 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
         }
         case let_pred_call: {
             laure_expression_set *args = NULL;
+            // grounded predicate calls
+            laure_expression_set *grounded = NULL;
 
             for (int i = 0; i < exp->ba->body_len; i++) {
                 laure_expression_t *arg_exp = laure_expression_set_get_by_idx(exp->ba->set, i);
-                // expressions with won't be carried out
-                // (data-like expressions)
+                // expressions with data-like 
+                // expressions won't be carried out
                 if (
                     arg_exp->t == let_name 
                     || arg_exp->t == let_data 
@@ -1962,7 +1982,15 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
                     laure_expression_compact_bodyargs *ba = laure_bodyargs_create(assert_set, 2, false);
                     laure_expression_t *assert_exp = laure_expression_create(let_assert, NULL, false, NULL, 0, ba, exp->fullstring);
                     args = laure_expression_set_link(args, var);
-                    set = laure_expression_set_link_branch(set, laure_expression_compose_one(assert_exp));
+                    
+                    laure_expression_set *unpacked = laure_expression_compose_one(assert_exp);
+
+                    if (arg_exp->t == let_pred_call && arg_exp->flag == 1) {
+                        // grounded predicate call
+                        grounded = laure_expression_set_link_branch(grounded, unpacked);
+                    } else {
+                        set = laure_expression_set_link_branch(set, unpacked);
+                    }
                 }
             }
             
@@ -1972,6 +2000,11 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
             
             exp->ba->set = args;
             set = laure_expression_set_link(set, exp);
+            
+            if (grounded) {
+                set = laure_expression_set_link_branch(set, grounded);
+            }
+            
             break;
         }
         case let_unify: {
