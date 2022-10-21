@@ -83,12 +83,18 @@ double get_initialization(ordering_scope_mock *mock, laure_expression_t *expr) {
                 if (argptr->t == let_name) {
                     if (get_mock_var_is_instantiated(mock, argptr->s))
                         b++;
+                } else {
+                    b++;
                 }
             });
-            return b / (double)laure_expression_get_count(expr->ba->set);
+            double arity = (double)laure_expression_get_count(expr->ba->set);
+            return b / arity;
         }
         case let_name: {
             return get_mock_var_is_instantiated(mock, expr->s);
+        }
+        case let_unify: {
+            return 1;
         }
         default: break;
     }
@@ -221,7 +227,8 @@ void go_binary_tree(
     bool *mask,
     bool response,
     bintree_permut *bintree,
-    laure_expression_set *unlinked
+    laure_expression_set *unlinked,
+    bool all_instantiated
 ) {
     if (idx == argc) {
         bintree->_0 = NULL;
@@ -231,15 +238,20 @@ void go_binary_tree(
         m.response = response;
         for (size_t i = 0; i < argc; i++)
             m.mask[i] = mask[i];
+        
+        if (all_instantiated) {
+            bintree->set = unlinked;
+            return;
+        }
         bintree->set = generate_linked_permutation(m, unlinked);
     } else {
         bintree->set = NULL;
         mask[idx] = 0;
         bintree->_0 = laure_alloc(sizeof(bintree_permut));
-        go_binary_tree(argc, idx + 1, mask, response, bintree->_0, unlinked);
+        go_binary_tree(argc, idx + 1, mask, response, bintree->_0, unlinked, false);
         mask[idx] = 1;
         bintree->_1 = laure_alloc(sizeof(bintree_permut));
-        go_binary_tree(argc, idx + 1, mask, response, bintree->_1, unlinked);
+        go_binary_tree(argc, idx + 1, mask, response, bintree->_1, unlinked, all_instantiated);
     }
 }
 
@@ -259,12 +271,12 @@ predicate_linked_permutations laure_generate_final_permututations(
     btree->set = NULL;
     if (has_resp) {
         btree->_1 = laure_alloc(sizeof(bintree_permut));
-        go_binary_tree(argc, 0, mask, true, btree->_1, unlinked);
+        go_binary_tree(argc, 0, mask, true, btree->_1, unlinked, true);
     } else {
         btree->_1 = NULL;
     }
     btree->_0 = laure_alloc(sizeof(bintree_permut));
-    go_binary_tree(argc, 0, mask, false, btree->_0, unlinked);
+    go_binary_tree(argc, 0, mask, false, btree->_0, unlinked, !has_resp);
     predicate_linked_permutations plp;
     plp.fixed = false;
     plp.tree = btree;

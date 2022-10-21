@@ -73,12 +73,14 @@ index_t ~ natural*.
 }
 
 // Integer pow predicate
+!ordering.
 : ?pow(int, int) -> int.
 ?pow(x, 0) -> 1.
 ?pow(x, 1) -> x.
 
 ?pow(Value, Pow) -> R {
     Pow > 1;
+    Value?;
     R = Value * pow(Value, Pow - 1);
 }
 

@@ -44,6 +44,17 @@ Further reasoning on this predicate:
    y = [1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43].
 ```
 
+Using predicate `absolute` as mapper:
+
+```laurelang
+?- x = map{int}([1, -2, -3], absolute)
+   x = [1, 2, 3].
+?- [1, 2, 3] = map{int}(x, absolute)
+   x = [1, 2];
+   x = [-1, 2];
+   x = [-1, -2].
+```
+
 # Getting started
 
 ## Build from source

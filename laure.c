@@ -67,7 +67,7 @@ const struct cmd_info commands[] = {
     {4, ".scope", 0, "Shows global scope values; needed for debug."},
     // {5, ...},
     {6, ".doc", 1, "Shows documentation for object."},
-    {7, ".getinfo", 0, "Shows information about reasoning system."},
+    {7, ".about", 0, "Shows information about reasoning system."},
     {8, ".ast", -1, "Shows AST of query passed."},
     {9, ".lock", -1, "Locks instances."},
     {10, ".unlock", -1, "Unlocks instances."},

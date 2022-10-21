@@ -436,10 +436,8 @@ typedef struct bintree_permut {
 
 typedef struct predicate_linked_permutations {
     bool fixed;
-    union {
-        bintree_permut *tree;
-        laure_expression_set *fixed_set;
-    };
+    bintree_permut *tree;
+    laure_expression_set *fixed_set;
 } predicate_linked_permutations;
 
 predicate_linked_permutations laure_generate_final_permututations(

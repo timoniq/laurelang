@@ -684,7 +684,7 @@ laure_parse_result laure_parse(string query) {
                     if (lpr.exp->t != let_pred_call) {
                         error_result("must be predicate call");
                     }
-                    lpr.exp->flag = 1;
+                    lpr.exp->flag2 = 1;
                 }
                 return lpr;
             }
@@ -1370,7 +1370,6 @@ laure_parse_result laure_parse(string query) {
                             set = laure_expression_set_link(set, el3);
                             laure_expression_compact_bodyargs *ba = laure_bodyargs_create(set, 2, 0);
                             lpr.exp = laure_expression_create(let_pred_call, NULL, false, el2->s, 0, ba, query);
-                            lpr.exp->flag2 = strlen(temp) + 1;
                             lpr.exp->link = el2->ba ? el2 : NULL;
                             return lpr;
                         }
@@ -1985,7 +1984,7 @@ laure_expression_set *laure_expression_compose_one(laure_expression_t *exp) {
                     
                     laure_expression_set *unpacked = laure_expression_compose_one(assert_exp);
 
-                    if (arg_exp->t == let_pred_call && arg_exp->flag == 1) {
+                    if (arg_exp->t == let_pred_call && arg_exp->flag2 == 1) {
                         // grounded predicate call
                         grounded = laure_expression_set_link_branch(grounded, unpacked);
                     } else {
