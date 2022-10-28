@@ -461,6 +461,11 @@ DECLARE(laure_predicate_append) {
         bool found = false;
 
         for (uint to_len = 0; to_len <= length; to_len++) {
+            if (STATE(to->image) == I)
+                if (LENGTH(to->image) != to_len) goto next;
+            if (STATE(with->image) == I)
+                if (LENGTH(with->image) != length - to_len) goto next;
+            
             STATE(to->image) = I;
             STATE(with->image) = I;
             LENGTH(to->image) = to_len;
@@ -487,6 +492,7 @@ DECLARE(laure_predicate_append) {
             cctx->qctx = old_qc;
             laure_scope_free(nscope);
 
+            next: {};
             if (! linked) break;
             linked = linked->next;
         }
