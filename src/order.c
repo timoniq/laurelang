@@ -94,7 +94,7 @@ double get_initialization(ordering_scope_mock *mock, laure_expression_t *expr) {
             return get_mock_var_is_instantiated(mock, expr->s);
         }
         case let_unify: {
-            return 1;
+            return 1.0;
         }
         default: break;
     }
@@ -121,7 +121,7 @@ laure_expression_t *get_most_initted(
     laure_expression_t *max_exp = NULL;
     size_t max_idx = 0;
 
-    laure_expression_t *ptr;
+    laure_expression_t *ptr = NULL;
     size_t idx = 0;
     EXPSET_ITER(set, ptr, {
         double b = get_initialization(mock, ptr);
@@ -141,8 +141,8 @@ laure_expression_t *get_most_initted(
         laure_expression_set *p = set;
         laure_expression_set *s = set->next;
         for (size_t i = 1; i < max_idx; i++) {s = s->next; p = p->next;};
-        laure_free(s);
         p->next = s->next;
+        // laure_free(s);
     }
     return max_exp;
 }
@@ -233,14 +233,16 @@ void go_binary_tree(
     if (idx == argc) {
         bintree->_0 = NULL;
         bintree->_1 = NULL;
+
         laure_mask m;
         m.argc = argc;
         m.response = response;
+        
         for (size_t i = 0; i < argc; i++)
             m.mask[i] = mask[i];
         
         if (all_instantiated) {
-            bintree->set = unlinked;
+            bintree->set = laure_expression_set_copy(unlinked);
             return;
         }
         bintree->set = generate_linked_permutation(m, unlinked);
@@ -298,6 +300,8 @@ laure_expression_set *laure_get_ordered_predicate_body(
 ) {
     if (plp.fixed)
         return plp.fixed_set;
+
+    debug("resolving ordering\n");
     
     bintree_permut *btree;
     if (resi) {
@@ -314,5 +318,7 @@ laure_expression_set *laure_get_ordered_predicate_body(
             btree = btree->_0;
     }
     assert(! btree->_0 && ! btree->_1);
+
+    debug("ordering successfully resolved\n");
     return btree->set;
 }
