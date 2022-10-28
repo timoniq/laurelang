@@ -1,3 +1,5 @@
+!use <abstract>.
+
 int natural = 1...
 int natural* = 0...
 
@@ -234,8 +236,10 @@ $ divmod_t {
 : ?from('T'[], index_t) -> 'T'[].
 ?from(arr, 0) -> arr.
 ?from(arr, n) -> tail {
-    linked(_, t) = arr;
-    from(t, n - 1) = tail;
+    T = abstract_primitive(arr);
+    s ~ T[n];
+    append(s, tail) = arr;
+    n = length(s);
 }
 
 : ?max_of_two(int, int) -> int.

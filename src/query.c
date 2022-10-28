@@ -843,7 +843,7 @@ Instance *ready_instance(laure_scope_t *scope, laure_expression_t *expr) {
                         }
                         if (instantiated(ins)) {
                             uint length = (uint)((struct IntImage*)(ins->image))->i_data->words[0];
-                            goto known_length;
+                            return get_nested_fixed(typevar, length, scope);
                         }
                     }
                     Instance *nested = get_nested_instance(typevar, 1, scope);
@@ -854,7 +854,6 @@ Instance *ready_instance(laure_scope_t *scope, laure_expression_t *expr) {
                 }
                 case let_data: {
                     uint length = (uint)atoi(idx_expr->s);
-                    known_length: {};
                     Instance *nested = get_nested_fixed(typevar, length, scope);
                     return nested;
                 }
@@ -1060,8 +1059,8 @@ qresp laure_eval_image(
         Instance *ins = ready_instance(scope, exp2);
         if (! ins)
             RESPOND_ERROR(internal_err, exp2, "invalid nested imaging");
-        if (laure_scope_find_by_key(scope, vname, true))
-            RESPOND_ERROR(not_implemented_err, exp2, "imaging nested on known instance");
+        //if (laure_scope_find_by_key(scope, vname, true)) 
+        //    RESPOND_ERROR(not_implemented_err, exp2, "imaging nested on known instance");
         ins->name = vname;
         laure_scope_insert(scope, ins);
         return RESPOND_TRUE;

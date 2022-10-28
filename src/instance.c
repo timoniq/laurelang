@@ -2579,9 +2579,11 @@ predfinal *get_pred_final(struct PredicateImage *pred, struct PredicateImageVari
         laure_expression_set *body = laure_expression_set_link_branch(nset, last);
         pf->interior.body = laure_expression_compose(body);
         
-        if (pred->header.do_ordering)
+        if (pred->header.do_ordering) {
+            debug("generating orderings\n");
             pf->interior.plp = laure_generate_final_permututations(pf->interior.body, pf->interior.argc, pf->interior.respn != NULL);
-        else
+            debug("orderings generated\n");
+        } else
             pf->interior.plp = laure_generate_final_fixed(pf->interior.body);
 
     } else if (pv.t == PREDICATE_C) {
