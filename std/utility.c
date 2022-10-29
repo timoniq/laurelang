@@ -202,6 +202,8 @@ DECLARE(laure_predicate_format) {
         // resolve variables if matches
         pattern_element *pattern[128];
         size_t count = 0;
+        if (! fim->first)
+            return from_boolean(sim->i_data.length == 0);
         if (formatting_to_pattern(fim->first, pattern, 128, &count) != 0)
             RESPOND_ERROR(internal_err, NULL, "unable to convert formatting to pattern");
         pattern[count] = 0;

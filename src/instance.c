@@ -1492,6 +1492,9 @@ struct FormattingPart *laure_parse_formatting(string fmt) {
             char name[128];
             size_t name_idx = 0;
             ch = laure_string_get_char(&src);
+            if (ch == FMT_R) {
+                return NULL;
+            }
             do {
                 name_idx += laure_string_put_char(name + name_idx, ch);
                 ch = laure_string_get_char(&src);
