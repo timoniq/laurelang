@@ -54,13 +54,26 @@ multiplicity *multiplicity_deepcopy(multiplicity *mult) {
     return new;
 }
 
-void multiplicity_insert(multiplicity *mult, void *ptr) {
+/* Inserts new element into multiplicity if it doesn't contain it yet
+ * eq checker can be set to NULL then check will be skipped */
+int multiplicity_insert(
+    multiplicity *mult,
+    void *ptr,
+    int (*cmp)(void*, void*)
+) {
+    if (cmp)
+        for (int i = 0; i < mult->amount; i++) {
+            if (cmp(mult->members[i], ptr) == 0)
+                return 1;
+        }
+
     if (mult->amount + 1 > mult->capacity) {
         mult->capacity = mult->capacity * 2;
         mult->members = laure_realloc(mult->members, sizeof(void*) * mult->capacity);
     }
     mult->members[mult->amount] = ptr;
     mult->amount++;
+    return 0;
 }
 
 void multiplicity_free(multiplicity *mult) {
@@ -1131,7 +1144,7 @@ void write_atom_name(string r, char *write_to) {
     if (len > ATOM_LEN_MAX) len = ATOM_LEN_MAX;
     strncpy(write_to, s, len);
     write_to[len] = 0;
-} 
+}
 
 bool atom_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, ulong link) {
     struct AtomImage *atom = (struct AtomImage*)img_;
@@ -1180,7 +1193,10 @@ bool atom_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, 
                     multiplicity_free(new_mult);
                     return false;
                 }
-                multiplicity_insert(new_mult, strdup(name));
+                string cpname = strdup(name);
+                if (multiplicity_insert(new_mult, cpname, strcmp) != 0) {
+                    free(cpname);
+                }
             }
         });
         multiplicity_free(atom->mult);
@@ -1224,7 +1240,7 @@ bool atom_eq(struct AtomImage *img1_t, struct AtomImage *img2_t) {
             for (uint j = 0; j < img2_t->mult->amount; j++) {
                 string atom_2 = img2_t->mult->members[j];
                 if (strcmp(atom_1, atom_2) == 0) {
-                    multiplicity_insert(mult_new, atom_1);
+                    multiplicity_insert(mult_new, atom_1, strcmp);
                     break;
                 }
             }

@@ -1,3 +1,5 @@
+// todo: rewrite
+
 #ifndef LLPARSER_H
 #define LLPARSER_H
 
@@ -1700,7 +1702,7 @@ void laure_expression_show(laure_expression_t *exp, uint indent) {
 
         case let_data: {
             printindent(indent);
-            printf("data {%s%s%s}\n", GRAY_COLOR, exp->s, NO_COLOR);
+            printf("value {%s%s%s}\n", GRAY_COLOR, exp->s, NO_COLOR);
             break;
         }
 

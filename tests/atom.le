@@ -17,6 +17,18 @@
     A = @{c, c};
 }
 
+// "@{H, O}"
+// "@{хорек, мышь}"
+: ?test_atom_distinct(string).
+?test_atom_distinct(r) {
+    A ~ @{H, H, O};
+    r = repr(A);
+}
+?test_atom_distinct(r) {
+    animals ~ @{хорек, мышь, хорек, мышь};
+    r = repr(animals);
+}
+
 // @atom1
 // @atom2
 // @1

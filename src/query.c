@@ -842,7 +842,7 @@ Instance *ready_instance(laure_scope_t *scope, laure_expression_t *expr) {
                             return NULL;
                         }
                         if (instantiated(ins)) {
-                            uint length = (uint)((struct IntImage*)(ins->image))->i_data->words[0];
+                            uint length = (uint)bigint_double(((struct IntImage*)(ins->image))->i_data);
                             return get_nested_fixed(typevar, length, scope);
                         }
                     }
@@ -903,7 +903,10 @@ qresp laure_eval_image(
         EXPSET_ITER(exp2->ba->set, ptr, {
             char name[ATOM_LEN_MAX];
             write_atom_name(ptr->s, name);
-            multiplicity_insert(mult, strdup(name));
+            string cpname = strdup(name);
+            if (multiplicity_insert(mult, cpname, strcmp) != 0) {
+                free(cpname);
+            }
         });
         struct AtomImage *atom = laure_atom_universum_create(mult);
         if (! ins) {

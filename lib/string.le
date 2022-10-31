@@ -27,3 +27,9 @@
     tail_s = join(joiner, tail);
     joined = join_two(joiner, head, tail_s);
 }
+
+: ?reversed(string) -> string.
+?reversed([c]) -> [c].
+?reversed(s) -> r {
+
+}

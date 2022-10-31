@@ -210,7 +210,7 @@ int laure_process_query(laure_session_t *session, string line) {
                 failed[0] = false;
                 laure_consult_recursive(session, full_path, (int*)failed);
                 if (! failed[0])
-                    printf("  %s%s%s: consulted\n", GREEN_COLOR, args.argv[j], NO_COLOR);
+                    printf("  %s%s%s: consulted\n", GREEN_COLOR, spath, NO_COLOR);
                 laure_free(path);
                 laure_free(spath);
             }

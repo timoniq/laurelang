@@ -236,10 +236,25 @@ $ divmod_t {
 : ?from('T'[], index_t) -> 'T'[].
 ?from(arr, 0) -> arr.
 ?from(arr, n) -> tail {
+    n = between(0, length(arr))?;
     T = abstract_primitive(arr);
     s ~ T[n];
     append(s, tail) = arr;
-    n = length(s);
+}
+
+: ?to('T'[], index_t) -> 'T'[].
+?to(arr, 0) -> [].
+?to(arr, n) -> tail {
+    n = ..(1, length(arr))?;
+    T = abstract_primitive(arr);
+    s ~ T[n];
+    append(s, _) = arr;
+    tail = s;
+}
+
+: ?slice('T'[], index_t, index_t) -> 'T'[].
+?slice(arr, f, t) -> s {
+    s = (arr from f) to t - f;
 }
 
 : ?max_of_two(int, int) -> int.

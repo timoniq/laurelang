@@ -99,7 +99,7 @@ laure_typedecl *laure_typedecl_auto_create(laure_auto_type auto_type);
 
 multiplicity *multiplicity_create();
 multiplicity *multiplicity_deepcopy(multiplicity*);
-void multiplicity_insert(multiplicity*, void *ptr);
+int multiplicity_insert(multiplicity*, void *ptr, int (*eq)(void*, void*));
 void multiplicity_free(multiplicity*);
 
 #define IMAGE_HEAD \
