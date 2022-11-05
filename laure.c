@@ -682,9 +682,9 @@ int main(int argc, char *argv[]) {
         failed[0] = false;
         laure_consult_recursive(session, full_path, (int*)failed);
         if (! failed[0])
-            printf("  %s%s%s: consulted\n", GREEN_COLOR, filenames->filename, NO_COLOR);
+            printf("  %s%s%s: consulted\n", GREEN_COLOR, spath, NO_COLOR);
         else
-            printf("  %s%s%s: not consulted\n", RED_COLOR, filenames->filename, NO_COLOR);
+            printf("  %s%s%s: not consulted\n", RED_COLOR, spath, NO_COLOR);
         laure_free(path);
         laure_free(spath);
         filenames = filenames->next;
