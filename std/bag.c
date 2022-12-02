@@ -14,6 +14,17 @@ DECLARE(laure_predicate_bag) {
         size_t length = ary_im->i_data.length;
         bool found = true;
 
+        if (size_optional) {
+            cast_image(sz_im, struct IntImage) size_optional->image;
+            if (instantiated(size_optional)) {
+                double d = bigint_double(sz_im->i_data);
+                if (length < d) {
+                    return False;
+                }
+                length = d;
+            }
+        }
+
         while (linked && length) {
             Instance *i = linked->data;
             void *copy = image_deepcopy(from->image);
