@@ -42,7 +42,7 @@ preddata {
 ```
 Instance *a = pd_get_arg(pd, 0);
 Instance *b = pd_get_arg(pd, 1);
-// to get response:
+-- to get response:
 Instance *c = pd->resp;
 ```
 

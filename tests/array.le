@@ -1,8 +1,8 @@
-// [1, 2, 3]
+-- [1, 2, 3]
 : ?test_array_basic(int[]).
 
-// [5, 4, -5]
-// [5, 5, -5]
+-- [5, 4, -5]
+-- [5, 5, -5]
 : ?test_array_with_domain(int[]).
 
 ?test_array_basic(arr) {
@@ -17,9 +17,9 @@
     arr?;
 }
 
-// 1
-// 2
-// 3
+-- 1
+-- 2
+-- 3
 : ?test_array_each(int).
 
 ?test_array_each(x) {
@@ -27,9 +27,9 @@
     x = each of arr;
 }
 
-// [1, 2]
-// [3, 4]
-// [5]
+-- [1, 2]
+-- [3, 4]
+-- [5]
 : ?test_array_each_2(int[]).
 
 ?test_array_each_2(element) {
@@ -45,11 +45,11 @@
     element = each(arr);
 }
 
-// []
-// [1]
-// [1, 1]
-// [1, 1, 1]
-// ...
+-- []
+-- [1]
+-- [1, 1]
+-- [1, 1, 1]
+-- ...
 : ?test_array_each_gen_array(int[]).
 
 ?test_array_each_gen_array(arr) {
@@ -58,10 +58,10 @@
     arr?;
 }
 
-// 5
-// -1
-// 3
-// 5
+-- 5
+-- -1
+-- 3
+-- 5
 : ?test_array_by_idx(int).
 
 ?test_array_by_idx(x) {
@@ -89,14 +89,14 @@
     &all x {x = 3};
 }
 
-// [2, 2, 2]
-// [2, 2, 3]
-// [2, 3, 2]
-// [2, 3, 3]
-// [3, 2, 2]
-// [3, 2, 3]
-// [3, 3, 2]
-// [3, 3, 3]
+-- [2, 2, 2]
+-- [2, 2, 3]
+-- [2, 3, 2]
+-- [2, 3, 3]
+-- [3, 2, 2]
+-- [3, 2, 3]
+-- [3, 3, 2]
+-- [3, 3, 3]
 : ?test_array_length_gen_array(int[]).
 
 ?test_array_length_gen_array(x) {
@@ -107,15 +107,15 @@
 }
 
 
-// [];0
-// [3];1
-// [4];1
-// [5];1
-// [3, 3];2
-// [3, 4];2
-// [3, 5];2
-// [4, 3];2
-// ...
+-- [];0
+-- [3];1
+-- [4];1
+-- [5];1
+-- [3, 3];2
+-- [3, 4];2
+-- [3, 5];2
+-- [4, 3];2
+-- ...
 : ?test_array_length_genall(int[], int).
 
 ?test_array_length_genall(final, len) {
@@ -125,9 +125,9 @@
     final = arr;
 }
 
-// 2
-// 1
-// 5
+-- 2
+-- 1
+-- 5
 : ?test_array_by_idx_syntax(int).
 ?test_array_by_idx_syntax(x) {
     int[] arr = [1, 2, 3];
@@ -151,10 +151,10 @@
 }
 
 
-// [1, 2, 3, 4, 5]
-// []
-// [1]
-// [3]
+-- [1, 2, 3, 4, 5]
+-- []
+-- [1]
+-- [3]
 
 : ?test_array_append(int[]).
 
@@ -168,19 +168,19 @@
     append{int}([1, 2], x) = [1, 2, 3];
 }
 
-// [1, 2, 3, 4, 5]
+-- [1, 2, 3, 4, 5]
 : ?test_array_flatten(int[]).
 ?test_array_flatten(arr2) {
     int[][] arr = [[1,2], [], [3,4,5]];
     arr2 = flatten(arr);
 }
 
-// []
-// [1, 2]
-// [1, 2, 3]
-// [1, 1, 2, 3]
-// [1, 2, 1, 2, 3]
-// [3, 4]
+-- []
+-- [1, 2]
+-- [1, 2, 3]
+-- [1, 1, 2, 3]
+-- [1, 2, 1, 2, 3]
+-- [3, 4]
 : ?test_array_head_tail(int[]).
 ?test_array_head_tail([|]).
 ?test_array_head_tail([1,2|]).
@@ -191,9 +191,9 @@
     [1, 2, 3, 4] = [1, 2|x];
 }
 
-// [2, 2, 2]
-// [5, -10, 3]
-// [5, -10, 4]
+-- [2, 2, 2]
+-- [5, -10, 3]
+-- [5, -10, 4]
 : ?test_array_sized(int[]).
 ?test_array_sized(arr) {
     x = between(1, 3);
@@ -212,7 +212,7 @@
     arr = a;
 }
 
-// 4
+-- 4
 : ?test_array_nested_by_idx(int).
 ?test_array_nested_by_idx(x) {
     int[][] arr = [[1,2,3],[4,5,6]];

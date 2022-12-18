@@ -351,6 +351,7 @@ extern char              *LAURE_DOC_BUFF;
 extern short int          LAURE_ASK_IGNORE;
 extern bool               LAURE_WS;
 extern bool               LAURE_FLAG_NEXT_ORDERING;
+extern bool               LAURE_IN_COMMENT;
 
 extern Instance *CHAR_PTR;
 extern struct Translator 

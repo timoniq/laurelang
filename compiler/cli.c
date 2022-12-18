@@ -8,7 +8,7 @@
 FILE *STREAM = 0;
 
 apply_result_t compiler_fact_receiver(laure_session_t *comp_session, string fact) {
-    if (str_starts(fact, "//")) {
+    if (str_starts(fact, "--")) {
         apply_result_t apply_res;
         apply_res.status = apply_ok;
         return apply_res;

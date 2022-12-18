@@ -17,8 +17,8 @@
     A = @{c, c};
 }
 
-// "@{H, O}"
-// "@{хорек, мышь}"
+-- "@{H, O}"
+-- "@{хорек, мышь}"
 : ?test_atom_distinct(string).
 ?test_atom_distinct(r) {
     A ~ @{H, H, O};
@@ -29,10 +29,10 @@
     r = repr(animals);
 }
 
-// @atom1
-// @atom2
-// @1
-// @X
+-- @atom1
+-- @atom2
+-- @1
+-- @X
 ATOMS_FOR_TEST ~ @{atom1, "atom2", 1, X}
 : ?test_atom_gen(ATOMS_FOR_TEST).
 ?test_atom_gen(x) when x?.

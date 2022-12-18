@@ -5,38 +5,40 @@ int natural* = 0...
 
 index_t ~ natural*.
 
-// locks
+-- locks
 !lock natural.
 !lock natural*.
 !lock index_t.
 
-// Read docs at /docs/builtin.md#integer-add
-// ```a + b = c;
-// +(a, b) = c;```
+*-- Read docs at /docs/builtin.md#integer-add
+```a + b = c;
++(a, b) = c;``` 
+--*
 : ?+(int, int) -> int.
 
-// Read docs at /docs/builtin.md#integer-subtract
-// ```a - b = c;
-// -(a, b) = c;```
+*-- Read docs at /docs/builtin.md#integer-subtract
+```a - b = c;
+-(a, b) = c;```
+--*
 : ?-(int, int) -> int.
 
-// Multiplication predicate
+-- Multiplication predicate
 : ?*(int, int) -> int.
 
-// Integer division predicate
+-- Integer division predicate
 : ?/(int, int) -> int.
 
-// `Greater than` constraint
-// can be applied on:
-// * `integers`
-// * `atoms`
+*-- `Greater than` constraint
+can be applied on:
+* `integers`
+* `atoms` --*
 : #>('T', 'T').
 !"T:>"=int.
 
-// `Less than` constraint
-// can be applied on:
-// * `integers`
-// * `atoms`
+*-- `Less than` constraint
+can be applied on:
+* `integers`
+* `atoms` --*
 : #<('T', 'T').
 !"T:<"=int.
 
@@ -56,14 +58,14 @@ index_t ~ natural*.
 ?*(x, y) -> x __* y.
 ?/(x * y, y) -> x.
 
-// math `sqrt` predicate
+-- math `sqrt` predicate
 : ?sqrt(int) -> int.
 ?sqrt(0) -> 0.
 ?sqrt(1) -> 1.
 ?sqrt(x) -> __sqrt(x).
 
-// Plus-minus predicate.
-// ```x = (-b +- sqrt(D)) / (2 * a)```
+-- Plus-minus predicate.
+-- ```x = (-b +- sqrt(D)) / (2 * a)```
 : ?+-(int, int) -> int.
 
 ?+-(x, y) -> z {
@@ -74,7 +76,7 @@ index_t ~ natural*.
     z = x - y;
 }
 
-// Integer pow predicate
+-- Integer pow predicate
 !ordering.
 : ?pow(int, int) -> int.
 ?pow(x, 0) -> 1.
@@ -86,36 +88,36 @@ index_t ~ natural*.
     R = Value * pow(Value, Pow - 1);
 }
 
-// Absolute value predicate
-// absolute of -5 = 5
+-- Absolute value predicate
+-- absolute of -5 = 5
 : ?absolute(int) -> int.
 ?absolute(x) -> x when x __gte 0.
 ?absolute(x) -> -x when x < 0.
 
-// Integer pow predicate (shortcut to `pow`)
+-- Integer pow predicate (shortcut to `pow`)
 : ?^(int, int) -> int.
 ?^(v, p) -> pow(v, p).
 
-// Always failing predicate
+-- Always failing predicate
 : ?fail().
 
-// Simple constraint
+-- Simple constraint
 : #never('T', 'T').
 #never(a, b) {
     a = b -> fail();
 }
 
-// Message predicate working with stdio
+-- Message predicate working with stdio
 : ?message(string).
 ?message(m) when __message(m).
 
-// between (boundaries secluded)
+-- between (boundaries secluded)
 : #between(int, int) -> int.
 #between(a, b) -> c when c > a, c < b.
 
-// between (boundaries included).
-// `x = 0 .. 4`
-// `5 = 0 .. 4 -> fail()`
+*-- between (boundaries included).
+`x = 0 .. 4`
+`5 = 0 .. 4 -> fail()` --*
 : #..(int, int) -> int.
 #..(a, b) -> c when c >= a, c <= b.
 
@@ -137,15 +139,15 @@ cons ~ never.
 ?sized_bagof(size, from) -> to when
     __bag_sz(from, to, size).
 
-// working with arrays
+-- working with arrays
 : ?by_idx('T'[], int) -> 'T',
   ?append('T'[], 'T'[]) -> 'T'[].
 
 ?by_idx(arr, idx) -> __by_idx(arr, idx).
 ?append(arr, tail) -> __append(arr, tail).
 
-// predicate states that there are no 
-// nearby standing equal elements in array
+-- predicate states that there are no 
+-- nearby standing equal elements in array
 : ?no_repeat('T'[]).
 
 ?no_repeat([]).
@@ -169,9 +171,9 @@ cons ~ never.
     all_distinct(T);
 }
 
-// links array head to array tail
-// `linked{int}(1, [2,3]) = x`
-// `linked{int}(1, tail) = [1,2,3]`
+*-- links array head to array tail
+`linked{int}(1, [2,3]) = x`
+`linked{int}(1, tail) = [1,2,3]` --*
 : ?linked('T', 'T'[]) -> 'T'[].
 
 ?linked(head, tail) -> arr {
@@ -179,8 +181,8 @@ cons ~ never.
     append([head], tail) = arr;
 }
 
-// flattens array to one dimension
-// `flatten{int}([[1,2], [], [3], [4, 5]]) = x`
+-- flattens array to one dimension
+-- `flatten{int}([[1,2], [], [3], [4, 5]]) = x`
 !ordering.
 : ?flatten('T'[]) -> 'T'.
 
@@ -220,7 +222,7 @@ $ divmod_t {
     int mod;
 }
 
-// `X / Y = R + Mod`
+-- `X / Y = R + Mod`
 : ?divmod(int, int) -> divmod_t.
 ?divmod(x, y) -> dm {
     __*mod(a, y, r) = x;
@@ -277,8 +279,10 @@ $ divmod_t {
     x = choose(choose(a, b), choose_one(t, choose));
 }
 
+-- array to its maximum value
 : ?max(int[]) -> int.
 ?max(arr) -> choose_one(arr, max_of_two).
 
+-- array to its minumum value
 : ?min(int[]) -> int.
 ?min(arr) -> choose_one(arr, min_of_two).

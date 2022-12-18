@@ -17,7 +17,7 @@
     e send path of e.
 
 ?start(port) {
-    // each event creates a choicepoint
+    -- each event creates a choicepoint
     serve(port) = event;
     handler(event);
 }

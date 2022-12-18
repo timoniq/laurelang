@@ -18,8 +18,8 @@ $kit {
 : ?price(food, money).
 ?price(("Apple", 50), (0, 50)).
 ?price(("Milk", 300), (2, 30)).
-// water won't be considered food because it has 0 calories,
-// when calories number should be natural
+-- water won't be considered food because it has 0 calories,
+-- when calories number should be natural
 ?price(("Water", 0), (1, 0)).
 ?price(("Coffee", 1), (2, 10)).
 
@@ -31,9 +31,9 @@ $kit {
 ?money_ceiled(x) -> (x, 0).
 ?money_ceiled(x + 1) -> (x, natural).
 
-// Examples
-// * get apple price
-// ?- price(("Apple", _), price)
+-- Examples
+-- * get apple price
+-- ?- price(("Apple", _), price)
 
 : ?pred().
 ?pred() {

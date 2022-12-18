@@ -1,8 +1,8 @@
-// 12
-// 13
-// 14
-// 13
-// 1
+-- 12
+-- 13
+-- 14
+-- 13
+-- 1
 : ?test_isolated_set(int).
 
 ?test_isolated_set(x) {

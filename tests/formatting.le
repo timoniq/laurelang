@@ -1,7 +1,7 @@
-// "hello world"
-// "q100 abc"
-// "the (?+(int, int) -> int) predicate and a (string)"
-// ""
+-- "hello world"
+-- "q100 abc"
+-- "the (?+(int, int) -> int) predicate and a (string)"
+-- ""
 : ?test_formatting_1(string).
 ?test_formatting_1(y) {
     string x = "world";
@@ -18,8 +18,8 @@
     format of "" = y;
 }
 
-// 123
-// 42
+-- 123
+-- 42
 : ?test_formatting_2(int).
 ?test_formatting_2(x) {
     format("abc--{x}hohoho") = "abc--" -> fail();

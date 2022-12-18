@@ -7,10 +7,10 @@ $date {
     int year;
 }
 
-// (day=31, month=7, year=2022)
-// (day=25, month=12, year=-6)
-// (day=25, month=12, year=-5)
-// (day=25, month=12, year=-4)
+-- (day=31, month=7, year=2022)
+-- (day=25, month=12, year=-6)
+-- (day=25, month=12, year=-5)
+-- (day=25, month=12, year=-4)
 : ?test_structure(date).
 ?test_structure((31, 07, 2022)).
 ?test_structure((25, 12, x)) {

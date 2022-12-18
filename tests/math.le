@@ -3,19 +3,19 @@
 : ?test_math_pow().
 : ?test_math_divide().
 
-// 1
-// 5
+-- 1
+-- 5
 : ?test_math_plus_minus(int).
 
-// 11
-// -11
+-- 11
+-- -11
 : ?test_math_absolute(int).
 
-// 9
-// 4
-// 0
-// 4
-// 3
+-- 9
+-- 4
+-- 0
+-- 4
+-- 3
 : ?test_math_sqrt(int).
 
 : ?test_gt().
@@ -113,8 +113,8 @@
     &all y { y = -10 };
 }
 
-// 42
-// 87
+-- 42
+-- 87
 : ?test_chain(int).
 
 ?test_chain(x) when

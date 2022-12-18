@@ -10,8 +10,8 @@
     s = f -> fail();
 }
 
-// 'т'
-// 'δ'
+-- 'т'
+-- 'δ'
 : ?test_string_unicode(char).
 ?test_string_unicode(ch) {
     string s = "Жертвоприношение";
@@ -31,9 +31,9 @@
     each of str = ch;
 }
 
-// 0
-// 2
-// 3
+-- 0
+-- 2
+-- 3
 : ?test_string_array2(int).
 ?test_string_array2(idx) {
     string str = "lollipops";
@@ -41,11 +41,11 @@
     str[idx] = ch;
 }
 
-// 0;'l'
-// 1;'ø'
-// 2;'v'
-// 3;'e'
-// 0;'?'
+-- 0;'l'
+-- 1;'ø'
+-- 2;'v'
+-- 3;'e'
+-- 0;'?'
 : ?test_string_chars(int, char).
 ?test_string_chars(i, x) {
     string s = "løve";
@@ -68,8 +68,8 @@
     flatten{string}(arr) = y;
 }
 
-// "hello world of frustrations"
-// "изысканный"
+-- "hello world of frustrations"
+-- "изысканный"
 : ?test_string_join(string).
 ?test_string_join(s) {
     s = join(["hello", "world", "of", "frustrations"]);

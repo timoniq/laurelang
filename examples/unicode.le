@@ -18,13 +18,13 @@
 
 ? ∅ () when fail().
 
-// DeMorgan laws
+-- DeMorgan laws
 : ?DeMorgan(𝔹, 𝔹).
-// DeMorgan₁
+-- DeMorgan₁
 ?DeMorgan(a, b) {
     ¬(a ∨ b) = ¬(a) ∧ ¬(b);
 }
-// DeMorgan₂
+-- DeMorgan₂
 ?DeMorgan(a, b) {
     ¬(a ∧ b) = ¬(a) ∨ ¬(b);
 }

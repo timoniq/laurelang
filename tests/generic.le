@@ -3,7 +3,7 @@
     each of b = a;
 }
 
-// 1
+-- 1
 : ?test_generic(int).
 ?test_generic(x) {
     char[] arr = ['a', 'b', 'c'];
@@ -13,13 +13,13 @@
     generic1(x, [1]);
 }
 
-// empty constraint
+-- empty constraint
 : #generic2('T', 'T'[]).
 #generic2(_, _).
 
 : ##generic2_sc('T', 'T'[]).
 
-// 10
+-- 10
 : ?test_generic_t_check(int).
 ?test_generic_t_check(x) {
     generic2(x, 1);
@@ -39,7 +39,7 @@
 : ##deepresolve((?('C', (?('A', 'B')))), 'B') -> 'A'.
 : ?resolutor(int, (?(int, string))).
 
-// "(string), <-inf..inf>"
+-- "(string), <-inf..inf>"
 : ?test_generic_deepresolve(string).
 ?test_generic_deepresolve(result) {
     deepresolve(resolutor, x) = y;
@@ -71,14 +71,14 @@
 
 : ?test_clarification_2().
 ?test_clarification_2() {
-    // should fail because absolute does not correspond (?(int) -> string) signature
+    -- should fail because absolute does not correspond (?(int) -> string) signature
     map{T=int, R=string}([1,2,3], absolute) = x -> fail();
-    // should succeed
+    -- should succeed
     map{T=int, R=string}([1,2,3], increpr) = x;
     x = ["2", "3", "4"];
 }
 
-// "#dr((?(string[], (?('A', int)))), int) -> 'A'"
+-- "#dr((?(string[], (?('A', int)))), int) -> 'A'"
 : ?test_clarification_by_repr(string).
 ?test_clarification_by_repr(x) {
     dr ~ deepresolve{B=int, C=string[]};

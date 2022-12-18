@@ -18,7 +18,7 @@ written as:
 
 ```
 sized_bagof(size, from) = to
-// example:
+-- example:
 3 sized_bagof x = arr
 ```
 

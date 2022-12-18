@@ -121,14 +121,14 @@ It basically means: do not search other cases if this one succeeds.
 If infix arity of predicate equals to 1 then we can write down predicate like this:
 ```laurelang
 length(List) = L
-// can be written as
+-- can be written as
 length of List = L
 ```
 
 If infix arity of predicate equals to 2 then we can write predicate name between two infix args:
 ```laurelang
 +(1, 2) = x
-// can be written as
+-- can be written as
 1 + 2 = x
 ```
 
@@ -216,7 +216,7 @@ Choice point is created each time predicate is called, but it also can be create
 
 ```laurelang
 {
-// a is 1, 2 or 1 + 2
+-- a is 1, 2 or 1 + 2
 a = 1|2|1 + 2;
 a + b = 5;
 }
@@ -246,22 +246,22 @@ Aside from name declarations, structure body may contain constraint calls.
 Such as `x > 0; y > 10`, try adding them to structure body.
 
 ```laurelang
-// in order to create a structure imaging may be used
+-- in order to create a structure imaging may be used
 a ~ my_struct;
-// a representation is {(0, inf), (10, inf)}
+-- a representation is {(0, inf), (10, inf)}
 
-// try to unify manually
+-- try to unify manually
 a = {0, 0};
-// interpreter says `false`, 
-// value is not valid for structure sets
+-- interpreter says `false`, 
+-- value is not valid for structure sets
 
-// try to partially unify manually
+-- try to partially unify manually
 a = {5, _};
-// a representation is {5, (10, inf)}
+-- a representation is {5, (10, inf)}
 
-// request a unification
+-- request a unification
 a?
-// interpreter responds
+-- interpreter responds
 a = {5, 11};
 a = {5, 12};
 a = {5, 13}...
@@ -277,7 +277,7 @@ $ person {
     person mother;
 }
 
-// shown as
+-- shown as
 {(string of any length), {(string of any length), ...}}
 ```
 

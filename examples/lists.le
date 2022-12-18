@@ -1,6 +1,8 @@
-// relation between whole array,
-// excluded index and array with excluded index
-// `excluded_idx{int}([1,2,3], 2) = x`
+*--
+relation between whole array,
+excluded index and array with excluded index
+`excluded_idx{int}([1,2,3], 2) = x`
+--*
 : ?excluded_idx('T'[], index_t) -> 'T'[].
 ?excluded_idx(arr, 0) -> narr {
     linked(_, narr) = arr;
@@ -12,13 +14,14 @@
     narr = linked(el, tmp);
 }
 
-// pop predicate
-// - relation between whole array, 
-// popped array, popped index 
-// and popped element.
-// `int[] arr = [1,2,3,4,5],`
-// `pop(arr, arr2, 3) = x`
-// ! will move it lib as it is fully-logical
+*-- pop predicate
+- relation between whole array, 
+popped array, popped index 
+and popped element.
+`int[] arr = [1,2,3,4,5],`
+`pop(arr, arr2, 3) = x`
+! will move it lib as it is fully-logical
+--*
 : ?pop('T'[], 'T'[], index_t) -> 'T'.
 ?pop(with, without, idx) -> element {
     with[idx] = element;

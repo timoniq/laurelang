@@ -26,6 +26,17 @@ void print_errhead(string str) {
     printf("%s\n", NO_COLOR);
 }
 
+bool endswith(string s, string end) {
+    // bruh strange stuff
+    // + surely not working with unicode FIXME
+    char *c = s + strlen(s) - strlen(end);
+    for (size_t i = 0; i < strlen(end); i++) {
+        if (*c != end[i]) return false;
+        c++;
+    }
+    return true;
+}
+
 void print_header(string header, uint sz) {
     if (sz == 0) {
         struct winsize w;
@@ -322,11 +333,23 @@ apply_result_t laure_consult_predicate(
     }
 }
 
+void reset_comment() {
+    if (LAURE_DOC_BUFF) {
+        laure_free(LAURE_DOC_BUFF);
+        LAURE_DOC_BUFF = NULL;
+    }
+}
+
 apply_result_t laure_apply(laure_session_t *session, string fact) {
 
-    if (strlen(fact) > 1 && str_starts(fact, "//")) {
+    if ((strlen(fact) > 1 && (str_starts(fact, "-- ") || str_starts(fact, "*-- ") || str_eq(fact, "*--")) && !LAURE_IN_COMMENT)) {
         // Saving comment
-        fact = fact + 2;
+        if (str_starts(fact, "*-- ") || str_eq(fact, "*--")) {
+            fact = fact + 4;
+            LAURE_IN_COMMENT = true;
+        } else {
+            fact = fact + 3;
+        }
         if (fact[0] == ' ') fact++;
         if (LAURE_DOC_BUFF == NULL) {
             LAURE_DOC_BUFF = strdup(fact);
@@ -346,6 +369,34 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
             laure_free(LAURE_DOC_BUFF);
             LAURE_DOC_BUFF = strdup(buffer);
         }
+        return respond_apply(apply_ok, NULL);
+    } else if (LAURE_IN_COMMENT) {
+        // Block comment continuation
+        if (endswith(fact, "--*")) {
+            // this is the last line of block comment
+            LAURE_IN_COMMENT = false;
+        }
+        size_t pos = strlen(fact) - 3;
+        char c = fact[pos];
+        fact[pos] = 0;
+
+        char buffer[512];
+        memset(buffer, 0, 512);
+        int free_space = 512 - strlen(LAURE_DOC_BUFF) - strlen(fact) - 3;
+        if (free_space < 0) {
+            apply_result_t apply_res;
+            apply_res.error = "doc buff overflow";
+            apply_res.status = apply_error;
+            return apply_res;
+        }
+
+        strcpy(buffer, LAURE_DOC_BUFF);
+        strcat(buffer, "\n");
+        strcat(buffer, fact);
+        laure_free(LAURE_DOC_BUFF);
+        LAURE_DOC_BUFF = strdup(buffer);
+        
+        fact[pos] = c;
         return respond_apply(apply_ok, NULL);
     }
 
@@ -372,6 +423,7 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
         printf("\nError while applying statement:\n  %s%s%s\n    %s\n", RED_COLOR, exp->s, NO_COLOR, LAURE_ACTIVE_ERROR ? LAURE_ACTIVE_ERROR->msg : (string)response.payload);
         return respond_apply(apply_error, response.payload);
     }
+    reset_comment();
     return respond_apply(apply_ok, NULL);
 }
 
@@ -458,7 +510,17 @@ string consult_single(
         strcpy(line, readinto);
         uint idx = 0;
         while (line[idx] == ' ') idx++;
-        if (idx > 0 && str_starts(line + idx, "//")) continue;
+        if (buff[0] && str_starts(line + idx, "-- ")) continue;
+        if (buff[0] && (str_starts(line + idx, "*-- ") || str_eq(line + idx, "*--"))) {
+            LAURE_IN_COMMENT = true;
+            continue;
+        }
+        if (LAURE_IN_COMMENT && ! endswith(line, "--*")) {
+            LAURE_IN_COMMENT = false;
+            continue;
+        } else if (LAURE_IN_COMMENT) {
+            continue;
+        }
 
         if (!strlen(line)) continue;
         if (lastc(line) == '\n')
@@ -475,7 +537,7 @@ string consult_single(
             strcpy(buff, line);
         }
 
-        if (str_starts(line, "//")) {
+        if (((str_starts(line, "--") || str_starts(line, "*--")) && ! LAURE_IN_COMMENT) || LAURE_IN_COMMENT) {
             fact_receiver(session, line);
             continue;
         }
@@ -515,17 +577,6 @@ void laure_consult_recursive_with_receiver(laure_session_t *session, string path
 void laure_consult_recursive(laure_session_t *session, string path, int *failed) {
     laure_consult_recursive_with_receiver(session, path, failed, laure_apply);
     laure_initialization(session->scope);
-}
-
-bool endswith(string s, string end) {
-    // bruh strange stuff
-    // + surely not working with unicode FIXME
-    char *c = s + strlen(s) - strlen(end);
-    for (size_t i = 0; i < strlen(end); i++) {
-        if (*c != end[i]) return false;
-        c++;
-    }
-    return true;
 }
 
 string search_path(string original_path) {
