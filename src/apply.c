@@ -506,19 +506,22 @@ string consult_single(
     string readinto = laure_alloc(512);
     memset(readinto, 0, 512);
 
+    bool in_comment = false;
+
     while ((read = getline(&readinto, &len, file)) != -1) {
         strcpy(line, readinto);
         uint idx = 0;
         while (line[idx] == ' ') idx++;
-        if (buff[0] && str_starts(line + idx, "-- ")) continue;
-        if (buff[0] && (str_starts(line + idx, "*-- ") || str_eq(line + idx, "*--"))) {
-            LAURE_IN_COMMENT = true;
+
+        if (buff[0] && idx > 0 && str_starts(line + idx, "-- ")) continue;
+        if (buff[0] && idx > 0 && (str_starts(line + idx, "*-- ") || str_eq(line + idx, "*--"))) {
+            in_comment = true;
             continue;
         }
-        if (LAURE_IN_COMMENT && ! endswith(line, "--*")) {
-            LAURE_IN_COMMENT = false;
+        if (in_comment && ! endswith(line, "--*")) {
+            in_comment = false;
             continue;
-        } else if (LAURE_IN_COMMENT) {
+        } else if (in_comment) {
             continue;
         }
 
