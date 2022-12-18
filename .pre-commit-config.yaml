@@ -1,0 +1,15 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: "v3.4.0"
+    hooks:
+      - id: check-merge-conflict
+        stages: [ commit, push ]
+
+  - repo: local
+    hooks:
+      - id: make_and_test
+        name: make_and_test
+        entry: make auto
+        language: system
+        types: [ ]
+        stages: [ commit ]
