@@ -634,7 +634,7 @@ int main(int argc, char *argv[]) {
     string timeout_s = getenv("LLTIMEOUT");
     if (timeout_s) LAURE_TIMEOUT = atoi(timeout_s);
 
-    laure_session_t *session = laure_session_new();
+    laure_session_t *session = laure_session_new(parameter_repl_mode);
     laure_set_translators();
     laure_init_name_buffs();
     laure_register_builtins(session);

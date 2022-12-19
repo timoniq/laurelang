@@ -23,9 +23,10 @@ void init_backtrace() {
     *LAURE_BACKTRACE = laure_backtrace_new();
 }
 
-laure_session_t *laure_session_new() {
+laure_session_t *laure_session_new(parameter_input_mode mode) {
     laure_session_t *session = laure_alloc(sizeof(laure_session_t));
     session->scope = laure_scope_create_global();
+    session->param_mode = mode;
     memset(session->_included_filepaths, 0, included_fp_max * sizeof(void*));
     return session;
 }

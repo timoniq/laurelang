@@ -336,12 +336,17 @@ void add_dflag(char *flagname, char *value);
 
 #define included_fp_max 256
 
+typedef enum parameter_input_mode {
+    parameter_repl_mode,
+} parameter_input_mode;
+
 typedef struct {
     laure_scope_t *scope;
+    parameter_input_mode param_mode;
     char *_included_filepaths[included_fp_max];
 } laure_session_t;
 
-laure_session_t *laure_session_new();
+laure_session_t *laure_session_new(parameter_input_mode mode);
 
 extern uint               LAURE_TIMEOUT;
 extern clock_t            LAURE_CLOCK;

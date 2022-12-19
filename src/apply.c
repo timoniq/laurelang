@@ -340,6 +340,49 @@ void reset_comment() {
     }
 }
 
+qresp laure_resolve_parameter(laure_session_t *session, laure_expression_t *decl_expr) {
+    assert(decl_expr->t == let_decl);
+    laure_expression_t *t_expr = decl_expr->ba->set->expression;
+    laure_expression_t *n_expr = decl_expr->ba->set->next->expression;
+    if (t_expr->t != let_name || n_expr->t != let_name) {
+        RESPOND_ERROR(syntaxic_err, decl_expr, "invalid parameter declaration");
+    }
+    string t_name = t_expr->s;
+    string name = n_expr->s;
+    Instance *t_instance = laure_scope_find_by_key(session->scope, t_name, false);
+    if (! t_instance) {
+        RESPOND_ERROR(undefined_err, decl_expr, "type instance is not declared");
+    }
+    if (laure_scope_find_by_key(session->scope, name, false)) {
+        // maybe its better to check type
+        RESPOND_ERROR(instance_err, decl_expr, "instance %s declared as a parameter is already known", name);
+    }
+    Instance *parameter_instance = instance_deepcopy(name, t_instance);
+
+    switch (session->param_mode) {
+        case parameter_repl_mode: {
+            while (true) {
+                printf("%s%s%s %s", BLUE_COLOR, t_name, NO_COLOR, name);
+                string value = readline(" = ");
+                laure_parse_result lpr = laure_parse(value);
+                if (! lpr.is_ok) {
+                    printf("-- Failed to parse input. Try again.\n");
+                    continue;
+                }
+                bool result = read_head(parameter_instance->image).translator->invoke(lpr.exp, parameter_instance->image, session->scope, 0);
+                if (! result) {
+                    printf("-- Invalid for type `%s`. Try again.\n", t_name);
+                    continue;
+                }
+                break;
+            }
+            break;
+        }
+    }
+    laure_scope_insert(session->scope, parameter_instance);
+    return RESPOND_TRUE;
+}
+
 apply_result_t laure_apply(laure_session_t *session, string fact) {
 
     if ((strlen(fact) > 1 && (str_starts(fact, "-- ") || str_starts(fact, "*-- ") || str_eq(fact, "*--")) && !LAURE_IN_COMMENT)) {
@@ -406,6 +449,18 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
     }
 
     laure_expression_t *exp = result.exp;
+
+    if (exp->t == let_decl) {
+        // knowledge parameter
+        qresp qr = laure_resolve_parameter(session, exp);
+        if (qr.state == q_error) {
+            return respond_apply(apply_error, qr.payload);
+        } else if (qr.state == q_false) {
+            return respond_apply(apply_error, NULL);
+        }
+        return respond_apply(apply_ok, NULL);
+    }
+
     laure_expression_set *expset = laure_expression_compose_one(exp);
     
     qcontext qctx[1];

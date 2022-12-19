@@ -11,7 +11,7 @@
 Creates new API session with default settings.
 */
 laure_api_session laure_api_session_new() {
-    laure_session_t *internal_session = laure_session_new();
+    laure_session_t *internal_session = laure_session_new(parameter_repl_mode);
     time_t current_time;
     time(&current_time);
     laure_api_session session = {

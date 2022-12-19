@@ -5,7 +5,7 @@
 
 int main() {
     printf("laure (minimal)\n");
-    laure_session_t *session = laure_session_new();
+    laure_session_t *session = laure_session_new(parameter_repl_mode);
     laure_set_translators();
     laure_init_name_buffs();
     laure_register_builtins(session);
