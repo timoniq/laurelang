@@ -415,13 +415,15 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
         return respond_apply(apply_ok, NULL);
     } else if (LAURE_IN_COMMENT) {
         // Block comment continuation
+        char c = 0;
+        size_t pos = 0;
         if (endswith(fact, "--*")) {
             // this is the last line of block comment
             LAURE_IN_COMMENT = false;
+            pos = strlen(fact) - 3;
+            c = fact[pos];
+            fact[pos] = 0;
         }
-        size_t pos = strlen(fact) - 3;
-        char c = fact[pos];
-        fact[pos] = 0;
 
         char buffer[512];
         memset(buffer, 0, 512);
@@ -438,8 +440,8 @@ apply_result_t laure_apply(laure_session_t *session, string fact) {
         strcat(buffer, fact);
         laure_free(LAURE_DOC_BUFF);
         LAURE_DOC_BUFF = strdup(buffer);
-        
-        fact[pos] = c;
+        if (! LAURE_IN_COMMENT)
+            fact[pos] = c;
         return respond_apply(apply_ok, NULL);
     }
 

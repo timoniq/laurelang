@@ -543,4 +543,8 @@ void laure_allocator_reset_stats();
 
 extern laure_expression_t *CALL;
 
+/* Pretty print */
+void laure_pprint_doc(string content, size_t docindent);
+void laure_pprint_code(string content, size_t indent);
+
 #endif

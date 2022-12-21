@@ -2450,6 +2450,10 @@ qresp laure_eval_atom_sign(_laure_eval_sub_args) {
     assert(e->t == let_atom_sign);
     UNPACK_CCTX(cctx);
 
+    if (cctx->scope->idx == 1) {
+        RESPOND_ERROR(too_broad_err, e, "calling forced instantiation on whole scope is forbidden");
+    }
+
     laure_scope_iter(scope, cell, {
         Instance *instance = cell->ptr;
         ulong l = cell->link;

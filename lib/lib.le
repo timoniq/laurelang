@@ -89,7 +89,7 @@ can be applied on:
 }
 
 -- Absolute value predicate
--- absolute of -5 = 5
+-- `absolute of -5 = 5`
 : ?absolute(int) -> int.
 ?absolute(x) -> x when x __gte 0.
 ?absolute(x) -> -x when x < 0.

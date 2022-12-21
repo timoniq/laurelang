@@ -251,26 +251,13 @@ int laure_process_query(laure_session_t *session, string line) {
 
             string doc = instance_get_doc(ins);
 
-            printf("   ");
-
             if (!doc) {
                 printf("%sno documentation for this instance%s", RED_COLOR, NO_COLOR);
             } else {
                 bool color_set = false;
-                for (int i = 0; i < strlen(doc); i++) {
-                    char c = doc[i];
-                    if (c == '\n') {
-                        printf("\n   ");
-                    } else if (c == '`') {
-                        printf("%s", color_set ? NO_COLOR : LAURUS_NOBILIS);
-                        color_set = color_set ? false : true;
-                    } else {
-                        printf("%c", c);
-                    }
-                }
+                laure_pprint_doc(doc, 3);
             }
 
-            printf("\n");
             break;
         }
         case 7: {
