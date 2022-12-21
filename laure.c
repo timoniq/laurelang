@@ -252,7 +252,7 @@ int laure_process_query(laure_session_t *session, string line) {
             string doc = instance_get_doc(ins);
 
             if (!doc) {
-                printf("%sno documentation for this instance%s", RED_COLOR, NO_COLOR);
+                printf(   "%sno documentation for this instance%s\n", RED_COLOR, NO_COLOR);
             } else {
                 bool color_set = false;
                 laure_pprint_doc(doc, 3);
