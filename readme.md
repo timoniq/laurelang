@@ -49,8 +49,9 @@ Using predicate `absolute` as mapper:
 ```laurelang
 ?- x = map{int}([1, -2, -3], absolute)
    x = [1, 2, 3].
-?- [1, 2, 3] = map{int}(x, absolute)
+?- [1, 2] = map{int}(x, absolute)
    x = [1, 2];
+   x = [1, -2];
    x = [-1, 2];
    x = [-1, -2].
 ```
