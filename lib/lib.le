@@ -28,30 +28,27 @@ index_t ~ natural*.
 -- Integer division predicate
 : ?/(int, int) -> int.
 
-*-- `Greater than` constraint
-can be applied on:
-* `integers`
-* `atoms` --*
-: #>('T', 'T').
-!"T:>"=int.
+: 
+    #>(int, int),
+    #<(int, int),
+    #>=(int, int),
+    #<=(int, int).
 
-*-- `Less than` constraint
-can be applied on:
-* `integers`
-* `atoms` --*
-: #<('T', 'T').
-!"T:<"=int.
+#>(x, y) {__>(x, y)}
+#<(x, y) {__>(y, x)}
+#>=(x, y) when x __gte y.
+#<=(x, y) when y >= x.
 
-#[int, @]:>(x, y) {__>(x, y)}
-#[int, @]:<(x, y) {__>(y, x)}
+: 
+    #>@('T', 'T'),
+    #<@('T', 'T'),
+    #>=@('T', 'T'),
+    #<=@('T', 'T').
 
-: #>=('T', 'T').
-!"T:>="=int.
-#[int, @]:>=(x, y) when x __gte y.
-
-: #<=('T', 'T').
-!"T:<="=int.
-#[int, @]:<=(x, y) when y >= x.
+#>@(x, y) {__>(x, y)}
+#<@(x, y) {__>(y, x)}
+#>=@(x, y) {__gte(x, y)}
+#<=@(x, y) {__gte(y, x)}
 
 ?+(x, y) -> x __+ y.
 ?-(y + z, y) -> z.
@@ -179,6 +176,13 @@ cons ~ never.
 ?linked(head, tail) -> arr {
     arr[0] = head;
     append([head], tail) = arr;
+}
+
+!ordering.
+: ?linkedr('T'[], 'T') -> 'T'[].
+?linkedr(tail, head) -> arr {
+    append(tail, [head]) = arr;
+    arr[length(arr) - 1] = head;
 }
 
 -- flattens array to one dimension

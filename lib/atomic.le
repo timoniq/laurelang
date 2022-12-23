@@ -1,8 +1,8 @@
 : ?subset('T') -> 'T'.
 ?subset(x) -> y when
-    x >= y,
+    x >=@ y,
     x ~ y.
 
--- resulting contracts to intersection
+-- both become an intersection of each other
 : ?intersect('T') -> 'T'.
 ?intersect(x) -> x.

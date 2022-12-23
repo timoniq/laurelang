@@ -434,6 +434,7 @@ bool is_fine_generic_name(int name) {
 
 string is_by_idx_call(string q) {
     if (lastc(q) != ']') return NULL;
+    else if (str_eq(q, "]")) return NULL;
     char *c = q + strlen(q) - 2;
     uint closed = 0;
     bool is_str = false;
@@ -665,6 +666,14 @@ laure_parse_result laure_parse(string query) {
         lpr.exp = laure_expression_create(let_auto, NULL, 0, NULL, AUTO_ID, NULL, query);
         return lpr;
     }
+
+    /* possibly todo: typespace declarations
+    if (*query == '{') {
+        string typespace_declaration = read_til(query, ':');
+        printf("%s\n", typespace_declaration);
+        query = query + strlen(typespace_declaration);
+    }
+    */
 
     pstart: {};
     
