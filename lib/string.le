@@ -18,8 +18,8 @@
 -- after some optimizations in auto query ordering
 -- and `append` predicate (for `join_two`) impovement 
 -- (iteration with only result known) - this `join` one will be complete.
-?join("", s) -> flatten<string>(s).
 ?join(_, []) -> "".
+?join([], s) -> flatten{string}(s).
 ?join(_, list) -> list[0] when (length of list) = 1.
 ?join(joiner, s) -> joined {
     (length of s) > 1;

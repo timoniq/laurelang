@@ -10,7 +10,8 @@ struct Translator *INT_TRANSLATOR        = NULL,
                   *FORMATTING_TRANSLATOR = NULL,
                   *STRUCTURE_TRANSLATOR  = NULL,
                   *LINKED_TRANSLATOR     = NULL,
-                  *UUID_TRANSLATOR       = NULL;
+                  *UUID_TRANSLATOR       = NULL,
+                  *UNION_TRANSLATOR      = NULL;
 
 string MOCK_NAME;
 qresp  MOCK_QRESP;
@@ -598,7 +599,7 @@ gen_resp array_tail_linker_generator(
                 ctx->linked_instance = ins;
                 ctx->tail = linked->next;
                 ctx->remaining_length = ctx->remaining_length - i - 1;
-                GR = image_generate(ctx->scope, ins->image, array_tail_linker_generator, ctx);
+                GR = instance_generate(ctx->scope, ins, array_tail_linker_generator, ctx);
                 g = true;
                 break;
             }
@@ -658,7 +659,7 @@ gen_resp array_length_receiver(
     ctx->im->state = I;
     ctx->im->i_data = i_data;
 
-    gen_resp GR = image_generate(ctx->scope, ctx->im, ctx->final_rec, ctx->final_external_ctx);
+    gen_resp GR = image_generate(ctx->scope, ctx->im, ctx->final_rec, ctx->final_external_ctx, NULL);
     
     ctx->im->state = U;
     ctx->im->u_data = u_data;
@@ -709,7 +710,7 @@ gen_resp array_generate(
                     ctx->tail = linked->next;
                     ctx->general_ary_img = im;
                     ctx->scope = scope;
-                    return image_generate(scope, ins->image, array_tail_linker_generator, ctx);
+                    return instance_generate(scope, ins, array_tail_linker_generator, ctx);
                 }
             }
             linked = linked->next;
@@ -1942,7 +1943,7 @@ gen_resp structure_generate(laure_scope_t *scope, laure_structure *img, REC_TYPE
                 fgctx->rec = rec;
                 fgctx->scope = scope;
 
-                gen_resp gr = image_generate(scope, cpy, structure_field_generate, fgctx);
+                gen_resp gr = image_generate(scope, cpy, structure_field_generate, fgctx, instance);
                 instance->image = d;
                 image_free(cpy);
 
@@ -2089,7 +2090,7 @@ gen_resp linked_generate(laure_scope_t *scope, laure_linked_image *img, REC_TYPE
         }
     }
     assert(deref);
-    return image_generate(scope, deref, linked_generate_rec, gctx);
+    return image_generate(scope, deref, linked_generate_rec, gctx, NULL);
 }
 
 Instance *linked_create_instance_structure_field(string name, ulong structure_link, size_t i) {
@@ -2169,6 +2170,14 @@ bool predicate_eq(
     return true;
 }
 
+gen_resp union_generate(
+    laure_scope_t *scope, 
+    laure_union_image *im, 
+    REC_TYPE(rec), 
+    void *external_ctx,
+    Instance *bound_instance
+);
+
 /*
    Global methods
 */
@@ -2186,6 +2195,7 @@ void laure_set_translators() {
     STRUCTURE_TRANSLATOR = new_translator('$', structure_translator);
     LINKED_TRANSLATOR = new_translator('l', linked_translator);
     UUID_TRANSLATOR = new_translator('u', uuid_translator);
+    UNION_TRANSLATOR = new_translator('U', union_translator);
     MOCK_NAME = strdup( "$mock_name" );
     MOCK_QRESP.state = q_true;
     MOCK_QRESP.payload = 0;
@@ -2204,6 +2214,10 @@ bool image_equals(void* img1, void* img2, laure_scope_t *scope) {
             return linked_eq((laure_linked_image*)img1, img2, scope);
         else
             return linked_eq((laure_linked_image*)img2, img1, scope);
+    }
+
+    if (head1.t == UNION || head2.t == UNION) {
+        laure_union_image *uimg = (laure_union_image*)(head1.t == UNION ? img1 : img2);
     }
     
     if (head1.t != head2.t) return false;
@@ -2240,9 +2254,24 @@ bool image_equals(void* img1, void* img2, laure_scope_t *scope) {
     }
 }
 
+gen_resp instance_generate(
+    laure_scope_t *scope, 
+    Instance *instance, 
+    REC_TYPE(rec), 
+    void *external_ctx
+) {
+    return image_generate(scope, instance->image, rec, external_ctx, instance);
+}
+
 // Image generate
 
-gen_resp image_generate(laure_scope_t *scope, void *img, REC_TYPE(rec), void *external_ctx) {
+gen_resp image_generate(
+    laure_scope_t *scope, 
+    void *img, 
+    REC_TYPE(rec), 
+    void *external_ctx,
+    Instance *bound_instance
+) {
     assert(img != NULL);
     laure_image_head head = read_head(img);
     img = image_deepcopy(img);
@@ -2268,6 +2297,9 @@ gen_resp image_generate(laure_scope_t *scope, void *img, REC_TYPE(rec), void *ex
         }
         case LINKED: {
             return linked_generate(scope, (laure_linked_image*) img, rec, external_ctx);
+        }
+        case UNION: {
+            return union_generate(scope, (laure_union_image*) img, rec, external_ctx, bound_instance);
         }
         default: {
             char error[128];
@@ -2314,6 +2346,9 @@ void *image_deepcopy(void *img) {
         case LINKED: {
             return linked_deepcopy((laure_linked_image*)img);
         }
+        case UNION: {
+            return union_deepcopy((laure_union_image*)img);
+        }
         default:
             break;
     }
@@ -2350,6 +2385,9 @@ bool image_instantiated(void *image) {
         case LINKED: {
             return true;
         }
+        case UNION: {
+            return false;
+        }
         default: return true;
     }
 }
@@ -2384,6 +2422,10 @@ void image_free(void *image) {
             linked_free((laure_linked_image*)image);
             break;
         }
+        case UNION: {
+            union_free((laure_union_image*)image);
+            break;
+        }
         default: break;
     }
 }
@@ -2403,6 +2445,17 @@ Instance *instance_shallow_copy(Instance *from_instance) {
     if (! from_instance) return NULL;
     Instance *instance = laure_alloc(sizeof(Instance));
     *instance = *from_instance;
+    return instance;
+}
+
+Instance *instance_deepcopy_with_image(laure_scope_t *scope, string name, Instance *from_instance, void *image) {
+    if (from_instance == NULL) return from_instance;
+    Instance *instance = laure_alloc(sizeof(Instance));
+    instance->doc = from_instance->doc;
+    instance->image = image;
+    instance->locked = false;
+    instance->name = name;
+    instance->repr = from_instance->repr;
     return instance;
 }
 
@@ -2831,6 +2884,198 @@ string constraint_repr(Instance *ins) {
     return r;
 }
 
+/* =================
+Working with unions
+================= */
+string union_repr(Instance *ins) {
+    laure_union_image *img = (laure_union_image*)ins->image;
+    assert(img->t == UNION);
+    assert(img->A != NULL);
+    char buff[256];
+    string A_repr = img->A->repr(img->A);
+    string B_repr;
+    if (img->B) {
+        B_repr = img->B->repr(img->B);
+        snprintf(buff, 256, "union(%s, %s)", A_repr, B_repr);
+        free(B_repr);
+    } else {
+        strncpy(buff, A_repr, 256);
+    }
+    free(A_repr);
+    return strdup(buff);
+}
+
+bool union_eq(laure_union_image *im1, void *im2) {
+    assert(im1->A != NULL);
+
+    if (IMAGET(im2) == UNION) {
+        laure_union_image *im2_union = (laure_union_image*)im2;
+        if (im2_union->B == NULL) {
+            return union_eq(im1, im2_union->A->image);
+        } else {
+            Instance *A = im2_union->A;
+            Instance *B = im2_union->B;
+            bool result = union_eq(im1, A->image);
+            bool result_2 = union_eq(im1, B->image);
+            return result || result_2;
+        }
+    } else {
+        bool result = false;
+
+        Instance *A = im1->A;
+        Instance *B = im1->B;
+
+        void *src_copy = image_deepcopy(im2);
+        void *A_copy = image_deepcopy(A->image);
+
+        bool result_A = image_equals(A_copy, src_copy, NULL);
+        bool result_B;
+
+        if (result_A) {
+            // if A is true eq can be applied to original image
+            result_B = image_equals(B->image, im2, NULL);
+        } else {
+            image_free(src_copy);
+            src_copy = image_deepcopy(im2);
+            result_B = image_equals(B->image, src_copy, NULL);
+        }
+
+        if (result_A && result_B) {
+            result = true;
+            image_free(A->image);
+            im1->A->image = A_copy;
+        } else if (result_A || result_B) {
+            result = true;
+
+            if (! result_B) {
+                image_free(B->image);
+                laure_free(B);
+                im1->B = NULL;
+                image_free(A->image);
+                im1->A->image = A_copy;
+            } else {
+                image_free(A);
+                im1->A = B;
+                im1->B = NULL;
+            }
+        } else {
+            result = false;
+        }
+
+        image_free(A_copy);
+        image_free(src_copy);
+        return result;
+    }
+}
+
+gen_resp union_generate(
+    laure_scope_t *scope, 
+    laure_union_image *im, 
+    REC_TYPE(rec),
+    void *external_ctx,
+    Instance *bound_instance
+) {
+    void *repr = bound_instance->repr;
+    gen_resp gr1;
+    if (bound_instance)
+        bound_instance->repr = im->A->repr;
+    if (im->A->locked) {
+        gr1 = rec(im->A->image, external_ctx);
+    } else {
+        gr1 = image_generate(scope, im->A->image, rec, external_ctx, bound_instance);
+    }
+
+    if (gr1.r == false) {
+        return gr1;
+    }
+
+    if (im->B) {
+        gen_resp gr2;
+        if (bound_instance)
+            bound_instance->repr = im->B->repr;
+        
+        if (im->B->locked) {
+            gr2 = rec(im->B->image, external_ctx);
+        } else {
+            gr2 = image_generate(scope, im->B->image, rec, external_ctx, bound_instance);
+        }
+        return gr2;
+    }
+    return gr1;
+}
+
+bool union_translator(
+    laure_expression_t *expr, 
+    laure_union_image *union_im, 
+    laure_scope_t *scope, 
+    ulong link
+) {
+    bool result_A = read_head(union_im->A->image).translator->invoke(expr, union_im->A->image, scope, link);
+    bool result_B = true;
+
+    if (union_im->B != NULL) {
+        result_B = read_head(union_im->B->image).translator->invoke(expr, union_im->B->image, scope, link);
+    }
+
+    if (result_A == result_B) {
+        return result_A && result_B;
+    } else if (result_A) {
+        // B translation returned false
+        // -> B union element is now null
+        image_free(union_im->B->image);
+        laure_free(union_im->B);
+        union_im->B = NULL;
+        return true;
+    } else {
+        // A translation returned false
+        // -> A element is replaced with B element
+        // if it is not null
+        if (union_im->B == NULL) {
+            return false;
+        }
+        image_free(union_im->A->image);
+        laure_free(union_im->A);
+        union_im->A = union_im->B;
+        union_im->B = NULL;
+        return true;
+    }
+}
+
+laure_union_image *union_deepcopy(laure_union_image *img) {
+    assert(img->A != NULL);
+    laure_union_image *new = laure_alloc(sizeof(laure_union_image));
+    new->t = UNION;
+    new->mark = false;
+    new->translator = img->translator;
+    new->A = instance_deepcopy(img->A->name, img->A);
+    if (img->B != NULL) {
+        new->B = instance_deepcopy(img->B->name, img->B);
+    } else {
+        new->B = NULL;
+    }
+    return new;
+}
+
+void union_free(laure_union_image *img) {
+    image_free(img->A->image);
+    laure_free(img->A);
+    if (img->B != NULL) {
+        image_free(img->B->image);
+        laure_free(img->B);
+    }
+    laure_free(img);
+}
+
+laure_union_image *laure_union_create(Instance *A, Instance *B) {
+    laure_union_image *im = (laure_union_image*) laure_alloc(sizeof(laure_union_image));
+    im->t = UNION;
+    im->mark = false;
+    im->translator = UNION_TRANSLATOR;
+    im->A = A;
+    im->B = B;
+    return im;
+}
+
 /* ==========
 Miscellaneous
 ========== */
@@ -3058,7 +3303,40 @@ predicate_bound_types_result laure_dom_predicate_bound_types(
         // map_2 ~ map{T=int, R=string}
 
         while (clarifiers) {
-            if (clarifiers->expression->t != let_assert) 
+            if (clarifiers->expression->t == let_name) {
+                bool applied = false;
+                Instance *clarifier = laure_scope_find_by_key(scope, clarifiers->expression->s, true);
+                if (! clarifier) {
+                    return pbtr_error(-1, clarifiers->expression->s);
+                }
+
+                for (int i = 0; i < copy->header.args->length; i++) {
+                    if (! is_set[i]) {
+                        clarifier = get_nested_instance(clarifier, clarifiers->expression->flag, scope);
+                        laure_typedecl td = unbound->header.args->data[i];
+                        uint nesting = unbound->header.nestings[i];
+                        apply_clarifier(copy->header.args->data[i], is_set[i], td, nesting, all_clarifiers, 1);
+                        applied = true;
+                        break;
+                    }
+                }
+
+                if (! applied) {
+                    if (response_is_set) {
+                        return pbtr_error(-5, clarifiers->expression->s);
+                    }
+                    clarifier = get_nested_instance(clarifier, clarifiers->expression->flag, scope);
+                    copy->header.resp = laure_alloc(sizeof(laure_typedecl));
+                    laure_typedecl td = (*unbound->header.resp);
+                    apply_clarifier((*copy->header.resp), response_is_set, td, unbound->header.response_nesting, all_clarifiers, 1)
+                    else {
+                        laure_free(copy->header.resp);
+                    }
+                }
+
+                clarifiers = clarifiers->next;
+                continue;
+            } else if (clarifiers->expression->t != let_assert) 
                 return pbtr_error(-2, clarifiers->expression->fullstring);
             
             char *tname = clarifiers->expression->ba->set->expression->s, 

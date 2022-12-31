@@ -65,13 +65,8 @@ index_t ~ natural*.
 -- ```x = (-b +- sqrt(D)) / (2 * a)```
 : ?+-(int, int) -> int.
 
-?+-(x, y) -> z {
-    z = x + y;
-}
-
-?+-(x, y) -> z {
-    z = x - y;
-}
+?+-(x, y) -> x + y.
+?+-(x, y) -> x - y.
 
 -- Integer pow predicate
 !ordering.
@@ -186,7 +181,7 @@ cons ~ never.
 }
 
 -- flattens array to one dimension
--- `flatten{int}([[1,2], [], [3], [4, 5]]) = x`
+-- `flatten{int[]}([[1,2], [], [3], [4, 5]]) = x`
 !ordering.
 : ?flatten('T'[]) -> 'T'.
 

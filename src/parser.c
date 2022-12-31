@@ -667,13 +667,13 @@ laure_parse_result laure_parse(string query) {
         return lpr;
     }
 
-    /* possibly todo: typespace declarations
     if (*query == '{') {
         string typespace_declaration = read_til(query, ':');
-        printf("%s\n", typespace_declaration);
-        query = query + strlen(typespace_declaration);
+        if (typespace_declaration) {
+            printf("%s\n", typespace_declaration);
+            query = query + strlen(typespace_declaration);
+        }
     }
-    */
 
     pstart: {};
     

@@ -723,7 +723,7 @@ qresp laure_eval_assert(
                 // context
                 struct img_rec_ctx *ctx = img_rec_ctx_create(var2, cctx, expset, qr_process_default, v2_link);
                 // -------
-                gen_resp gr = image_generate(scope, var1->image, image_rec_default, ctx);
+                gen_resp gr = instance_generate(scope, var1, image_rec_default, ctx);
                 laure_free(ctx);
 
                 if (gr.r == 0) {
@@ -868,7 +868,43 @@ Instance *ready_instance(laure_scope_t *scope, laure_expression_t *expr) {
     return NULL;
 }
 
-#define IMAGET(im) (read_head(im).t)
+bool is_predicate_image(void *img) {
+    int t = IMAGET(img);
+    return t == PREDICATE_FACT || t == CONSTRAINT_FACT;
+}
+
+laure_union_image *create_union_from_clarifiers(laure_scope_t *scope, laure_expression_set *expr_set) {
+    laure_expression_t *A_expr = expr_set->expression;
+    assert(A_expr->t == let_name);
+
+    Instance *A = laure_scope_find_by_key(scope, A_expr->s, true);
+    if (! A)
+        return NULL;
+    
+    A = instance_deepcopy(A->name, A);
+    Instance *B = NULL;
+
+    if (expr_set->next->next) {
+        laure_union_image *next_union = create_union_from_clarifiers(scope, expr_set->next);
+        if (! next_union) {
+            image_free(A->image);
+            laure_free(A);
+            return NULL;
+        }
+        B = instance_new(MOCK_NAME, NULL, next_union);
+        B->repr = union_repr;
+    } else {
+        assert(expr_set->next->expression->t == let_name);
+        B = laure_scope_find_by_key(scope, expr_set->next->expression->s, true);
+        if (! B) {
+            image_free(A->image);
+            laure_free(A);
+            return NULL;
+        }
+        B = instance_deepcopy(B->name, B);
+    }
+    return laure_union_create(A, B);
+}
 
 /* =-------=
 Imaging.
@@ -1027,6 +1063,39 @@ qresp laure_eval_image(
                 }
             }
 
+            if (old_var->ba) {
+                if (! is_predicate_image(ins->image)) {
+                    RESPOND_ERROR(not_implemented_err, e, "cannot apply type clarification on non predicate image (got %s)", IMG_NAMES[IMAGET(ins->image)]);
+                } else if (((struct PredicateImage*)ins->image)->variations->set->t == PREDICATE_C) {
+                    if (true) {
+                        if (old_var->ba->body_len < 2) {
+                            RESPOND_ERROR(syntaxic_err, e, "union elements must be greater than one");
+                        }
+                        laure_expression_t *ptr;
+                        EXPSET_ITER(old_var->ba->set, ptr, {
+                            if (ptr->t != let_name) {
+                                RESPOND_ERROR(syntaxic_err, e, "all union clarifiers must be names");
+                            }
+                        });
+                        laure_union_image *image = create_union_from_clarifiers(scope, old_var->ba->set);
+                        ins->repr = union_repr;
+                        laure_free(ins->image);
+                        ins->image = image;
+
+                    } else {
+                        RESPOND_ERROR(instance_err, e, "builtin callable does not provide clarifier application");
+                    }
+                } else {
+                    predicate_bound_types_result pbtr = laure_dom_predicate_bound_types(scope, ins->image, old_var->ba->set);
+                    if (pbtr.code != 0) {
+                        RESPOND_ERROR(internal_err, e, "cannot bound types; %s, code=%d", pbtr.err, pbtr.code);
+                    } else {
+                        laure_free(ins->image);
+                        ins->image = pbtr.bound_predicate;
+                    }
+                }
+            }
+
             if (nesting) {
                 while (nesting) {
                     void *img = laure_create_array_u(ins);
@@ -1036,16 +1105,6 @@ qresp laure_eval_image(
                 }
                 ins->name = strdup(new_var->s);
                 ins->repr = array_repr;
-            }
-
-            if (old_var->ba) {
-                predicate_bound_types_result pbtr = laure_dom_predicate_bound_types(scope, ins->image, old_var->ba->set);
-                if (pbtr.code != 0) {
-                    RESPOND_ERROR(internal_err, e, "cannot bound types; %s, code=%d", pbtr.err, pbtr.code);
-                } else {
-                    laure_free(ins->image);
-                    ins->image = pbtr.bound_predicate;
-                }
             }
 
             laure_scope_insert(scope, ins);
@@ -1124,7 +1183,7 @@ qresp laure_eval_unify(_laure_eval_sub_args) {
     else if (to_unif->locked)
         RESPOND_ERROR(access_err, e, "%s is locked", e->s);
     struct img_rec_ctx *ctx = img_rec_ctx_create(to_unif, cctx, expset, proc_unify_response, *link);
-    gen_resp gr = image_generate(scope, to_unif->image, image_rec_default, ctx);
+    gen_resp gr = instance_generate(scope, to_unif, image_rec_default, ctx);
     if (gr.qr.state == q_error || gr.qr.state == q_stop || ! gr.r) return gr.qr;
     if (! ctx->flag) return respond(q_yield, YIELD_FAIL);
     laure_free(ctx);
@@ -1597,17 +1656,42 @@ int generic_process(
             } else {
                 laure_expression_set *set = e->link->ba->set;
                 while (set) {
-                    assert(set->expression->t == let_assert);
-                    char *tn = set->expression->ba->set->expression->s,
-                         *cn = set->expression->ba->set->next->expression->s;
-                    nesting = set->expression->ba->set->next->expression->flag;
-                    int name = (int)tn[0];
-                    Instance *instance = laure_scope_find_by_key(scope, cn, true);
-                    if (! instance)
-                        return 2;
-                    T = get_nested_instance(instance, nesting, scope->glob);
-                    T = instance_shallow_copy(T);
-                    Generics[count_generic_place_idx(name)] = T;
+                    if (set->expression->t == let_name) {
+                        T = laure_scope_find_by_key(scope->glob, set->expression->s, true);
+                        if (T) {
+                            T = get_nested_instance(T, nesting, scope->glob);
+                            T = instance_shallow_copy(T);
+                        }
+                        else
+                            return 2;
+                        bool found = false;
+                        for (int i = 0; i < header.args->length; i++) {
+                            if (header.args->data->t == td_generic) {
+                                if (! Generics[count_generic_place_idx(header.args->data->generic)]) {
+                                    Generics[count_generic_place_idx(header.args->data->generic)] = T;
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (! found && header.resp && header.resp->t == td_generic) {
+                            Generics[count_generic_place_idx(header.resp->generic)] = T;
+                            found = true;
+                        }
+                    } else if (set->expression->t == let_assert) {
+                        char *tn = set->expression->ba->set->expression->s,
+                             *cn = set->expression->ba->set->next->expression->s;
+                        nesting = set->expression->ba->set->next->expression->flag;
+                        int name = (int)tn[0];
+                        Instance *instance = laure_scope_find_by_key(scope, cn, true);
+                        if (! instance)
+                            return 2;
+                        T = get_nested_instance(instance, nesting, scope->glob);
+                        T = instance_shallow_copy(T);
+                        Generics[count_generic_place_idx(name)] = T;
+                    } else {
+                        return 10;
+                    }
                     set = set->next;
                 }
                 if (Generics[place])
@@ -1862,7 +1946,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                 cctx->qctx = nqctx;
                 cctx->scope = prev;
                 struct img_rec_ctx *ctx = img_rec_ctx_create(arg, cctx, nset, qr_process_default, link);
-                gen_resp gr = image_generate(prev, arg->image, image_rec_default, ctx);
+                gen_resp gr = instance_generate(prev, arg, image_rec_default, ctx);
                 cctx->qctx = qctx;
                 cctx->scope = scope;
                 laure_free(ctx);
@@ -1929,6 +2013,8 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                         RESPOND_ERROR(undefined_err, e, "instance is undefined, can't resolve the generic type");
                     } else if (code == 3) {
                         RESPOND_ERROR(signature_err, e, "unable to resolve generic datatype; add explicit cast or add hint to resolve");
+                    } else if (code == 10) {
+                        RESPOND_ERROR(internal_err, e, "invalid expression used as type clarification");
                     }
                 }
             }
@@ -1957,6 +2043,19 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
 
             laure_scope_t *nscope = laure_scope_new(scope->glob, prev);
             nscope->owner = predicate_ins->name;
+
+            // Generic type instances are copied to local scope (locked)
+            for (int place = 0; place < GENERIC_PLACES; place++) {
+                if (Generics[place]) {
+                    char name = GENERIC_FIRST + place;
+                    string name_str = laure_alloc(2);
+                    *name_str = name;
+                    name_str[1] = 0;
+                    Instance *GI = instance_deepcopy(name_str, Generics[place]);
+                    GI->locked = true;
+                    laure_scope_insert(nscope, GI);
+                }
+            }
 
             struct arg_rec_ctx actx[1];
             actx->new_scope = nscope;
@@ -2235,7 +2334,7 @@ qresp laure_eval_quant(_laure_eval_sub_args) {
             ctx->var = ins;
             ctx->qr_process = qr_process_quant_all;
             ctx->link = *link;
-            gen_resp gr = image_generate(scope, ins->image, image_rec_default, ctx);
+            gen_resp gr = instance_generate(scope, ins, image_rec_default, ctx);
             if (! gr.r) qr = respond(q_false, 0);
             break;
         }
@@ -2246,7 +2345,7 @@ qresp laure_eval_quant(_laure_eval_sub_args) {
             ctx->expset = set;
             ctx->var = ins;
             ctx->qr_process = qr_process_quant_exists;
-            gen_resp gr = image_generate(scope, ins->image, image_rec_default, ctx);
+            gen_resp gr = instance_generate(scope, ins, image_rec_default, ctx);
             if (gr.qr.state == q_error) qr = gr.qr;
             else if (gr.r) qr = respond(q_false, 0);
             else qr = respond(q_true, 0);
@@ -2463,7 +2562,7 @@ qresp laure_eval_atom_sign(_laure_eval_sub_args) {
             set->expression = e;
             void *img = instance->image;
             struct img_rec_ctx *ctx = img_rec_ctx_create(instance, cctx, set, qr_process_default, l);
-            gen_resp gr = image_generate(scope, instance->image, image_rec_default, ctx);
+            gen_resp gr = instance_generate(scope, instance, image_rec_default, ctx);
             laure_free(ctx);
             instance->image = img;
 

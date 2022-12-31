@@ -43,7 +43,8 @@ LIB = src/parser.o \
 	  std/utility.c \
 	  std/bag.c \
 	  std/array.c \
-	  std/map.c
+	  std/map.c \
+	  std/union.c
 
 OBJECTS = laure.o $(LIB)
 

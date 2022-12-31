@@ -194,7 +194,9 @@ qresp structure_init(laure_structure *structure, laure_scope_t *scope);
 laure_structure *structure_new_image(laure_structure *img, laure_scope_t *scope);
 
 typedef struct UnionImage {
-    struct InstanceSet *united_set;
+    IMAGE_HEAD
+    Instance *A;
+    Instance *B;
 } laure_union_image;
 
 typedef struct array_linked {
@@ -510,6 +512,8 @@ struct PredicateImage *predicate_header_new(string bound_name, laure_typeset *ar
 laure_uuid_image *laure_create_uuid(string bound, uuid_t uu);
 Instance *laure_create_uuid_instance(string name, string bound, string uu_str);
 
+laure_union_image *laure_union_create(Instance *A, Instance *B);
+
 void *image_deepcopy(void *img);
 
 // Modify image
@@ -530,7 +534,7 @@ predfinal *get_pred_final(struct PredicateImage*, struct PredicateImageVariation
 // [0] Image*: not instantiated image to generate from
 // [1] void (*rec) (Image*, void*): receiver function, takes instantiated image and context
 // [2] void*: context to pass into receiver
-gen_resp image_generate(laure_scope_t*, void*, gen_resp (*rec)(void*, void*), void*);
+gen_resp image_generate(laure_scope_t*, void*, gen_resp (*rec)(void*, void*), void*, Instance*);
 
 // miscellanous
 
@@ -606,6 +610,17 @@ qresp        image_control     (void *inst_img, control_ctx* ctx);
 bool image_instantiated(void *image);
 bool instantiated(Instance*);
 
+string union_repr(Instance *ins);
+bool union_eq(laure_union_image *im1, void *im2);
+bool union_translator(
+    laure_expression_t *expr, 
+    laure_union_image *union_im, 
+    laure_scope_t *scope, 
+    ulong link
+);
+laure_union_image *union_deepcopy(laure_union_image *img);
+void union_free(laure_union_image *img);
+
 // translators
 
 bool int_translator(laure_expression_t*, void*, laure_scope_t *scope, ulong);
@@ -667,5 +682,9 @@ Instance *laure_api_add_predicate(
     uint argc, string arg_hints, string response_hint,
     bool is_constraint, string doc
 );
+
+gen_resp instance_generate(laure_scope_t*, Instance*, gen_resp (*rec)(void*, void*), void*);
+
+#define IMAGET(im) (read_head(im).t)
 
 #endif

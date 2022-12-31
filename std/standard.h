@@ -24,8 +24,16 @@ qresp laure_predicate_append(preddata*, control_ctx*);
 
 qresp laure_predicate_map(preddata*, control_ctx*);
 
+qresp laure_contraint_union(preddata*, control_ctx*);
+
 #define DECLARE(name) \
         qresp name(preddata *pd, control_ctx *cctx) 
+
+#define ARGN(number) \
+        pd_get_arg(pd, number)
+
+#define RESP_ARG \
+        pd->resp
 
 #define from_boolean(boolean) respond(boolean ? q_true : q_false, NULL)
 #define True respond(q_true, NULL)
