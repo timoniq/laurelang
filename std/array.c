@@ -466,18 +466,22 @@ DECLARE(laure_predicate_append) {
             if (STATE(with->image) == I)
                 if (LENGTH(with->image) != length - to_len) goto next;
             
-            STATE(to->image) = I;
             STATE(with->image) = I;
             LENGTH(to->image) = to_len;
 
-            array_linked_t *l = LINKED(to->image);
-            array_linked_t *rl = LINKED(res->image);
-            while (l) {
-                image_equals(l->data->image, rl->data->image, cctx->scope);
-                l = l->next;
-                rl = rl->next;
+            if (STATE(to->image) == I) {
+                array_linked_t *l = LINKED(to->image);
+                array_linked_t *rl = LINKED(res->image);
+                while (l) {
+                    bool result = image_equals(l->data->image, rl->data->image, cctx->scope);
+                    if (! result)
+                        return False;
+                    l = l->next;
+                    rl = rl->next;
+                }
             }
-            
+
+            STATE(to->image) = I;
             LINKED(to->image) = LINKED(res->image);
             LENGTH(with->image) = length - to_len;
             LINKED(with->image) = linked;

@@ -191,6 +191,23 @@
     [1, 2, 3, 4] = [1, 2|x];
 }
 
+
+-- 1;[2, 3]
+-- 2;[3]
+: ?test_array_head_tail_resolve(int, int[]).
+?test_array_head_tail_resolve(x, y) {
+    int[] arr = [1, 2, 3];
+    arr = [h|t];
+    x = h;
+    y = t;
+}
+?test_array_head_tail_resolve(x, y) {
+    int[] arr = [1, 2, 3];
+    arr = [a, b|t];
+    x = b;
+    y = t;
+}
+
 -- [2, 2, 2]
 -- [5, -10, 3]
 -- [5, -10, 4]
