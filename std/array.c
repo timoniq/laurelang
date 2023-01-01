@@ -469,6 +469,15 @@ DECLARE(laure_predicate_append) {
             STATE(to->image) = I;
             STATE(with->image) = I;
             LENGTH(to->image) = to_len;
+
+            array_linked_t *l = LINKED(to->image);
+            array_linked_t *rl = LINKED(res->image);
+            while (l) {
+                image_equals(l->data->image, rl->data->image, cctx->scope);
+                l = l->next;
+                rl = rl->next;
+            }
+            
             LINKED(to->image) = LINKED(res->image);
             LENGTH(with->image) = length - to_len;
             LINKED(with->image) = linked;

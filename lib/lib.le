@@ -158,9 +158,9 @@ cons ~ never.
 
 : ?all_distinct('T'[]).
 ?all_distinct([]).
-?all_distinct([H|T]) {
-    H in T -> fail();
-    all_distinct(T);
+?all_distinct([head|tail]) {
+    head in tail -> fail();
+    all_distinct(tail);
 }
 
 *-- links array head to array tail

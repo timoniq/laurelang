@@ -402,8 +402,14 @@ bool array_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope,
                 Instance *el;
                 if (str_eq(el_exp->s, "_")) {
                     el = array->arr_el;
-                } else
+                } else {
                     el = laure_scope_find_by_key(scope, el_exp->s, true);
+                    if (! el) {
+                        Instance *el_new = instance_deepcopy(el_exp->s, array->arr_el);
+                        laure_scope_insert(scope, el_new);
+                        el = el_new;
+                    }
+                }
                 if (! el) {
                     return false;
                 }
