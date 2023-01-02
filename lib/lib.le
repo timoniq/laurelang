@@ -285,3 +285,5 @@ $ divmod_t {
 -- array to its minumum value
 : ?min(int[]) -> int.
 ?min(arr) -> choose_one(arr, min_of_two).
+
+boolean ~ @{false, true}.

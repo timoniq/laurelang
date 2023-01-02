@@ -1089,7 +1089,7 @@ bool string_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope
     if (exp->t == let_array) return array_translator(exp, img_, scope, link);
     if (exp->t != let_data) return false;
     struct ArrayImage *strarr = (struct ArrayImage*)img_;
-    if (! str_starts(exp->s, "\"") && lastc(exp->s) == '\"') return false;
+    if (! (str_starts(exp->s, "\"") && lastc(exp->s) == '\"')) return false;
     int len = (int)laure_string_strlen(exp->s + 1) - 1;
     size_t bufflen = strlen(exp->s + 1) - 1;
     if (strarr->state) {
@@ -2224,6 +2224,9 @@ bool image_equals(void* img1, void* img2, laure_scope_t *scope) {
 
     if (head1.t == UNION || head2.t == UNION) {
         laure_union_image *uimg = (laure_union_image*)(head1.t == UNION ? img1 : img2);
+        void *other_img = head1.t == UNION ? img2 : img1;
+        return union_eq(uimg, other_img);
+        
     }
     
     if (head1.t != head2.t) return false;
@@ -2361,6 +2364,13 @@ void *image_deepcopy(void *img) {
     return NULL;
 }
 
+bool union_instantiated(laure_union_image *img) {
+    if (img->B) {
+        return false;
+    }
+    return instantiated(img->A);
+}
+
 bool image_instantiated(void *image) {
     struct ImageHead head = read_head(image);
     switch (head.t) {
@@ -2392,7 +2402,7 @@ bool image_instantiated(void *image) {
             return true;
         }
         case UNION: {
-            return false;
+            return union_instantiated((laure_union_image*)image);
         }
         default: return true;
     }
@@ -2935,15 +2945,17 @@ bool union_eq(laure_union_image *im1, void *im2) {
         void *A_copy = image_deepcopy(A->image);
 
         bool result_A = image_equals(A_copy, src_copy, NULL);
-        bool result_B;
+        bool result_B = true;
 
-        if (result_A) {
-            // if A is true eq can be applied to original image
-            result_B = image_equals(B->image, im2, NULL);
-        } else {
-            image_free(src_copy);
-            src_copy = image_deepcopy(im2);
-            result_B = image_equals(B->image, src_copy, NULL);
+        if (B) {
+            if (result_A) {
+                // if A is true eq can be applied to original image
+                result_B = image_equals(B->image, im2, NULL);
+            } else {
+                image_free(src_copy);
+                src_copy = image_deepcopy(im2);
+                result_B = image_equals(B->image, src_copy, NULL);
+            }
         }
 
         if (result_A && result_B) {
@@ -2968,7 +2980,7 @@ bool union_eq(laure_union_image *im1, void *im2) {
             result = false;
         }
 
-        image_free(A_copy);
+        // image_free(A_copy);
         image_free(src_copy);
         return result;
     }

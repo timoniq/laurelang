@@ -1254,6 +1254,8 @@ Instance *get_derived_instance(laure_scope_t *scope, Instance *resolved_instance
         return resolved_instance;
     } else if (head.translator->identificator == STRING_TRANSLATOR->identificator) {
         return laure_scope_find_by_key(scope->glob, "string", false);
+    } else if (head.translator->identificator == UNION_TRANSLATOR->identificator) {
+        return resolved_instance;
     } else if (head.translator->identificator == STRUCTURE_TRANSLATOR->identificator) {
         return resolved_instance;
     }
