@@ -979,6 +979,10 @@ qresp laure_eval_image(
         if (ins) return RESPOND_FALSE;
         
         struct PredicateImage *predicate = (struct PredicateImage*) laure_apply_pred(pred, scope);
+
+        if (! predicate)
+            RESPOND_ERROR(internal_err, e, "cannot apply predicate");
+
         predicate->is_primitive = true;
         
         ins = instance_new(to->s, NULL, predicate);

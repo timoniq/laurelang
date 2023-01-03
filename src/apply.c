@@ -204,20 +204,24 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
         } else {
             if (aexp->t == let_name) {
                 // datatype name
-                string tname;
-                if (nesting) {
-                    Instance *to_nest = laure_scope_find_by_key(scope, aexp->s, true);
-                    if (!to_nest) {
-                        return NULL;
-                    }
-                    tname = get_nested_ins_name(to_nest, nesting, scope);
+                if (str_eq(aexp->s, "_")) {
+                    laure_typeset_push_decl(args_set, "X");
                 } else {
-                    tname = aexp->s;
+                    string tname;
+                    if (nesting) {
+                        Instance *to_nest = laure_scope_find_by_key(scope, aexp->s, true);
+                        if (!to_nest) {
+                            return NULL;
+                        }
+                        tname = get_nested_ins_name(to_nest, nesting, scope);
+                    } else {
+                        tname = aexp->s;
+                    }
+                    Instance *arg = laure_scope_find_by_key(scope, tname, true);
+                    if (! arg) 
+                        return NULL;
+                    laure_typeset_push_instance(args_set, arg);
                 }
-                Instance *arg = laure_scope_find_by_key(scope, tname, true);
-                if (! arg) 
-                    return NULL;
-                laure_typeset_push_instance(args_set, arg);
             } else if (aexp->t == let_pred) {
                 struct PredicateImage *pred = (struct PredicateImage*) laure_apply_pred(aexp, scope);
                 pred->is_primitive = true;

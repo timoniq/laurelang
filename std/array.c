@@ -340,6 +340,8 @@ DECLARE(laure_predicate_append) {
     Instance *with = pd_get_arg(pd, 1);
     Instance *res = pd->resp;
 
+    cast_image(res_img, struct ArrayImage) res->image;
+
     if (! append_resolve(to, with, res))
         return respond(q_error, "cannot resolve; add hints");
 
@@ -371,10 +373,9 @@ DECLARE(laure_predicate_append) {
             }
         }
         return True;
-    } else if (instantiated(to) && instantiated(with)) {
+    } else if (instantiated(to) && instantiated(with) && res_img->state == U) {
         // concatenate `to` and `with` arrays into `res` array
         uint res_length = LENGTH(to->image) + LENGTH(with->image);
-        struct ArrayImage *res_img = (struct ArrayImage*)res->image;
         MUST_BE(int_domain_check_int(res_img->u_data.length, (int)res_length));
 
         uint i = 0;

@@ -287,3 +287,21 @@ $ divmod_t {
 ?min(arr) -> choose_one(arr, min_of_two).
 
 boolean ~ @{false, true}.
+Nothing ~ @{Nothing}.
+
+*--
+`at` predicate is a relation between 
+1-infix arity predicate, argument and resulting argument
+Example for predicate search:
+```
+pred at{int} -10 = 10
+-- `pred` is instantiated to `absolute`
+```
+--*
+: ?at((?('T') -> 'R'), 'T') -> 'R'.
+?at(pred, x) -> pred(x).
+
+: ?not_implemented().
+?not_implemented() {
+    !error "Not implemented";
+}

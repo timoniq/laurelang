@@ -563,8 +563,40 @@ bool array_eq(struct ArrayImage *img1_t, struct ArrayImage *img2_t, laure_scope_
 struct ArrayImage *array_copy(struct ArrayImage *old_img) {
     struct ArrayImage *image = laure_alloc(sizeof(struct ArrayImage));
     *image = *old_img;
+    image->arr_el = instance_deepcopy(old_img->arr_el->name, old_img->arr_el);
     if (old_img->state == I) {
         image->i_data = old_img->i_data;
+    } else if (image->state == U) {
+        image->u_data.length = int_domain_copy(old_img->u_data.length);
+    }
+    return image;
+}
+
+struct ArrayImage *array_deepcopy(struct ArrayImage *old_img) {
+    struct ArrayImage *image = laure_alloc(sizeof(struct ArrayImage));
+    *image = *old_img;
+    image->arr_el = instance_deepcopy(old_img->arr_el->name, old_img->arr_el);
+    if (old_img->state == I) {
+
+        array_linked_t *linked = old_img->i_data.linked;
+        array_linked_t *first_linked = NULL;
+        array_linked_t *last_linked = NULL;
+
+        for (int i = 0; i < old_img->i_data.length && linked; i++) {
+            array_linked_t *l = laure_alloc(sizeof(array_linked_t));
+            l->data = instance_deepcopy(linked->data->name, linked->data);
+            l->next = NULL;
+            if (first_linked == NULL) {
+                first_linked = l;
+            } else if (last_linked) {
+                last_linked->next = l;
+            }
+            last_linked = l;
+            linked = linked->next;
+        }
+
+        image->i_data.length = old_img->i_data.length;
+        image->i_data.linked = first_linked;
     } else if (image->state == U) {
         image->u_data.length = int_domain_copy(old_img->u_data.length);
     }
