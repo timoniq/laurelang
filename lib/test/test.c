@@ -93,6 +93,7 @@ void headerprint(string s, uint maxnlen, uint colorcodes, int isstart) {
         for (int j = 0; j < filler; j++) printf(" ");
         printf(" %s ", s);
         for (int j = 0; j < filler; j++) printf(" ");
+        if ((filler - len_s) % 2) printf(" ");
         printf("%s\n", r);
     }
 }

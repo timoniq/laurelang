@@ -473,7 +473,7 @@ DECLARE(laure_predicate_append) {
             if (STATE(to->image) == I) {
                 array_linked_t *l = LINKED(to->image);
                 array_linked_t *rl = LINKED(res->image);
-                while (l) {
+                for (int j = 0; j < LENGTH(to->image) && l; j++) {
                     bool result = image_equals(l->data->image, rl->data->image, cctx->scope);
                     if (! result)
                         return False;
