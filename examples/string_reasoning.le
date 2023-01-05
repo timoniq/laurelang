@@ -11,11 +11,15 @@ string uppers = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".
 
 : ?lower_char(char) -> char.
 ?lower_char(c) -> lower_letter(c)%
-?lower_char(x) -> x.
+?lower_char(x) -> x {
+    x in uppers -> fail();
+}
 
 : ?upper_char(char) -> char.
 ?upper_char(c) -> upper_letter(c)%
-?upper_char(x) -> x.
+?upper_char(x) -> x {
+    x in lowers -> fail();
+}
 
 : ?lower(string) -> string.
 ?lower(s) -> l {

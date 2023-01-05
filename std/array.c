@@ -341,14 +341,14 @@ DECLARE(laure_predicate_append) {
     Instance *res = pd->resp;
 
     cast_image(res_img, struct ArrayImage) res->image;
+    cast_image(to_img, struct ArrayImage) to->image;
+    cast_image(with_img, struct ArrayImage) with->image;
 
     if (! append_resolve(to, with, res))
         return respond(q_error, "cannot resolve; add hints");
 
-    if (instantiated(to) && instantiated(with) && instantiated(res)) {
+    if (res_img->state == I && with_img->state == I && to_img->state == I) {
         MUST_BE(LENGTH(to->image) + LENGTH(with->image) == LENGTH(res->image));
-        struct ArrayImage *res_img = (struct ArrayImage*) res->image;
-
         uint length = res_img->i_data.length;
         array_linked_t *linked = res_img->i_data.linked;
 
@@ -373,7 +373,7 @@ DECLARE(laure_predicate_append) {
             }
         }
         return True;
-    } else if (instantiated(to) && instantiated(with) && res_img->state == U) {
+    } else if (to_img->state == I && with_img->state == I && res_img->state == U) {
         // concatenate `to` and `with` arrays into `res` array
         uint res_length = LENGTH(to->image) + LENGTH(with->image);
         MUST_BE(int_domain_check_int(res_img->u_data.length, (int)res_length));
@@ -416,8 +416,7 @@ DECLARE(laure_predicate_append) {
         res_img->i_data.length = res_length;
         res_img->i_data.linked = head;
         return True;
-    } else if (instantiated(to) && instantiated(res)) {
-        struct ArrayImage *with_img = (struct ArrayImage*) with->image;
+    } else if (to_img->state == I && res_img->state == I && with_img->state == U) {
         uint with_length = LENGTH(res->image) - LENGTH(to->image);
         MUST_BE(int_domain_check_int(with_img->u_data.length, (int)with_length));
 
@@ -433,8 +432,7 @@ DECLARE(laure_predicate_append) {
         with_img->i_data.length = with_length;
         with_img->i_data.linked = linked;
         return True;
-    } else if (instantiated(with) && instantiated(res)) {
-        struct ArrayImage *to_img = (struct ArrayImage*) to->image;
+    } else if (with_img->state == I && res_img->state == I && to_img->state == U) {
         uint to_length = LENGTH(res->image) - LENGTH(with->image);
         MUST_BE(int_domain_check_int(to_img->u_data.length, to_length));
 
@@ -455,18 +453,13 @@ DECLARE(laure_predicate_append) {
         to_img->i_data.length = to_length;
         to_img->i_data.linked = orig_linked;
         return True;
-    } else if (instantiated(res)) {
+    } else if (res_img->state == I && to_img->state == U && with_img->state == U) {
         // combinations
         uint length = LENGTH(res->image);
         array_linked_t *linked = LINKED(res->image);
         bool found = false;
 
         for (uint to_len = 0; to_len <= length; to_len++) {
-            if (STATE(to->image) == I)
-                if (LENGTH(to->image) != to_len) goto next;
-            if (STATE(with->image) == I)
-                if (LENGTH(with->image) != length - to_len) goto next;
-            
             STATE(with->image) = I;
             LENGTH(to->image) = to_len;
 
@@ -506,7 +499,6 @@ DECLARE(laure_predicate_append) {
             cctx->qctx = old_qc;
             laure_scope_free(nscope);
 
-            next: {};
             if (! linked) break;
             linked = linked->next;
         }

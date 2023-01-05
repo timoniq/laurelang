@@ -256,3 +256,13 @@
     string[] arr = ["abc", "def", "foo", "bar"];
     slice(arr, 1, 3) = x;
 }
+
+-- [];[1, 2, 3]
+-- [1];[2, 3]
+-- [1, 2];[3]
+-- [1, 2, 3];[]
+: ?test_array_append_combinations(int[], int[]).
+?test_array_append_combinations(x, y) {
+    int[] arr = [1,2,3];
+    arr = append(x, y);
+}
