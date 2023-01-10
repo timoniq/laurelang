@@ -355,7 +355,7 @@ DECLARE(laure_predicate_append) {
         uint check_length = LENGTH(to->image);
         array_linked_t *check_linked = LINKED(to->image);
 
-        while (linked && length) {
+        while (linked && length && check_length && check_linked) {
             Instance *ins = linked->data;
             Instance *ins2 = check_linked->data;
 

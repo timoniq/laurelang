@@ -39,7 +39,10 @@ $datedelta {
 : ?leap_year(int).
 ?leap_year(x) {
     x / 4;
-    {x / 100 -> fail()} | {x / 400};
+    x / 100 -> fail();
+}%
+?leap_year(x) {
+    x / 400;
 }
 
 : ?leap_years(int) -> int.

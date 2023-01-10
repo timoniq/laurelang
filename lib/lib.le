@@ -301,3 +301,13 @@ pred at{int} -10 = 10
 ?not_implemented() {
     !error "Not implemented";
 }
+
+-- Determines array to predicate and filtered array 
+-- with elements corresponding to predicate
+: ?filter('T'[], (?('T'))) -> 'T'[].
+?filter([], _) -> [].
+?filter([x|tail], f) -> fs {
+    f(x);
+    append([x], filter(tail, f)) = fs;
+}%
+?filter([_|tail], f) -> filter(tail, f).

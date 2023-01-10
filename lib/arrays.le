@@ -1,0 +1,12 @@
+!ordering.
+-- Determines array to its reverse
+: ?reverse('T'[]) -> 'T'[].
+?reverse([]) -> [].
+?reverse(lst) -> reversed {
+    linked(c, tail, lst);
+    linkedr(reverse(tail), c) = reversed;
+}
+
+-- States that array is not empty
+: ?not_empty('T'[]).
+?not_empty([_|_]).

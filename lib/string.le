@@ -27,13 +27,3 @@
     tail_s = join(joiner, tail);
     joined = join_two(joiner, head, tail_s);
 }
-
-!ordering.
-: ?reverse(string) -> string.
--- fixme
--- ?reverse("") -> "".
-?reverse([]) -> [].
-?reverse(s) -> r {
-    linked(c, tail, s);
-    linkedr(reverse(tail), c) = r;
-}

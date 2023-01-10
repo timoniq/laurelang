@@ -1,0 +1,44 @@
+!use <arrays>.
+
+: ?palindrome_n(natural) -> int.
+?palindrome_n(n) -> (((n + 1) * n) /_ 2).
+
+: ?tail_or_all('T'[][]) -> 'T'[][].
+?tail_or_all(x) -> y {
+    linked(_, y, x);
+    not_empty(y);
+}%
+?tail_or_all(x) -> x.
+
+: ?isPalindrome(int[]).
+?isPalindrome(xs) {
+    xs = reverse(xs);
+}
+
+: ?subary(int[]) -> int[].
+?subary(xs) -> sa {
+    append(_, 'append(sa, _)) = xs;
+    not_empty(sa);
+}
+
+: ?subarys(int[]) -> int[][].
+?subarys(xs) -> (
+    palindrome_n(length(xs)) sized_bagof subary(xs)
+).
+
+: ?longest_of_two('T'[], 'T'[]) -> 'T'[].
+?longest_of_two(x, y) -> x when length(x) >= length(y)%
+?longest_of_two(_, x) -> x.
+
+: ?longest(int[][]) -> int[].
+?longest([]) -> []%
+?longest(arr) -> l {
+    linked(x, tail) = arr;
+    m = longest(tail);
+    l = longest_of_two(x, m);
+}%
+
+: ?maxPalindrome(int[]) -> int[].
+?maxPalindrome(xs) -> palindrome {
+    palindrome = longest(filter(subarys(xs), isPalindrome));
+}%
