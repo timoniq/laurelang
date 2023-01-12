@@ -37,7 +37,7 @@ const laure_builtin_predicate BUILTIN_PREDICATES[] = {
     {"__bag_sz", laure_predicate_bag, 3, "builtin bag sized", {"from:_ to:_ size:int"}, false},
     {"each", laure_predicate_each, 1, "builtin array each predicate", {"arr:_", "_"}, false},
     {"__by_idx", laure_predicate_by_idx, 2, "builtin array by idx predicate", {"arr:_ idx:int", "_"}, false},
-    {"length", laure_predicate_length, 1, "builtin array length predicate", {"arr:_", "int"}, false},
+    {"length", laure_predicate_length, 1, "builtin array length predicate", {"arr:!", "int"}, false},
     {"__append", laure_predicate_append, 2, "builtin array append predicate", {"to:_ with:_", "_"}, false},
     {"__map", laure_predicate_map, 2, "builtin map", {"arr:_ mapping:_", "_"}, false},
     {"union", laure_contraint_union, 2, "union constraint", {"t1:_ t2:_", "_"}, true},

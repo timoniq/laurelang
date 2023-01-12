@@ -1442,6 +1442,9 @@ ARGPROC_RES pred_call_procvar(
                             }
                         }
                     }
+                    if (! hint) {
+                        return_str_fmt("arg %s is undefined, can't resolve", vname);
+                    }
                     arg = instance_new_copy(argn, hint, new_scope);
                 } else {
                     return_str_fmt("specification of %s is needed", vname);

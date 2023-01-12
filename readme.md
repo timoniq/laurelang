@@ -42,6 +42,8 @@ Further reasoning on this predicate:
 ?- prime(x), sized_bagof(15, x) = y
    x = 43,
    y = [1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43].
+?- filter([1, 2, 3, 4, 5], prime) = x
+   x = [1, 2, 3, 5].
 ```
 
 Using predicate `absolute` as mapper:
