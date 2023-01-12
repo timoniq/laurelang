@@ -16,6 +16,8 @@
 #define DOC_BUFFER_LEN 512
 #endif
 
+#define STANDARD_EXTENSION ".l"
+
 short int LAURE_ASK_IGNORE = 0;
 char     *NESTED_DOC_AUTOGEN = NULL;
 Instance *_TEMP_PREDCONSULT_LAST = NULL;
@@ -542,7 +544,7 @@ string consult_single(
         strcpy(p, fname);
         strcat(p, "/");
         strcat(p, s);
-        strcat(p, ".le");
+        strcat(p, STANDARD_EXTENSION);
 
         if (access(p, F_OK) != 0) {
             printf("%sUnable to find init file %s for package.\n", RED_COLOR, p);
@@ -648,10 +650,10 @@ string search_path(string original_path) {
     if (f) {
         fclose(f);
         return strdup(original_path);
-    } else if (! endswith(original_path, ".le")) {
+    } else if (! endswith(original_path, STANDARD_EXTENSION)) {
         char buff[PATH_MAX];
         strcpy(buff, original_path);
-        strcat(buff, ".le");
+        strcat(buff, STANDARD_EXTENSION);
         f = fopen(buff, "r");
         if (f) {
             fclose(f);

@@ -10,7 +10,7 @@ laurelang.so
 laurelanglib.o
 *.dSYM
 *.so
-examples/_*.le
+examples/_*.l
 *.laurec
 *.lc
 LOCAL_CLG

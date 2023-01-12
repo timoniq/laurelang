@@ -11,5 +11,6 @@ repos:
         name: make_and_test
         entry: make auto
         language: system
+        pass_filenames: false
         types: [ ]
         stages: [ commit ]

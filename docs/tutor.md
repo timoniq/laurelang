@@ -287,13 +287,13 @@ $ person {
 
 Package may be single-file or a folder with init file inside it.
 
-Init file should be named same as package folder, extension is `.le`.
+Init file should be named same as package folder, extension is `.l`.
 
 ```
 my_package
-   - my_package.le
-   - first_tool.le
-   - second_tool.le
+   - my_package.l
+   - first_tool.l
+   - second_tool.l
 ```
 
 Usually header file just include other public package resources.
