@@ -1,3 +1,5 @@
+!use <arrays>.
+
 -- [1, 2, 3]
 : ?test_array_basic(int[]).
 
@@ -265,4 +267,50 @@
 ?test_array_append_combinations(x, y) {
     int[] arr = [1,2,3];
     arr = append(x, y);
+}
+
+-- [4, 5, 6]
+-- [4, 3, 5]
+: ?test_array_pkg_longest(int[]).
+?test_array_pkg_longest(x) {
+    longest{int}([[1,2],[],[3],[4,5,6],[3, 2],[4,3,5],[]]) = x;
+}
+
+-- [3, 2, 1]
+-- [1, 2, 3]
+: ?test_array_pkg_reverse(int[]).
+?test_array_pkg_reverse(
+    reverse{int}([1,2,3])
+).
+?test_array_pkg_reverse(x) {
+    [3, 2, 1] = reverse{int}(x);
+}
+
+: ?test_array_pkg_not_empty().
+?test_array_pkg_not_empty() {
+    not_empty{int}([1,2,3]);
+    not_empty{int}([]) -> fail();
+}
+
+-- [1]
+-- [1, 2]
+-- [1, 2, 3]
+-- [2]
+-- [2, 3]
+-- [3]
+: ?test_array_pkg_subarray(int[]).
+?test_array_pkg_subarray(x) {
+    subarray{int}([1,2,3]) = [2,3];
+    subarray{int}([1,2,3]) = [] -> fail();
+    subarray{int}([1,2,3]) = x;
+}
+
+-- [[1, 2]]
+-- [[3, 4, 5], [6]]
+: ?test_array_pkg_tail_or_all(int[][]).
+?test_array_pkg_tail_or_all(x) {
+    x = tail_or_all{int}([[1,2]]);
+}
+?test_array_pkg_tail_or_all(x) {
+    x = tail_or_all{int}([[1,2], [3,4,5], [6]]);
 }
