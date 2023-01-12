@@ -39,6 +39,7 @@ LIB = src/parser.o \
 	  src/order.o \
 	  src/alloc.o \
 	  src/pprint.o \
+	  src/import.o \
 	  std/integer.c \
 	  std/utility.c \
 	  std/bag.c \
@@ -124,3 +125,4 @@ src/weight.o: src/laurelang.h src/weight.c
 src/order.o: src/laurelang.h src/laureimage.h src/order.c
 src/alloc.o: src/laurelang.h src/alloc.c
 src/pprint.o: src/laurelang.h src/pprint.c
+src/import.o: src/laurelang.h src/import.c

@@ -548,4 +548,14 @@ extern laure_expression_t *CALL;
 void laure_pprint_doc(string content, size_t docindent);
 void laure_pprint_code(string content, size_t indent);
 
+/* Import tools */
+
+typedef struct laure_import_mod_ll {
+    string mod;
+    int cnext;
+    struct laure_import_mod_ll **nexts;
+} laure_import_mod_ll;
+
+laure_import_mod_ll *laure_parse_import(string import_str);
+
 #endif
