@@ -139,13 +139,14 @@ int laure_import_use_mod(
 
     if (! mod->cnext && path_or_null) {
         // terminal import mod part
-        char buff[MAX_PATH];
-        snprintf(buff, MAX_PATH, "%s/%s", path_or_null, mod->mod);
-        string p = search_path(buff);
+        string path = laure_import_get_use_path(path_or_null, mod);
+        string p = search_path(path);
+        free(path);
         if (! p)
             return 1;
         int failed[1] = {0};
         laure_consult_recursive(session, p, failed);
+        free(p);
         return *failed;
     } else if (! mod->cnext) {
         // import whole module
@@ -153,9 +154,9 @@ int laure_import_use_mod(
             return 0;
         }
         string wdir = get_work_dir_path(LAURE_CURRENT_ADDRESS ? LAURE_CURRENT_ADDRESS : "./");
-        char buff[MAX_PATH];
-        snprintf(buff, MAX_PATH, "%s/%s", wdir, mod->mod);
-        string buffd = search_path(buff);
+        string path = laure_import_get_use_path(wdir, mod);
+        string buffd = search_path(path);
+        free(path);
         if (! buffd)
             return 1;
         int failed[1] = {0};
