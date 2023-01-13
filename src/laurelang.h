@@ -168,8 +168,10 @@ typedef struct laure_expression {
     laure_expression_type t;
     char *docstring, *fullstring;
     bool is_header;
-
-    char *s;
+    union {
+        char *s;
+        void *ptr;
+    };
     struct laure_expression *link;
     /*
     Flag:
@@ -557,5 +559,12 @@ typedef struct laure_import_mod_ll {
 } laure_import_mod_ll;
 
 laure_import_mod_ll *laure_parse_import(string import_str);
+int laure_import_use_mod(
+    laure_session_t *session,
+    laure_import_mod_ll *mod,
+    string path_or_null
+);
+
+#define LAURE_STANDARD_EXTENSION ".l"
 
 #endif

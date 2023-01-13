@@ -62,7 +62,7 @@ int J = 100. -- this is declaration, two expressions in one: imaging and asserti
 string S = "This is a string".
 
 -- this is a **use** statement. It uploads statements from other source.
-!use <datetime>.
+!use std:datetime.
 
 -- this is an atomic multiplicity declaration
 sex ~ @{male, female}.

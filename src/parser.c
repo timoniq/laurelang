@@ -304,6 +304,7 @@ void str_lower(string str) {
 }
 
 
+// lexical (!) split
 string_linked *string_split(string s_, int delimiter) {
     string s = strdup(s_);
     string_linked *linked = laure_alloc(sizeof(string_linked));
@@ -321,6 +322,15 @@ string_linked *string_split(string s_, int delimiter) {
     ptr->s = strdup(s);
     ptr->next = NULL;
     return linked;
+}
+
+size_t string_split_len(string_linked *ll) {
+    size_t len = 0;
+    while (ll) {
+        len++;
+        ll = ll->next;
+    }
+    return len;
 }
 
 typedef struct element_ {
@@ -749,20 +759,33 @@ laure_parse_result laure_parse(string query) {
                     return lpr;
                 }
 
-                if (str_starts(setting, "use ") || str_starts(setting, "useso ")) {
-                    bool use_kwd = str_starts(setting, "use ");
+                if (str_starts(setting, "use ")) {
 
-                    string names;
-                    if (use_kwd)
-                        names = setting + 4;
-                    else
-                        names = setting + 6;
-                    if (str_starts(names, "(") && lastc(names) == ')') {
+                    string names = setting + 4;
+                    if (str_starts(names, "(")) {
                         names++;
+                    }
+                    if (lastc(names) == ')') {
                         lastc(names) = 0;
                     }
 
                     names = string_clean(names);
+
+                    string_linked *names_ll = string_split(names, ',');
+                    size_t split_len = string_split_len(names_ll);
+                    
+                    laure_import_mod_ll *mod_ll = laure_alloc(sizeof(laure_import_mod_ll));
+                    mod_ll->mod = NULL; // root
+                    mod_ll->cnext = split_len;
+                    mod_ll->nexts = laure_alloc(sizeof(void*) * split_len);
+                    memset(mod_ll->nexts, 0, sizeof(void*) * split_len);
+
+                    int idx = 0;
+
+                    while (names_ll) {
+                        mod_ll->nexts[idx++] = laure_parse_import(string_clean(names_ll->s));
+                        names_ll = names_ll->next;
+                    }
 
                     laure_parse_result lpr;
                     lpr.is_ok = true;
@@ -770,8 +793,30 @@ laure_parse_result laure_parse(string query) {
                         let_command,
                         NULL,
                         false,
+                        NULL,
+                        command_use,
+                        NULL,
+                        query
+                    );
+                    lpr.exp->ptr = mod_ll;
+
+                    return lpr;
+                } else if (str_starts(setting, "useso ")) {
+                    string names = setting + 6;
+                    if (str_starts(names, "\"")) {
+                        names++;
+                    }
+                    if (lastc(names) == '\"') {
+                        lastc(names) = 0;
+                    }
+                    laure_parse_result lpr;
+                    lpr.is_ok = true;
+                    lpr.exp = laure_expression_create(
+                        let_command,
+                        NULL,
+                        false,
                         names,
-                        use_kwd ? command_use : command_useso,
+                        command_useso,
                         NULL,
                         query
                     );

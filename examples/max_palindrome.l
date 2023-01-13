@@ -1,4 +1,4 @@
-!use <arrays>.
+!use std:arrays.
 
 : ?palindrome_n(natural) -> int.
 ?palindrome_n(n) -> (((n + 1) * n) /_ 2).

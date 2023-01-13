@@ -1,4 +1,4 @@
-!use <datetime>.
+!use std:datetime.
 
 : ?user(string, natural) -> ID.
 

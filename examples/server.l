@@ -1,4 +1,4 @@
-!use <server>.
+!use std:server.
 
 : ?handler(Event).
 : ?start(int).

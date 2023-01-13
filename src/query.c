@@ -2486,10 +2486,13 @@ qresp laure_eval_cut(_laure_eval_sub_args) {
 string get_work_dir_path(string f_addr) {
     if (! f_addr) return NULL;
     string naddr = strdup(f_addr);
+    string ptr = naddr;
     strrev_via_swap(naddr);
     while (naddr[0] != '/') naddr++;
     strrev_via_swap(naddr);
-    return naddr;
+    string n = strdup(naddr);
+    free(ptr);
+    return n;
 }
 
 /* =---------=
@@ -2643,54 +2646,32 @@ qresp laure_eval_command(_laure_eval_sub_args) {
         }
         case command_use:
         case command_useso: {
-            string_linked *linked = string_split(e->s, ',');
-            bool failed[1];
-            failed[0] = false;
 
-            while (linked) {
-                string name = linked->s;
-                name = string_clean(name);
-                if (name[0] == '"') name++;
-                if (lastc(name) == '"') lastc(name) = 0;
-
-                string n;
-
-                if (str_starts(name, "/")) {
-                    n = strdup(name);
-                } else if (str_starts(name, "<") && lastc(name) == '>') {
-                    n = laure_alloc(strlen(lib_path) + strlen(name));
-                    strcpy(n, lib_path);
-                    strcat(n, "/");
-                    strncat(n, name + 1, strlen(name) - 2);
-                } else {
-                    string wdir = get_work_dir_path(LAURE_CURRENT_ADDRESS ? LAURE_CURRENT_ADDRESS : "./");
-                    n = laure_alloc(strlen(wdir) + strlen(name) + 1);
-                    strcpy(n, wdir);
-                    strcat(n, name);
-                }
-
-                char path_[PATH_MAX];
-                memset(path_, 0, PATH_MAX);
-                realpath(n, path_);
-
-                string final_path = search_path(path_);
-
+            if (e->flag == command_useso) {
+                string wdir = get_work_dir_path(LAURE_CURRENT_ADDRESS ? LAURE_CURRENT_ADDRESS : "./");
+                char buff[1024];
+                snprintf(buff, 1024, "%s%s", wdir, e->s);
+                free(wdir);
+                string final_path = search_path(buff);
                 if (! final_path) {
-                    free(final_path);
-                    RESPOND_ERROR(undefined_err, e, "failed to find file %s", path_);
+                    RESPOND_ERROR(undefined_err, e, "SO %s is undefined (%s)", e->s, buff);
                 }
-
-                if (e->flag == command_useso) {
-                    bool result = laure_load_shared(cctx->session, final_path);
-                    free(final_path);
-                } else {
-                    laure_consult_recursive(cctx->session, final_path, (int*)failed);
-                    free(final_path);
+                bool result = laure_load_shared(cctx->session, final_path);
+                free(final_path);
+                return result ? RESPOND_TRUE : RESPOND_FALSE;
+            } else {
+                assert(e->ptr);
+                laure_import_mod_ll *mod_root = (laure_import_mod_ll*)e->ptr;
+                for (int i = 0; i < mod_root->cnext; i++) {
+                    laure_import_mod_ll *mod = mod_root->nexts[i];
+                    if (! mod)
+                        continue;
+                    int r = laure_import_use_mod(cctx->session, mod, NULL);
+                    if (r != 0)
+                        RESPOND_ERROR(undefined_err, e, "failed to consult mod of %s", mod->mod);
                 }
-                linked = linked->next;
             }
-
-            return failed[0] ? RESPOND_FALSE : RESPOND_TRUE;
+            return RESPOND_TRUE;
         }
     }
     return RESPOND_TRUE;

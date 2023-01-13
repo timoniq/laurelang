@@ -2,9 +2,11 @@
 
 #define SPLIT_CHAR ':'
 #define MAX_STATEMENT_MOD_C 32
+#define STD_MODULE "std"
 
-// source :: std/parser.c
+// source :: src/parser.c
 string read_til(const string s, int c);
+string string_clean(string s);
 
 laure_import_mod_ll *laure_parse_import(string import_str) {
     if (! laure_string_strlen(import_str)) return NULL;
@@ -55,13 +57,15 @@ laure_import_mod_ll *laure_parse_import(string import_str) {
 
             while (true) {
 
-                string sm_clean = submod;
-                while (*sm_clean == ' ') sm_clean++;
+                if (laure_string_strlen(submod)) {
 
-                laure_import_mod_ll *submod_ll = laure_parse_import(
-                    strdup(sm_clean)
-                );
-                mod_ptrs[modc++] = submod_ll;
+                    laure_import_mod_ll *submod_ll = laure_parse_import(
+                        strdup(string_clean(submod))
+                    );
+                    mod_ptrs[modc++] = submod_ll;
+                } else {
+                    mod_ptrs[modc++] = NULL;
+                }
                 
                 if (! rem_submods) {
                     break;
@@ -102,4 +106,91 @@ laure_import_mod_ll *laure_parse_import(string import_str) {
         last = mod;
     }
     return first;
+}
+
+#define MAX_PATH 1024
+
+// source :: src/query.c
+string get_work_dir_path(string f_addr);
+
+// source :: src/apply.c
+string search_path(string original_path);
+
+string laure_import_get_use_path(
+    string current_path,
+    laure_import_mod_ll *mod
+) {
+    if (str_eq(mod->mod, ".")) {
+        return strdup(current_path);
+    } else {
+        char buff[MAX_PATH];
+        snprintf(buff, MAX_PATH, "%s/%s", current_path, mod->mod);
+        return strdup(buff);
+    }
+}
+
+// imports all inner instances of module into scope
+int laure_import_use_mod(
+    laure_session_t *session,
+    laure_import_mod_ll *mod,
+    string path_or_null
+) {
+    assert(mod && mod->mod);
+
+    if (! mod->cnext && path_or_null) {
+        // terminal import mod part
+        char buff[MAX_PATH];
+        snprintf(buff, MAX_PATH, "%s/%s", path_or_null, mod->mod);
+        string p = search_path(buff);
+        if (! p)
+            return 1;
+        int failed[1] = {0};
+        laure_consult_recursive(session, p, failed);
+        return *failed;
+    } else if (! mod->cnext) {
+        // import whole module
+        if (str_eq(mod->mod, STD_MODULE)) {
+            return 0;
+        }
+        string wdir = get_work_dir_path(LAURE_CURRENT_ADDRESS ? LAURE_CURRENT_ADDRESS : "./");
+        char buff[MAX_PATH];
+        snprintf(buff, MAX_PATH, "%s/%s", wdir, mod->mod);
+        string buffd = search_path(buff);
+        if (! buffd)
+            return 1;
+        int failed[1] = {0};
+        laure_consult_recursive(session, buffd, failed);
+        free(buffd);
+        return *failed;
+    } else {
+        string path;
+        if (path_or_null) {
+            path = strdup(path_or_null);
+        } else {
+            if (str_eq(mod->mod, STD_MODULE))
+                path = strdup(lib_path);
+            else {
+                path = get_work_dir_path(LAURE_CURRENT_ADDRESS ? LAURE_CURRENT_ADDRESS : "./");
+            }
+        }
+
+        if (path_or_null) {
+            char buff[MAX_PATH];
+            snprintf(buff, MAX_PATH, "%s/%s", path, mod->mod);
+            free(path);
+            path = strdup(buff);
+        }
+
+        for (int i = 0; i < mod->cnext; i++) {
+            laure_import_mod_ll *submod = mod->nexts[i];
+            int r = laure_import_use_mod(session, submod, path);
+            if (r != 0) {
+                printf("failed to consult at %s\n", path);
+                return r;
+            }
+        }
+        free(path);
+        return 0;
+    }
+    return 0;
 }

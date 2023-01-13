@@ -1,4 +1,4 @@
-!use <arrays>.
+!use std:arrays.
 
 -- [1, 2, 3]
 : ?test_array_basic(int[]).

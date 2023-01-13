@@ -1,4 +1,4 @@
-!use string_reasoning.
+!use examples:string_reasoning.
 
 -- example of map usage
 

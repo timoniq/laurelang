@@ -34,7 +34,7 @@
     linked(x, tail) = arr;
     m = longest(tail);
     l = longest_of_two(x, m);
-}%
+}
 
 -- Determines array w/o head or whole array 
 -- if it doesn't obtain a tail.

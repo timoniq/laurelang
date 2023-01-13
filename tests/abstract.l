@@ -1,4 +1,4 @@
-!use <abstract>.
+!use std:abstract.
 
 -- <-inf..inf>
 : #test_abstract_primitive(int).

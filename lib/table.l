@@ -1,7 +1,9 @@
 !use 
-    <datetime>,
-    <abstract>,
-    <string>.
+    std:{
+        datetime,
+        abstract,
+        string
+    }.
 
 Id ~ natural.
 Value ~ union{int, string}.

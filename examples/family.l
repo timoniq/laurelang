@@ -1,4 +1,4 @@
-!use <datetime>.
+!use std:datetime.
 
 date today = (27, 08, 2022).
 gender ~ @{male, female}.

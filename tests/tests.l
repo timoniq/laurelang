@@ -1,5 +1,5 @@
 !use (
-    "../examples",
+    ../examples,
     math,
     function,
     logic,
@@ -15,5 +15,5 @@
     formatting,
     bagof,
     structure,
-    map,
+    map
 ).
