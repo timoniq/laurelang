@@ -171,7 +171,11 @@ int laure_import_use_mod(
             if (str_eq(mod->mod, STD_MODULE))
                 path = strdup(lib_path);
             else {
-                path = get_work_dir_path(LAURE_CURRENT_ADDRESS ? LAURE_CURRENT_ADDRESS : "./");
+                if (str_eq(mod->mod, "") && LAURE_CURRENT_ADDRESS) {
+                    path = get_work_dir_path(LAURE_CURRENT_ADDRESS);
+                } else {
+                    path = strdup(mod->mod);
+                }
             }
         }
 

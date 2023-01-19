@@ -787,6 +787,8 @@ qresp laure_eval_assert(
         RESPOND_ERROR(instance_err, e, "can't assert %s with %s", lvar->s, rvar->s);
 }
 
+// generates array of fixed size
+// array contains blueprint atom elements
 Instance *get_nested_fixed(Instance *atom, uint length, laure_scope_t *scope) {
     struct ArrayImage *im = laure_create_array_u(atom);
     laure_free(im->u_data.length);
@@ -1297,7 +1299,12 @@ Instance *resolve_via_signature(
         if (td.t == td_generic) {
             int n = td.generic;
             size_t idx = count_generic_place_idx(n);
-            if (Generics[idx]) continue;
+            if (Generics[idx]) {
+                // set generic to instance in predicate instance
+                predicate->header.args->data[i].t = td_instance;
+                predicate->header.args->data[i].instance = Generics[idx];
+                continue;
+            }
             if (predicate->header.args->data[i].t == td_instance) {
                 Generics[idx] = prepare_T_instance(scope, predicate->header.args->data[i].instance, predicate->header.nestings[i]);
             }
@@ -1312,11 +1319,16 @@ Instance *resolve_via_signature(
             size_t idx = count_generic_place_idx(n);
             if (! Generics[idx] && predicate->header.resp->t == td_instance) {
                 Generics[idx] = prepare_T_instance(scope, predicate->header.resp->instance, predicate->header.response_nesting);
+            } else if (Generics[idx]) {
+                predicate->header.resp->t = td_instance;
+                predicate->header.resp->instance = Generics[idx];
             }
         } else if (td.t == td_instance && IMAGET(td.instance->image) == PREDICATE_FACT) {
             Instance *ins = resolve_via_signature(name, Generics, ((struct PredicateImage*)td.instance->image)->header, predicate->header.resp->instance, scope);
         }
     }
+    if (! name)
+        return NULL;
     return Generics[count_generic_place_idx(name)];
 }
 
@@ -1369,6 +1381,37 @@ Instance *resolve_generic_T(
         }
     }
     return NULL;
+}
+
+#define APPLY(td, Generics, nesting, scope) do {  \
+        if (td.t == td_generic) { \
+            int idx = count_generic_place_idx(td.generic); \
+            if (Generics[idx]) {    \
+                td.t = td_instance; \
+                td.instance = get_nested_instance(Generics[idx], nesting, scope); \
+            } \
+        } else if (td.t == td_instance && is_callable(td.instance->image)) { \
+            struct PredicateImage *nimg = (struct PredicateImage*)td.instance->image; \
+            td.instance->image = predicate_apply_generics(nimg, Generics, scope); \
+            td.instance->doc = td.instance->repr(td.instance); /* instance representation is cached in doc */ \
+        } \
+    } while (0)
+
+struct PredicateImage *predicate_apply_generics(
+    struct PredicateImage *pim,
+    Instance **Generics,
+    laure_scope_t *scope
+) {
+    struct PredicateImage *image = predicate_copy(pim);
+    for (int i = 0; i < image->header.args->length; i++) {
+        APPLY(image->header.args->data[i], Generics, image->header.nestings[i], scope);
+    }
+    if (image->header.resp) {
+        laure_typedecl td = *image->header.resp;
+        APPLY(td, Generics, image->header.response_nesting, scope);
+        *image->header.resp = td;
+    }
+    return image;
 }
 
 // Predicate call argument procession
@@ -1438,6 +1481,12 @@ ARGPROC_RES pred_call_procvar(
                             if (pim->header.resp && pim->header.resp->t == td_auto) {
                                 // hint is uuid
                                 arg = laure_create_uuid_instance(argn, pim->bound, NULL);
+                                goto linking;
+                            } else {
+                                // create new header
+                                struct PredicateImage *pim_new = predicate_apply_generics(pim, Generics, new_scope);
+                                arg = instance_new(argn, NULL, pim_new);
+                                arg->repr = hint->repr;
                                 goto linking;
                             }
                         }

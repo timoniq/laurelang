@@ -149,6 +149,7 @@ typedef struct laure_linked_image {
     };
 } laure_linked_image;
 
+struct PredicateImage *predicate_copy(struct PredicateImage *image);
 
 Instance *linked_create_instance_structure_field(string name, ulong structure_link, size_t i);
 
@@ -369,7 +370,7 @@ struct PredicateImageVariationSet {
 
 struct PredicateHeaderImage {
     laure_typeset *args;
-    uint *nestings;
+    uint nestings[MAX_ARGS];
     laure_typedecl* resp;
     uint response_nesting;
     bool do_ordering;

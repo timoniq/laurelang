@@ -2809,7 +2809,8 @@ struct PredicateImage *predicate_header_new(string bound_name, laure_typeset *ar
     struct PredicateHeaderImage header;
     header.args = args;
     header.resp = resp;
-    header.nestings = 0;
+    memset(header.nestings, 0, sizeof(uint) * MAX_ARGS);
+    
     header.response_nesting = 0;
     header.do_ordering = LAURE_FLAG_NEXT_ORDERING;
     LAURE_FLAG_NEXT_ORDERING = false;
@@ -2819,6 +2820,27 @@ struct PredicateImage *predicate_header_new(string bound_name, laure_typeset *ar
     img->variations = pvs_new();
     img->is_primitive = false;
     
+    return img;
+}
+
+
+laure_typedecl *typedecl_copy(laure_typedecl *td) {
+    laure_typedecl *tdn = laure_alloc(sizeof(laure_typedecl));
+    *tdn = *td;
+    return tdn;
+}
+
+struct PredicateImage *predicate_copy(struct PredicateImage *image) {
+    struct PredicateImage *img = laure_alloc(sizeof(struct PredicateImage));
+    *img = *image;
+    img->header.resp = image->header.resp ? typedecl_copy(image->header.resp) : NULL;
+    img->header.args = laure_alloc(sizeof(laure_typeset));
+    img->header.args->length = image->header.args->length;
+    img->header.args->data = laure_alloc(sizeof(laure_typedecl) * image->header.args->length);
+    for (int i = 0; i < image->header.args->length; i++) {
+        img->header.args->data[i] = image->header.args->data[i];
+    }
+    memcpy(img->header.nestings, image->header.nestings, sizeof(uint) * image->header.args->length);
     return img;
 }
 
@@ -2836,6 +2858,8 @@ void predicate_addvar(
     pvs_push(set, piv);
 };
 
+#define or(nullable, alt) (nullable ? nullable : alt)
+
 string predicate_repr(Instance *ins) {
     char buff[128];
 
@@ -2851,15 +2875,16 @@ string predicate_repr(Instance *ins) {
 
     for (int i = 0; i < img->header.args->length; i++) {
         laure_typedecl td = img->header.args->data[i];
-        char argn[32];
+        char argn[64];
 
         if (td.t == td_instance) {
-            string n = img->header.args->data[i].instance->name;
+            string n = td.instance->name;
             strcpy(argn, n);
-            if (n == MOCK_NAME)
-                strcpy(argn, img->header.args->data[i].instance->doc);
+            if (n == MOCK_NAME) {
+                strncpy(argn, or(td.instance->doc, "..."), 64);
+            }
         } else if (td.t == td_generic) {
-            snprintf(argn, 32, "'%c'", img->header.args->data[i].generic);
+            snprintf(argn, 64, "'%c'", img->header.args->data[i].generic);
         }
 
         bool should_esc = argn[0] == '?' || argn[0] == '#';
@@ -2889,14 +2914,14 @@ string predicate_repr(Instance *ins) {
     }
 
     if (img->header.resp != NULL) {
-        char rs[32];
+        char rs[64];
         if (img->header.resp->t == td_instance) {
             string n = img->header.resp->instance->name;
             strcpy(rs, n);
             if (n == MOCK_NAME)
-                strcpy(rs, img->header.resp->instance->doc);
+                strncpy(rs, img->header.resp->instance->doc, 64);
         } else if (img->header.resp->t == td_generic) {
-            snprintf(rs, 32, "'%c'", img->header.resp->generic);
+            snprintf(rs, 64, "'%c'", img->header.resp->generic);
         } else if (img->header.resp->t == td_auto) {
             switch (img->header.resp->auto_type) {
                 case AUTO_ID: strcpy(rs, AUTO_ID_NAME); break;
@@ -3311,8 +3336,7 @@ predicate_bound_types_result laure_dom_predicate_bound_types(
     copy->header.args->data = laure_alloc(sizeof(laure_typedecl) * unbound->header.args->length);
     copy->header.resp = NULL;
     copy->header.response_nesting = 0;
-    copy->header.nestings = laure_alloc(sizeof(uint) * unbound->header.args->length);
-    memset(copy->header.nestings, 0, unbound->header.args->length);
+    memset(copy->header.nestings, 0, MAX_ARGS);
 
     bool is_set[LAURE_PREDICATE_ARGC_MAX];
     memset(is_set, 0, LAURE_PREDICATE_ARGC_MAX);

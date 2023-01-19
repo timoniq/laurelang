@@ -15,3 +15,16 @@
     arr ~ p[][];
     abstract_nesting(x) = arr;
 }
+
+: ##translator_test('T', 'R', (?('T', (?('T'[]) -> 'R'[]))  -> 'R')).
+
+-- "?(int, (?(int[]) -> char[])) -> char"
+-- "#translator_test('T', 'R', (?('T', (?('T'[]) -> 'R'[]))  -> 'R'))"
+: #test_abstract_type_resolver(string).
+#test_abstract_type_resolver(r) {
+    int_ ~ int;
+    char_ ~ char;
+    translator_test(int_, char_, x);
+    r = repr(x);
+}
+#test_abstract_type_resolver(repr(translator_test)).

@@ -235,7 +235,7 @@ $ divmod_t {
 : ?from('T'[], index_t) -> 'T'[].
 ?from(arr, 0) -> arr.
 ?from(arr, n) -> tail {
-    n = between(0, length(arr))?;
+    n = ..(1, length(arr))?;
     s ~ T[n];
     append(s, tail) = arr;
 }

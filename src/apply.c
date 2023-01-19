@@ -136,7 +136,7 @@ void strrev_via_swap(string s) {
 }
 
 Instance *get_nested_instance(Instance *atom, uint nesting, laure_scope_t *scope) {
-    if (nesting == 0) return atom;
+    if (nesting == 0) return instance_shallow_copy(atom);
 
     assert(atom != NULL);
     if (!NESTED_DOC_AUTOGEN) {
@@ -184,7 +184,8 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
     if (predicate_exp->ba->has_resp) all_count--;
 
     uint idx = 0;
-    uint *nestings = laure_alloc(sizeof(void*) * (all_count - predicate_exp->ba->body_len));
+    uint nestings[MAX_ARGS];
+    memset(nestings, 0, sizeof(uint) * MAX_ARGS);
 
     for (int i = predicate_exp->ba->body_len; i < all_count; i++) {
         laure_expression_t *aexp = laure_expression_set_get_by_idx(predicate_exp->ba->set, i);
@@ -268,7 +269,7 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
     }
 
     struct PredicateImage *img = predicate_header_new(predicate_exp->s, args_set, resp, predicate_exp->t == let_constraint);
-    img->header.nestings = nestings;
+    memcpy(img->header.nestings, nestings, sizeof(uint) * MAX_ARGS); // optimize: MAX_ARGS -> bodylen
     img->header.response_nesting = resp_nesting;
     return img;
 }
@@ -613,7 +614,7 @@ string consult_single(
             if (lastc(line) == '%') lastc(line) = '\r';
             string line_ = strdup(line);
             string o = LAURE_CURRENT_ADDRESS;
-            LAURE_CURRENT_ADDRESS = fname;
+            LAURE_CURRENT_ADDRESS = *ifp;
             apply_result_t result = fact_receiver(session, line_);
             if (result.status == apply_error) {
                 // result payload may be unset, todo! (error tracing)
