@@ -6,3 +6,6 @@
 
 -- Translator signature constraint
 : ##translator('T', 'R', (?('T') -> 'R')).
+
+-- Translator reverse signature constraint
+: ##rev_translator((?('T') -> 'R')) -> (?('R') -> 'T').

@@ -52,3 +52,17 @@ converter ~ (?(_, Field) -> string).
     table("users", fields);
     not_implemented();
 }
+
+-- macro concept (in progress)
+
+!declaration (`table` $name $$args) {
+    ==> ": $name($$args) -> ID";
+    vs = dict_values(args);
+    ==> "$name($vs) {
+        table(`$name`s, fields);
+        ...
+    }"
+}
+
+table user (string name, natural age).
+table book (string name, user author).

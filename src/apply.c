@@ -223,7 +223,7 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
                         return NULL;
                     laure_typeset_push_instance(args_set, arg);
                 }
-            } else if (aexp->t == let_pred) {
+            } else if (aexp->t == let_pred /* || aexp->t == let_constraint */) {
                 struct PredicateImage *pred = (struct PredicateImage*) laure_apply_pred(aexp, scope);
                 pred->is_primitive = true;
                 Instance *ins = instance_new(MOCK_NAME, aexp->fullstring, pred);
@@ -249,20 +249,34 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
         } else if (rexp->t == let_auto) {
             resp = laure_typedecl_auto_create((laure_auto_type)rexp->flag);
         } else {
-            string tname;
-            if (resp_nesting) {
-                Instance *to_nest = laure_scope_find_by_key(scope, rexp->s, true);
-                if (!to_nest) {
-                    return NULL;
+            if (rexp->t == let_name) {
+                if (str_eq(rexp->s, "_")) {
+                    resp = laure_typedecl_generic_create("X");
+                } else {
+                    string tname;
+                    if (resp_nesting) {
+                        Instance *to_nest = laure_scope_find_by_key(scope, rexp->s, true);
+                        if (!to_nest) {
+                            return NULL;
+                        }
+                        tname = get_nested_ins_name(to_nest, resp_nesting, scope);
+                    } else tname = rexp->s;
+                    Instance *resp_ins = laure_scope_find_by_key(scope, tname, true);
+                    if (! resp_ins) {
+                        printf("%s is undefined; cannot consult.\n", tname);
+                        return NULL;
+                    }
+                    resp = laure_typedecl_instance_create(resp_ins);
                 }
-                tname = get_nested_ins_name(to_nest, resp_nesting, scope);
-            } else tname = rexp->s;
-            Instance *resp_ins = laure_scope_find_by_key(scope, tname, true);
-            if (! resp_ins) {
-                printf("%s is undefined; cannot consult.\n", tname);
-                return NULL;
+            } else if (rexp->t == let_pred) {
+                struct PredicateImage *pred = (struct PredicateImage*) laure_apply_pred(rexp, scope);
+                pred->is_primitive = true;
+                Instance *ins = instance_new(MOCK_NAME, rexp->fullstring, pred);
+                ins->repr = predicate_repr;
+                resp = laure_typedecl_instance_create(ins);
+            } else {
+                resp = NULL;
             }
-            resp = laure_typedecl_instance_create(resp_ins);
         }
     } else {
         resp = NULL;

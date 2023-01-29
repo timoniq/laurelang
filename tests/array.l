@@ -314,3 +314,15 @@
 ?test_array_pkg_tail_or_all(x) {
     x = tail_or_all{int}([[1,2], [3,4,5], [6]]);
 }
+
+-- 2
+-- 0
+: ?test_array_nesting_count(int).
+?test_array_nesting_count(x) {
+    int[][] arr = [[1, 2, 3, 4, 5], [], []];
+    x = nesting_count(arr);
+}
+?test_array_nesting_count(x) {
+    i ~ int;
+    x = nesting_count(i);
+}

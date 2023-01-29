@@ -34,6 +34,10 @@
 #define further_with_decision_accuracy(A) do {return RESPOND_FALSE;} while (0)
 #endif
 
+int __x = 0;
+
+#define isolated if (true) 
+
 char *RESPN = NULL;
 char *CONTN = NULL;
 char *MARKER_NODELETE = NULL;
@@ -1109,11 +1113,23 @@ qresp laure_eval_image(
                     ins->repr = array_repr;
                     nesting--;
                 }
-                ins->name = strdup(new_var->s);
+                if (! str_eq(new_var->s, "_")) {
+                    ins->name = strdup(new_var->s);
+                }
                 ins->repr = array_repr;
             }
 
-            laure_scope_insert(scope, ins);
+            if (secondary_nesting > 0) {
+                Instance *unwrapped = laure_unwrap_nestings(ins, secondary_nesting);
+                if (! unwrapped) {
+                    return RESPOND_FALSE;
+                }
+                ins->image = unwrapped->image;
+                ins->repr = unwrapped->repr;
+            }
+            if (! str_eq(new_var->s, "_")) {
+                laure_scope_insert(scope, ins);
+            }
             return RESPOND_TRUE;
         } else
             RESPOND_ERROR(undefined_err, e, "both variables %s and %s are unknown", exp1->s, exp2->s);
@@ -1271,12 +1287,12 @@ Instance *get_derived_instance(laure_scope_t *scope, Instance *resolved_instance
 Instance *prepare_T_instance(laure_scope_t *scope, Instance *resolved, uint nesting) {
     Instance *prepared = laure_unwrap_nestings(resolved, nesting);
     if (! prepared) {
-        printf("Unable to unwrap nestings to perform generic preparation\n");
+        debug("Unable to unwrap nestings to perform generic preparation\n");
         return NULL;
     }
     prepared = get_derived_instance(scope, prepared);
     if (! prepared) {
-        printf("Unable to find what instance datatype was derived from; notice that atom datatype cannot be used in generic\n");
+        debug("Unable to find what instance datatype was derived from; notice that atom datatype cannot be used in generic\n");
         return NULL;
     }
     prepared = instance_shallow_copy(prepared);
@@ -2054,6 +2070,29 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             Instance *Generics[GENERIC_PLACES];
             memset(Generics, 0, sizeof(Instance*) * GENERIC_PLACES);
 
+            // resolve namespace
+            if (exp->link) {
+                Instance *T = Generics[count_generic_place_idx('T')];
+                if (! T)
+                    RESPOND_ERROR(internal_err, e, "namespace declaration can be used only within generic type");
+                
+                bool is_valid = false;
+                if (exp->link->t == let_array) {
+                    // union
+                    laure_expression_t *ptr;
+                    EXPSET_ITER(exp->link->ba->set, ptr, {
+                        if (check_namespace(scope, T, ptr)) {
+                            is_valid = true;
+                            break;
+                        }
+                    });
+                } else
+                    is_valid = check_namespace(scope, T, exp->link);
+                
+                if (! is_valid) continue;
+            }
+
+            // isolated {
             if (! laure_typeset_all_instances(pred_img->header.args)) {
                 int code;
                 for (int ax = 0; ax < pred_img->header.args->length; ax++) {
@@ -2075,28 +2114,6 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                         RESPOND_ERROR(internal_err, e, "invalid expression used as type clarification");
                     }
                 }
-            }
-
-            // resolve namespace
-            if (exp->link) {
-                Instance *T = Generics[count_generic_place_idx('T')];
-                if (! T)
-                    RESPOND_ERROR(internal_err, e, "namespace declaration can be used only within generic type");
-                
-                bool is_valid = false;
-                if (exp->link->t == let_array) {
-                    // union
-                    laure_expression_t *ptr;
-                    EXPSET_ITER(exp->link->ba->set, ptr, {
-                        if (check_namespace(scope, T, ptr)) {
-                            is_valid = true;
-                            break;
-                        }
-                    });
-                } else
-                    is_valid = check_namespace(scope, T, exp->link);
-                
-                if (! is_valid) continue;
             }
 
             laure_scope_t *nscope = laure_scope_new(scope->glob, prev);

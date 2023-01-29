@@ -44,3 +44,19 @@
     not_empty(y);
 }%
 ?tail_or_all(x) -> x.
+
+-- Relation between instance and nesting of its atom
+-- ```
+-- int[][] arr = [];
+-- nesting_count(arr) = x
+--     -> x = 2;
+-- ```
+: ?nesting_count('T') -> natural*.
+?nesting_count(x) -> 0 {
+    x ~ _[]
+        -> fail();
+}%
+?nesting_count(xn) -> count {
+    xn ~ x[];
+    count = 1 + nesting_count(x);
+}
