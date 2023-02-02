@@ -1,3 +1,5 @@
+!use std:arrays.
+
 *--
 relation between whole array,
 excluded index and array with excluded index
@@ -26,4 +28,17 @@ and popped element.
 ?pop(with, without, idx) -> element {
     with[idx] = element;
     without = excluded_idx(with, idx);
+}
+
+*--
+Determines array to sorted
+```
+stupid_sorted{int}([2,5,1]) = x
+```
+--*
+: ?stupid_sorted('T'[]) -> 'T'[].
+?stupid_sorted([]) -> [].
+?stupid_sorted(arr) -> srtd {
+    max_w_tail(arr, tail) = m;
+    srtd = linked(m, stupid_sorted(tail));
 }

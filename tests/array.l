@@ -326,3 +326,22 @@
     i ~ int;
     x = nesting_count(i);
 }
+
+-- [1, 5, 11]
+-- [1, 5, 1, 3, 4]
+: ?test_array_filter(int[]).
+?test_array_filter(xs) {
+    filter{int}([1,5,4,8,11], prime) = xs;
+}
+?test_array_filter(xs) {
+    filter{int[]}([[1, 5, 1], [1, 2, 2], [3, 4], []], no_repeat) = ys;
+    xs = flatten(ys);
+}
+
+-- ["hello", "cuties"]
+: ?test_array_without(string[]).
+?test_array_without(xs) {
+    string s1 = "of";
+    string s2 = "world";
+    without{string}(["hello", "world", "of", "cuties"], union{s1, s2}) = xs;
+}

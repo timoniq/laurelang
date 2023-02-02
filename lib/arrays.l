@@ -58,5 +58,19 @@
 }%
 ?nesting_count(xn) -> count {
     xn ~ x[];
-    count = 1 + nesting_count(x);
+    count = incr(nesting_count(x));
+}
+
+: ?without('T'[], 'T') -> 'T'[].
+?without([], _) -> [].
+?without([x|tail], wx) -> w {
+    x = wx -> fail();
+    append([x], without(tail, wx)) = w;
+}%
+?without([_|tail], x) -> without(tail, x).
+
+: ?max_w_tail('T'[], 'T'[]) -> 'T'.
+?max_w_tail(arr, tail) -> m {
+    max(arr) = m;
+    tail = without(arr, m);
 }

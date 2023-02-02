@@ -3,6 +3,16 @@ $Pair {
     string b;
 }
 
+*--
+With abstract k/v types:
+```
+$Pair {
+    'K' k;
+    'V' v;
+}
+```
+--*
+
 Dictionary ~ Pair[].
 
 *--

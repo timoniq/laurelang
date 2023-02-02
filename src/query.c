@@ -692,8 +692,6 @@ qresp laure_eval_assert(
                 struct ImageHead h = read_head(to->image);
                 struct ImageHead oldh = read_head(from->image);
 
-                if (h.t != oldh.t) return RESPOND_FALSE;
-
                 return image_equals(from->image, to->image, scope) ? RESPOND_TRUE : RESPOND_FALSE;
             } else {
                 // choicepoint is created

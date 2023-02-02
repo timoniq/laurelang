@@ -311,3 +311,23 @@ pred at{int} -10 = 10
     append([x], filter(tail, f)) = fs;
 }%
 ?filter([_|tail], f) -> filter(tail, f).
+
+: ?reverse_predicate((?('T') -> 'R')) -> (?('R') -> 'T').
+?reverse_predicate(pred) -> rev_pred {
+    -- constructor
+    not_implemented();
+}
+
+: ?incr(int) -> int.
+?incr(x) -> x + 1.
+
+: ?decr(int) -> int.
+?decr(x) -> x - 1.
+
+Image ~ @{int, char, atom, array}.
+
+: ?image('T') -> Image.
+?image(int) -> @int.
+?image(char) -> @char.
+?image(@{}) -> @atom.
+?image([|_]) -> @array.

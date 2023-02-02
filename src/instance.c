@@ -3028,10 +3028,13 @@ bool union_eq(laure_union_image *im1, void *im2) {
                 im1->B = NULL;
                 image_free(A->image);
                 im1->A->image = A_copy;
-            } else {
+            } else if (B) {
                 image_free(A);
                 im1->A = B;
                 im1->B = NULL;
+            } else {
+                image_free(A);
+                return false;
             }
         } else {
             result = false;
