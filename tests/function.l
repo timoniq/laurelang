@@ -95,7 +95,8 @@
 -- "101"
 : ?test_repr(string).
 ?test_repr(x) {
-    repr of int = x;
+    i ~ int;
+    repr of i = x;
 }
 ?test_repr(repr of test_repr).
 ?test_repr(x) {

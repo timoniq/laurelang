@@ -1944,7 +1944,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                     argexp->s, 
                     pf->c.hints[idx] ? decl : NULL, 
                     argexp, cpred_arg_recorder, 
-                    actx, false, NULL, 0, pred_img, true, NULL);
+                    actx, false, NULL, 0, pred_img, false, NULL);
 
                 ARGPROC_RES_(
                     res, 
