@@ -117,17 +117,17 @@ cons ~ never.
 ?format(fmt) -> __format(fmt).
 
 : ?-->('T', 'T'[]).
-?-->(from, to) when __bag(from, to).
+?-->(source, container) when __bag(source, container).
 
 : ?<--('T'[], 'T').
-?<--(to, from) when __bag(from, to).
+?<--(container, source) when __bag(source, container).
 
 : ?bagof('T') -> 'T'[].
-?bagof(from) -> to when __bag(from, to).
+?bagof(source) -> container when __bag(source, container).
 
 : ?sized_bagof(natural, 'T') -> 'T'[].
-?sized_bagof(size, from) -> to when
-    __bag_sz(from, to, size).
+?sized_bagof(size, source) -> container when
+    __bag_sz(source, container, size).
 
 -- working with arrays
 : ?by_idx('T'[], int) -> 'T',
@@ -329,5 +329,4 @@ Image ~ @{int, char, atom, array}.
 : ?image('T') -> Image.
 ?image(int) -> @int.
 ?image(char) -> @char.
-?image(@{}) -> @atom.
 ?image([|_]) -> @array.

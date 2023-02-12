@@ -1105,7 +1105,8 @@ laure_parse_result laure_parse(string query) {
                 else if (strlen(head)) {
                     snprintf(q, 128, "[%s]", head);
                 } else if (strlen(tail)) {
-                    snprintf(q, 128, "%s", tail);
+                    // check for array should remain
+                    snprintf(q, 128, "append([], %s)", tail);
                 } else {
                     strcpy(q, "[]");
                 }

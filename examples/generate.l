@@ -1,5 +1,5 @@
 : ?range(int, int) -> int[].
-?range(from, to) -> sized_bagof(to - from, (from .. to)?).
+?range(start, to) -> sized_bagof(to - start, (start .. to)?).
 
 : ?step(int, int) -> int.
 ?step(a, s) -> a + s.
@@ -10,4 +10,4 @@
 ?step_included(a, s) -> step(a, s).
 
 : ?range_step(int, int) -> int[].
-?range_step(from, s) -> bagof(step_included(from, s)).
+?range_step(start, s) -> bagof(step_included(start, s)).

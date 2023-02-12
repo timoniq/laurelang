@@ -1158,6 +1158,8 @@ Renames instance.
 !!! Non backtracable operation, 
     should only be performed right
     after private scope initialization.
+!!! Unsafe operation. Shouldn't be allowed
+    in parsed AST. Non-symmetrical
 =-------= */
 qresp laure_eval_rename(_laure_eval_sub_args) {
     assert(e->t == let_rename);
@@ -1167,6 +1169,14 @@ qresp laure_eval_rename(_laure_eval_sub_args) {
 
     ulong link1[1], link2[1];
 
+    // the problem is:
+    // when we say we only use local vars
+    // we get used names in global scope
+    // and for example `int[] arr = [1,2,3], append([], _) = arr`
+    // wont work because append declares its own arr
+    // otherwise when we prohibit them we get wrong answer on
+    // `image(string) = x` because it uses global locked instances to
+    // bind universum to atom
     Instance *v1 = laure_scope_find_by_key_l(scope, v1_exp->s, link1, false);
     Instance *v2 = laure_scope_find_by_key_l(scope, v2_exp->s, link2, false);
 
