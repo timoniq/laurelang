@@ -90,7 +90,7 @@ bool is_fine_name_for_var(string s) {
     if ((s[0] == '\'' && lastc(s) == '\'') || (s[0] == '"' && lastc(s) == '"')) return false;
     int ch = laure_string_char_at_pos(s, strlen(s), 0);
 
-    if (ch == '-' && laure_string_strlen(s) > 1) return false;
+    if (ch == '-' && sz != 1 && ! is_fine_name_for_var(s + 1)) return false;
 
     for (int i = 0; i < strlen(DIGITS); i++) {
         if (ch == DIGITS[i]) return false;

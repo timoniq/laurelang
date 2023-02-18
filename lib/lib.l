@@ -324,7 +324,7 @@ pred at{int} -10 = 10
 : ?decr(int) -> int.
 ?decr(x) -> x - 1.
 
-Image ~ @{int, char, atom, array}.
+Image ~ @{int, char, array}.
 
 : ?image('T') -> Image.
 ?image(int) -> @int.

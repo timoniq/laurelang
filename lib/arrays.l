@@ -74,3 +74,13 @@
     max(arr) = m;
     tail = without(arr, m);
 }
+
+-- Resolves instance to its atomic image to its dimension
+: ?dim_image('T', Image, natural*).
+?dim_image(ins, im, 0) {
+    image(ins) = im;
+    im = @array -> fail();
+}%
+?dim_image(ins, @array, n) {
+    n = nesting_count(ins);
+}

@@ -628,7 +628,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set 
             return laure_eval_structure(cctx, e, expset);
         }
         default: {
-            RESPOND_ERROR(internal_err, e, "can't evaluate {%s} in MAIN context", EXPT_NAMES[e->t]);
+            RESPOND_ERROR(internal_err, e, "can't evaluate `%s` in this context", EXPT_NAMES[e->t]);
         }
     }
 }
@@ -1180,16 +1180,24 @@ qresp laure_eval_rename(_laure_eval_sub_args) {
     Instance *v1 = laure_scope_find_by_key_l(scope, v1_exp->s, link1, false);
     Instance *v2 = laure_scope_find_by_key_l(scope, v2_exp->s, link2, false);
 
+    if (v1 && ! v2) {
+        v2 = laure_scope_find_by_key(scope->glob, v2_exp->s, false);
+        if (v2 && ! v2->locked)
+            v2 = NULL;
+    }
+
     if (!v1 && !v2) {
         return RESPOND_TRUE;
     } else if (v1 && v2) {
         if (v1 == v2) return RESPOND_TRUE;
+        return image_equals(v1->image, v2->image, scope) ? RESPOND_TRUE : RESPOND_FALSE;
+        /*
         else if (instantiated(v1) || instantiated(v2)) {
             return image_equals(v1->image, v2->image, scope) ? RESPOND_TRUE : RESPOND_FALSE;
         } else {
             laure_scope_change_link_by_key(scope, v2_exp->s, link1[0], false);
             return RESPOND_TRUE;
-        }
+        }*/
     } else {
         Instance *renamed = v1 ? v1 : v2;
         renamed->name = v1 ? v2_exp->s : v1_exp->s;
@@ -1361,7 +1369,8 @@ Instance *resolve_generic_T(
     Instance **Generics,
     struct PredicateHeaderImage header,
     laure_expression_set *set,
-    laure_scope_t *scope
+    laure_scope_t *scope,
+    int *code
 ) {
     if (header.resp) {
         laure_expression_t *rexp = laure_expression_set_get_by_idx(set, header.args->length);
@@ -1373,6 +1382,7 @@ Instance *resolve_generic_T(
                     debug("T resolved by response\n");
                     Instance *final =  prepare_T_instance(scope, resolved, nesting);
                     debug("Resolved instance: %s\n", final->repr(final));
+                    *code = 1;
                     return final;
                 }
             } else if (
@@ -1381,6 +1391,7 @@ Instance *resolve_generic_T(
                 && header.resp->t == td_instance 
                 && is_callable(header.resp->instance->image)
             ) {
+                *code = 0;
                 return resolve_via_signature(name, Generics, ((struct PredicateImage*)header.resp->instance->image)->header, resolved, scope);
             }
         }
@@ -1397,13 +1408,16 @@ Instance *resolve_generic_T(
                     debug("T resolved by argument %u\n", i);
                     Instance *final = prepare_T_instance(scope, resolved, nesting);
                     debug("Resolved instance: %s\n", final->repr(final));
+                    *code = 1;
                     return final;
                 }
             } else if (resolved && td.t == td_instance && is_callable(td.instance->image)) {
+                *code = 0;
                 return resolve_via_signature(name, Generics, ((struct PredicateImage*)td.instance->image)->header, resolved, scope);
             }
         }
     }
+    *code = 0;
     return NULL;
 }
 
@@ -1783,8 +1797,9 @@ int generic_process(
             }
         }
         if (! T) {
-            T = resolve_generic_T(td.generic, Generics, header, e->ba->set, scope);
-            if (! T) {
+            int code[1];
+            T = resolve_generic_T(td.generic, Generics, header, e->ba->set, scope, code);
+            if (! T && ! *code) {
                 string dname = laure_alloc(strlen(predicate_name) + 3);
                 strcpy(dname, "T:");
                 strcat(dname, predicate_name);
@@ -1797,6 +1812,8 @@ int generic_process(
                         return 1;
                 } else
                     return 3;
+            } else if (! T) {
+                return 4;
             }
         }
         Generics[place] = T;
@@ -2120,6 +2137,8 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
                         RESPOND_ERROR(signature_err, e, "unable to resolve generic datatype; add explicit cast or add hint to resolve");
                     } else if (code == 10) {
                         RESPOND_ERROR(internal_err, e, "invalid expression used as type clarification");
+                    } else if (code == 4) {
+                        return RESPOND_FALSE;
                     }
                 }
             }

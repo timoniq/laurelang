@@ -345,3 +345,11 @@
     string s2 = "world";
     without{string}(["hello", "world", "of", "cuties"], union{s1, s2}) = xs;
 }
+
+: ?test_array_check().
+?test_array_check() {
+    int a = 10;
+    int[] arr = [1,2,3];
+    a = [|_] -> fail();
+    arr = [|_];
+}
