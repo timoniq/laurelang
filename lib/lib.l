@@ -329,4 +329,6 @@ Image ~ @{int, char, array}.
 : ?image('T') -> Image.
 ?image(int) -> @int.
 ?image(char) -> @char.
-?image([|_]) -> @array.
+?image(x) -> @array {
+    x ~ _[];
+}

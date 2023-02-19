@@ -55,10 +55,10 @@ converter ~ (?(_, Field) -> string).
 
 -- macro concept (in progress)
 
-!declaration (`table` $name $$args) {
-    ==> ": $name($$args) -> ID";
+!macro (`table` $name $$args) {
+    : ": $name($$args) -> ID";
     vs = dict_values(args);
-    ==> "$name($vs) {
+    : "$name($vs) {
         table(`$name`s, fields);
         ...
     }"
