@@ -333,6 +333,9 @@ Image ~ @{int, char, array}.
     x ~ _[];
 }
 
+-- Determines 1-arity predicate with its solution
+-- to boolean considering solution validity
+-- `as_boolean(prime, x) = @false` - to declare x as non-prime number
 : ?as_boolean((?('T')), 'T') -> boolean.
 ?as_boolean(f, arg) -> b {
     b = @true;
