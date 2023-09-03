@@ -15,6 +15,9 @@
 #define erase printf("\33[2K\r")
 #define PATH_MAX 1024
 
+#define CMD_CHAR '.'
+#define CMD_EMPTY_STR "."
+
 #define str_starts(s, start) (strncmp(start, s, strlen(start)) == 0)
 
 // Laurelang interpreter along with abstract machine
@@ -176,8 +179,8 @@ int laure_process_query(laure_session_t *session, string line) {
     
     string startline = strdup(line);
 
-    if (line[0] == '.') {
-        if (str_eq(line, ".")) {up; erase; return 1;}
+    if (line[0] == CMD_CHAR) {
+        if (str_eq(line, CMD_EMPTY_STR)) {up; erase; return 1;}
         args_parsed args = args_parse(line);
         bool found = false;
         for (int i = 0; i < sizeof(commands) / sizeof(struct cmd_info); i++) {

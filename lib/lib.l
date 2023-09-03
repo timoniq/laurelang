@@ -332,3 +332,14 @@ Image ~ @{int, char, array}.
 ?image(x) -> @array {
     x ~ _[];
 }
+
+: ?as_boolean((?('T')), 'T') -> boolean.
+?as_boolean(f, arg) -> b {
+    b = @true;
+    f(arg);
+}
+?as_boolean(f, arg) -> b {
+    b = @false;
+    arg?;
+    f(arg) -> fail();
+}
