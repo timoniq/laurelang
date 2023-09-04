@@ -90,7 +90,7 @@ test:
 	./$(TARGET) "<test>" tests \
 	-q "tests_run()" \
 	-D skip="test_pred_.*;test_nested_2" \
-	-norepl -signal --ignore
+	--norepl --signal --ignore
 
 auto:
 	@make clean

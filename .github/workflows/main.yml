@@ -27,7 +27,7 @@ jobs:
       
       - name: Say hello
         run: |
-          ./laure -q 'message("hello")' -norepl
+          ./laure -q 'message("hello")' --norepl
       
       - name: Run tests
         run: make test

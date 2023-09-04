@@ -42,17 +42,17 @@ const struct laure_flag flags[] = {
     // 0
     {1, "-f", "Set main filename", true},
     {2, "-q", "Startup query", true},
-    {3, "-norepl", "Don't run REPL after startup", false},
+    {3, "--norepl", "Don't run REPL after startup", false},
     {4, "--version", "Show version and quit", false},
-    {5, "-clean", "Do not load std", false},
-    {6, "-signal", "Usage with -q <..>, returns error code if predicate fails", false},
+    {5, "--clean", "Do not load std", false},
+    {6, "--signal", "Usage with -q <..>, returns error code if predicate fails", false},
     {7, "--library", "Manually set lib_path", true},
     {8, "-D", "Add dyn flag. Format var=value", true},
-    {9, "-nomain", "Do not run main predicate", false},
+    {9, "--nomain", "Do not run main predicate", false},
     {10, "--ignore", "Ignore consultation failures", false},
-    {11, "-ws", "Enable weighted search", false},
-    {12, "-b", "Consult bytecode", true},
-    {12, "-bytecode", "Consult bytecode", true}
+    {11, "--ws", "Enable weighted search", false},
+    {12, "--b", "Consult bytecode", true},
+    {12, "--bytecode", "Consult bytecode", true}
 };
 
 struct cmd_info {
