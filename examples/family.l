@@ -1,6 +1,6 @@
 !use std:datetime.
 
-date today = (27, 08, 2022).
+date today = (28, 01, 2024).
 gender ~ @{male, female}.
 
 : ?person(string, gender, date) -> ID,

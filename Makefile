@@ -32,9 +32,6 @@ LIB = src/parser.o \
 	  src/apply.o \
 	  src/error.o \
 	  src/backtrace.o \
-	  compiler/compiler.o \
-	  compiler/cli.o \
-	  compiler/runtime.o \
 	  src/weight.o \
 	  src/order.o \
 	  src/alloc.o \

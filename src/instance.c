@@ -2390,8 +2390,10 @@ void *image_deepcopy(void *img) {
         case UNION: {
             return union_deepcopy((laure_union_image*)img);
         }
-        default:
+        default: {
+            printf("Cannot make a deepcopy of %d\n", head.t);
             break;
+        }
     }
     return NULL;
 }
@@ -2479,6 +2481,9 @@ void image_free(void *image) {
 }
 
 Instance *instance_deepcopy(string name, Instance *from_instance) {
+    if (name == NULL || from_instance->image == NULL) {
+        return instance_new(strdup("invalid"), NULL, laure_create_integer_u(int_domain_new()));
+    }
     if (from_instance == NULL) return from_instance;
     Instance *instance = laure_alloc(sizeof(Instance));
     instance->doc = from_instance->doc;

@@ -472,6 +472,7 @@ ulong laure_set_heap_value(Instance *value, uint id) {
     return (ulong)(VAR_LINK_LIMIT + id);
 }
 
+/*
 Instance *laure_search_heap_value_by_name(string name) {
     for (uint i = LAURE_COMPILER_ID_OFFSET; i < ID_MAX; i++) {
         if (! HEAP_TABLE[i]) continue;
@@ -479,7 +480,10 @@ Instance *laure_search_heap_value_by_name(string name) {
     }
     return NULL;
 }
+*/
 
+/*
 void laure_heap_add_value(Instance *value) {
     HEAP_TABLE[LAURE_COMPILER_ID_OFFSET + HEAP_RUNTIME_ID++] = value;
 }
+*/

@@ -14,6 +14,7 @@ qresp laure_predicate_sqrt(preddata*, control_ctx*);
 qresp laure_predicate_message(preddata*, control_ctx*);
 qresp laure_predicate_repr(preddata*, control_ctx*);
 qresp laure_predicate_format(preddata*, control_ctx*);
+qresp laure_constraint_instantiated(preddata*, control_ctx*);
 
 qresp laure_predicate_bag(preddata*, control_ctx*);
 

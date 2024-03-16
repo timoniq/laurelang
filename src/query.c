@@ -571,6 +571,7 @@ qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set 
     qcontext *qctx = cctx->qctx;
 
     debug("evaluating expression %s\n", EXPT_NAMES[e->t]);
+    laure_expression_show(e, 0);
 
     switch (e->t) {
         case let_assert: {
@@ -1799,6 +1800,7 @@ int generic_process(
         if (! T) {
             int code[1];
             T = resolve_generic_T(td.generic, Generics, header, e->ba->set, scope, code);
+            
             if (! T && ! *code) {
                 string dname = laure_alloc(strlen(predicate_name) + 3);
                 strcpy(dname, "T:");

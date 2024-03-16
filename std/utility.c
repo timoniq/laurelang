@@ -311,3 +311,11 @@ DECLARE(laure_predicate_format) {
     }
     return False;
 }
+
+DECLARE(laure_constraint_instantiated) {
+    Instance *x = pd_get_arg(pd, 0);
+
+    printf("instantiated %d\n", x->image != NULL);
+
+    return from_boolean(instantiated(x));
+}

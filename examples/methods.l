@@ -1,5 +1,7 @@
-: ?inc(int) -> int,
-  ?flatten_('T'[][]) -> 'T'[].
+: ?inc(int) -> int.
+
+!ordering.
+: ?flatten_('T'[][]) -> 'T'[].
 
 ?inc(x) -> x + 1.
 

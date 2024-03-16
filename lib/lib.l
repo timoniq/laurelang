@@ -51,7 +51,9 @@ index_t ~ natural*.
 ?+(x, y) -> x __+ y.
 ?-(y + z, y) -> z.
 ?*(x, y) -> x __* y.
-?/(x * y, y) -> x.
+?/(x * y, y) -> x {
+    y = 0 -> fail();
+}
 
 -- math `sqrt` predicate
 : ?sqrt(int) -> int.
@@ -184,7 +186,6 @@ cons ~ never.
 : ?flatten('T'[]) -> 'T'.
 
 ?flatten([]) -> [].
-?flatten([x]) -> x.
 
 ?flatten(array) -> flattened {
     linked(head, tail) = array;
@@ -345,4 +346,11 @@ Image ~ @{int, char, array}.
     b = @false;
     arg?;
     f(arg) -> fail();
+}
+
+: #instantiated(_).
+
+#instantiated(x) { 
+    message("internal wrapper");
+    __instantiated(x);
 }

@@ -4,8 +4,6 @@
 #include <readline/readline.h>
 #include <errno.h>
 #include <signal.h>
-#include <signal.h>
-#include "compiler/compiler.h"
 
 #include <unistd.h>
 
@@ -463,7 +461,6 @@ string readline_wrapper() {
     return readline(DPROMPT);
 }
 
-int laure_compiler_cli(laure_session_t *comp_session, int argc, char *argv[]);
 
 int main(int argc, char *argv[]) {
     signal(SIGINT, sigint_handler);
@@ -508,12 +505,16 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    /*
+
     if (argc >= 2 && str_eq(argv[1], "compile")) {
         laure_session_t comp_session[1];
         comp_session->scope = NULL;
         memset(comp_session->_included_filepaths, 0, included_fp_max * sizeof(void*));
         return laure_compiler_cli(comp_session, argc - 2, argv + 2);
     }
+
+    */
 
     for (int idx = 0; idx < argc; idx++) {
         string str = argv[idx];
@@ -628,19 +629,6 @@ int main(int argc, char *argv[]) {
     laure_set_translators();
     laure_init_name_buffs();
     laure_register_builtins(session);
-
-    if (BYTECODE_N) {
-        debug("%d bytecode source(s) should be loaded\n", BYTECODE_N);
-        for (uint i = 0; i < BYTECODE_N; i++) {
-            FILE *file = BYTECODE[i];
-            debug("loading source n %d\n", i);
-            if (file) {
-                laure_consult_bytecode(session, file);
-                fclose(file);
-            }
-        }
-        printf("  %sBytecode Sources%s: consulted\n", GREEN_COLOR, NO_COLOR);
-    }
 
     if (! FLAG_CLEAN) {
         string lp = FLAG_LIBRARY ? FLAG_LIBRARY : lib_path;

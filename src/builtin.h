@@ -41,6 +41,7 @@ const laure_builtin_predicate BUILTIN_PREDICATES[] = {
     {"__append", laure_predicate_append, 2, "builtin array append predicate", {"to_arr:_ with_arr:_", "_"}, false},
     {"__map", laure_predicate_map, 2, "builtin map", {"arr:_ mapping:_", "_"}, false},
     {"union", laure_contraint_union, 2, "union constraint", {"t1:_ t2:_", "_"}, true},
+    {"__instantiated", laure_constraint_instantiated, 1, "builtin instantiated constraint", {"x:_", NULL}, true},
 };
 
 void laure_register_builtins(laure_session_t*);

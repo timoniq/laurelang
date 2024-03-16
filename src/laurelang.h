@@ -58,8 +58,8 @@ extern uint HEAP_RUNTIME_ID;
 
 // returns link to access from scope
 ulong laure_set_heap_value(Instance *value, uint id);
-Instance *laure_search_heap_value_by_name(string name);
-void laure_heap_add_value(Instance *value);
+// Instance *laure_search_heap_value_by_name(string name);
+// void laure_heap_add_value(Instance *value);
 
 #ifdef SCOPE_LINKED
 

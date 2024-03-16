@@ -16,3 +16,4 @@ examples/_*.l
 LOCAL_CLG
 app
 .idea
+local_*
