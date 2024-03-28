@@ -24,8 +24,10 @@
 
 -- Determines two arrays to longest one
 : ?longest_of_two('T'[], 'T'[]) -> 'T'[].
-?longest_of_two(x, y) -> x when length(x) >= length(y).
-?longest_of_two(x, y) -> y when length(x) <= length(y).
+?longest_of_two(x, y) -> x {
+    length(x) >= length(y);
+}%
+?longest_of_two(x, y) -> y.
 
 -- Determines array of arrays to longest one
 : ?longest('T'[][]) -> 'T'[].
