@@ -24,8 +24,12 @@
 
 -- Determines two arrays to longest one
 : ?longest_of_two('T'[], 'T'[]) -> 'T'[].
+?longest_of_two(x, y) -> z {
+    length(x) = length(y);
+    z = x | y;
+}%
 ?longest_of_two(x, y) -> x {
-    length(x) >= length(y);
+    length(x) > length(y);
 }%
 ?longest_of_two(x, y) -> y.
 

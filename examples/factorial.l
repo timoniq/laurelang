@@ -1,7 +1,7 @@
-: ?fac(int) -> int.
+: ?fac(natural*) -> natural.
 
 ?fac(0) -> 1.
 ?fac(n) -> f {
-    n > 0; n?;
+    n?; n > 0;
     f = n * fac(n - 1);
 }
