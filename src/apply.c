@@ -16,6 +16,8 @@
 #define DOC_BUFFER_LEN 512
 #endif
 
+Instance *HEAP_TABLE[ID_MAX];
+
 short int LAURE_ASK_IGNORE = 0;
 char     *NESTED_DOC_AUTOGEN = NULL;
 Instance *_TEMP_PREDCONSULT_LAST = NULL;

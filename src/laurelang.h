@@ -33,7 +33,7 @@ typedef struct laure_instance {
 } Instance;
 
 typedef struct laure_control_ctx control_ctx;
-jmp_buf JUMPBUF;
+extern jmp_buf JUMPBUF;
 
 /* =-----------=
      Scope
@@ -52,8 +52,7 @@ jmp_buf JUMPBUF;
 access: when var->flag2 is greater than VAR_LINK_LIMIT
 var is accessed from heap with ID = var->flag2 - VAR_LINK_LIMIT
 */
-Instance *HEAP_TABLE[ID_MAX];
-
+extern Instance *HEAP_TABLE[ID_MAX];
 extern uint HEAP_RUNTIME_ID;
 
 // returns link to access from scope
