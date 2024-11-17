@@ -29,6 +29,8 @@
 #define LL_PRE_RELEASE ""
 #endif
 
+jmp_buf JUMPBUF;
+
 struct laure_flag {
     int    id;
     char  *name;

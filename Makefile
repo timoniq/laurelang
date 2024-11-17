@@ -11,7 +11,7 @@ CFLAGS = -Isrc \
 		 -Wno-incompatible-pointer-types-discards-qualifiers \
 		 -DGIT_VER='$(GIT_VER)'
 
-LDFLAGS = -L/usr/local/lib -Isrc -lreadline -lm -g -ldl -DGIT_VER='$(GIT_VER)'
+LDFLAGS = -L/usr/local/lib -Isrc -lreadline -lm -g -ldl -DGIT_VER='$(GIT_VER)' -luuid
 
 ifeq ($(UNAME), Linux)
 	LDFLAGS := $(LDFLAGS) -luuid
