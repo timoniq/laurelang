@@ -56,6 +56,7 @@ typedef struct {
     void *im;
     void *im2;
     GenArrayCtx *gac;
+    unsigned long name_link;  // Name link for observer notifications
 } GenCtx;
 
 typedef struct {
@@ -85,6 +86,7 @@ typedef struct laure_typeset {
 } laure_typeset;
 
 laure_typeset *laure_typeset_new();
+void laure_typeset_free(laure_typeset *typeset);
 void laure_typeset_push_instance(laure_typeset *ts, Instance *instance);
 void laure_typeset_push_decl(laure_typeset *ts, string generic_name);
 void laure_typeset_push_auto(laure_typeset *ts, laure_auto_type auto_type);
@@ -238,6 +240,14 @@ struct ArrayUData {
     Domain *length;
 };
 
+// Solution collection data for arrays
+struct ArrayCollectionData {
+    Instance **observed_vars;     // Variables being observed for solutions
+    uint observed_count;          // Number of observed variables  
+    array_linked_t *solutions;    // Collected solution tuples
+    uint solution_count;          // Number of collected solutions
+};
+
 // `T[]` image
 // T - .arr_el
 struct ArrayImage {
@@ -247,10 +257,12 @@ struct ArrayImage {
     unsigned long length_lid;
     uint ref_count;
     ref_element *ref;
+    bool is_solution_collector;   // Flag for solution collection mode
     union {
         struct ArrayIData i_data;
         struct ArrayUData u_data;
         multiplicity *mult;
+        struct ArrayCollectionData c_data;  // Collection mode data
     };
 };
 
@@ -323,7 +335,11 @@ typedef struct laure_control_ctx {
     var_process_kit* vpk;
     void*           data;
     bool          silent, no_ambig, this_break;
+    bool          validating_completeness; // Set when validating user's completeness claim
+    bool          validation_failed;     // Set when validation detects user was wrong
     ulong cut; // scope id to cut up to
+    uint recursion_depth; // Track recursion depth to prevent stack overflow
+    uint max_recursion_depth; // Maximum allowed recursion depth
 #ifndef DISABLE_WS
     laure_ws *ws;
 #endif
@@ -506,6 +522,15 @@ struct CharImage *laure_create_charset(string charset);
 
 struct ArrayImage *laure_create_array_u(Instance *el_t);
 
+// Solution collection for arrays
+void register_array_observer(unsigned long var_link, struct ArrayImage *array);
+void notify_array_observers(unsigned long var_link, Instance *variable);
+void collect_solution_from_array(struct ArrayImage *array);
+
+// General name observer system
+void register_name_observer(unsigned long name_link, void *observer);
+void notify_name_observers(unsigned long name_link, Instance *instance);
+
 struct AtomImage *laure_atom_universum_create(multiplicity *mult);
 
 struct PredicateImage *predicate_header_new(string bound_name, laure_typeset *args, laure_typedecl *resp, bool is_constraint);
@@ -542,13 +567,7 @@ gen_resp image_generate(laure_scope_t*, void*, gen_resp (*rec)(void*, void*), vo
 struct ArrayIData convert_string(string unicode_str, laure_scope_t* scope);
 int convert_to_string(struct ArrayIData i_data, string buff);
 
-// translators
-
-bool int_translator(laure_expression_t*, void*, laure_scope_t*, ulong);
-bool char_translator(laure_expression_t*, void*, laure_scope_t*, ulong);
-bool array_translator(laure_expression_t*, void*, laure_scope_t*, ulong);
-bool atom_translator(laure_expression_t*, void*, laure_scope_t*, ulong);
-bool structure_translator(laure_expression_t*, void*, laure_scope_t*, ulong);
+// translators (declarations moved to line ~627)
 
 // translator (a tool to work with macro_string to image conversions)
 
@@ -609,7 +628,7 @@ qresp        image_control     (void *inst_img, control_ctx* ctx);
 
 // used to determine if image/instance is instantiated or not
 bool image_instantiated(void *image);
-bool instantiated(Instance*);
+bool instantiated(Instance *ins);
 
 string union_repr(Instance *ins);
 bool union_eq(laure_union_image *im1, void *im2);
@@ -624,11 +643,11 @@ void union_free(laure_union_image *img);
 
 // translators
 
-bool int_translator(laure_expression_t*, void*, laure_scope_t *scope, ulong);
-bool char_translator(laure_expression_t*, void*, laure_scope_t *scope, ulong);
-bool array_translator(laure_expression_t*, void*, laure_scope_t *scope, ulong);
-bool string_translator(laure_expression_t*, void*, laure_scope_t *scope, ulong);
-bool atom_translator(laure_expression_t*, void*, laure_scope_t *scope, ulong);
+bool int_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, ulong link);
+bool char_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, ulong link);
+bool array_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, ulong link);
+bool string_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, ulong link);
+bool atom_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, ulong link);
 
 multiplicity *translate_to_multiplicity(
     laure_expression_t*, 
@@ -652,7 +671,7 @@ string structure_repr(Instance*);
 string structure_repr_detailed(Instance*, laure_scope_t*);
 // --
 
-bool image_equals(void*, void*, laure_scope_t*);
+bool image_equals(void *img1, void *img2, laure_scope_t *scope);
 void image_free(void*);
 char convert_escaped_char(char c);
 
@@ -661,8 +680,8 @@ char convert_escaped_char(char c);
 void write_atom_name(string r, char *write_to);
 
 // checks for predicates
-bool is_array_of_int(Instance*);
-bool is_int(Instance*);
+bool is_array_of_int(Instance *ins);
+bool is_int(Instance *ins);
 
 bool int_check(void *img_, bigint *bi);
 

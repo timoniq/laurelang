@@ -44,8 +44,15 @@ DECLARE(laure_predicate_integer_plus) {
         INT_ASSIGN(var1_im, bi);
         return True;
 
+    } else if (!var1_i && !var2_i && sum_i) {
+        // Postpone execution until one variable gets instantiated
+        // This allows the system to generate values for var1, then call this predicate again
+        // where the case var1_i && !var2_i && sum_i will compute var2 = sum - var1
+        return RESPOND_INSTANTIATE_FIRST(0); // Request var1 to be instantiated first
+        
     } else {
-        return respond(q_error, "op. int +|-: too ambiguative; unify");
+        // Other underconstrained cases  
+        return True;
     }
 }
 
@@ -100,8 +107,7 @@ DECLARE(laure_constraint_gt) {
         int_domain_lt(gt_im->u_data, v);
         return True;
     } else {
-        printf("todo gt indefinite\n");
-        return True;
+        return Error("too ambiguative");
     }
 }
 
@@ -149,8 +155,7 @@ DECLARE(laure_constraint_gte) {
         int_domain_lt(gt_im->u_data, v);
         return True;
     } else {
-        printf("todo gte indefinite\n");
-        return True;
+        return Error("too ambiguative");
     }
 }
 
@@ -232,7 +237,7 @@ DECLARE(laure_predicate_integer_multiply) {
         INT_ASSIGN(var1_im, bi);
         return True;
     } else {
-        return respond(q_error, "op. int *|/: too ambiguative; unify");
+        return RESPOND_INSTANTIATE_FIRST(0);
     }
 }
 

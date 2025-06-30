@@ -1,5 +1,9 @@
 #include "laureimage.h"
+#include "memguard.h"
 #include <uuid/uuid.h>
+
+// Forward declaration for name observer notification
+void notify_name_observers(unsigned long name_link, Instance *name_instance);
 
 struct Translator *INT_TRANSLATOR        = NULL, 
                   *CHAR_TRANSLATOR       = NULL, 
@@ -142,6 +146,8 @@ bool int_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, u
 
     if (_temp) {
         // Domain declared
+        MEMGUARD_CLEANUP_CONTEXT(cleanup);
+        
         bool left_secl = false;
         bool left_minus = false;
         bool right_secl = false;
@@ -157,8 +163,13 @@ bool int_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, u
             raw++;
         }
 
-        string left = laure_alloc(strlen(raw) - strlen(_temp));
+        string left = MEMGUARD_ALLOC(&cleanup, strlen(raw) - strlen(_temp) + 1);
+        if (!left) {
+            MEMGUARD_CLEANUP(&cleanup);
+            return false;
+        }
         strncpy(left, raw, strlen(raw) - strlen(_temp));
+        left[strlen(raw) - strlen(_temp)] = '\0';
 
         _temp = _temp + 2;
 
@@ -175,25 +186,39 @@ bool int_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, u
             right_n--;
         }
 
-        string right = laure_alloc(right_n);
+        string right = MEMGUARD_ALLOC(&cleanup, right_n + 1);
+        if (!right) {
+            MEMGUARD_CLEANUP(&cleanup);
+            return false;
+        }
         strncpy(right, _temp, right_n);
+        right[right_n] = '\0';
 
         for (int i = 0; i < strlen(left); i++) 
             if (!char_isnumber(left[i])) {
-                laure_free(left); laure_free(right);
+                MEMGUARD_CLEANUP(&cleanup);
                 return false;
             };
         
         for (int i = 0; i < strlen(right); i++) 
             if (!char_isnumber(right[i])) {
-                laure_free(left); laure_free(right);
+                MEMGUARD_CLEANUP(&cleanup);
                 return false;
             };
 
         Domain *new_domain = int_domain_new();
+        if (!new_domain) {
+            MEMGUARD_CLEANUP(&cleanup);
+            return false;
+        }
+        MEMGUARD_REGISTER(&cleanup, new_domain);
 
         if (strlen(left)) {
-            bigint *bi_left = laure_alloc(sizeof(bigint));
+            bigint *bi_left = MEMGUARD_ALLOC(&cleanup, sizeof(bigint));
+            if (!bi_left) {
+                MEMGUARD_CLEANUP(&cleanup);
+                return false;
+            }
             bigint_init(bi_left);
             bigint_from_str(bi_left, left);
             if (left_minus) bigint_negate(bi_left);
@@ -202,7 +227,11 @@ bool int_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, u
         }
 
         if (strlen(right)) {
-            bigint *bi_right = laure_alloc(sizeof(bigint));
+            bigint *bi_right = MEMGUARD_ALLOC(&cleanup, sizeof(bigint));
+            if (!bi_right) {
+                MEMGUARD_CLEANUP(&cleanup);
+                return false;
+            }
             bigint_init(bi_right);
             bigint_from_str(bi_right, right);
             if (right_minus) bigint_negate(bi_right);
@@ -212,6 +241,9 @@ bool int_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, u
 
         img->state = U;
         img->u_data = new_domain;
+        /* Transfer ownership to img */
+        MEMGUARD_TRANSFER_OWNERSHIP(&cleanup);
+        MEMGUARD_CLEANUP(&cleanup);
         return true;
     }
 
@@ -223,6 +255,8 @@ bool int_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope, u
         if (!char_isnumber(raw[i])) return false;
     
     bigint *bi = laure_alloc(sizeof(bigint));
+    if (!bi) return false;
+    
     bigint_init(bi);
     bigint_from_str(bi, raw);
 
@@ -319,12 +353,21 @@ gen_resp int_generator(bigint* i, void *ctx_) {
     img->i_data = i;
     img->state = I;
     img->translator = INT_TRANSLATOR;
+    
+    // Notify observers when a name gets a domain value assigned
+    if (ctx->name_link != 0) {
+        Instance *name_instance = laure_alloc(sizeof(Instance));
+        name_instance->image = img;
+        notify_name_observers(ctx->name_link, name_instance);
+        laure_free(name_instance);
+    }
+    
     gen_resp gr = (ctx->rec)(img, ctx->external_ctx);
     laure_free(img);
     return gr;
 }
 
-gen_resp int_generate(laure_scope_t *scope, struct IntImage *im, REC_TYPE(rec), void *external_ctx) {
+gen_resp int_generate(laure_scope_t *scope, struct IntImage *im, REC_TYPE(rec), void *external_ctx, Instance *bound_instance) {
     if (im->state == I) {
         // integer has only one value
         return rec(im, external_ctx);
@@ -334,6 +377,14 @@ gen_resp int_generate(laure_scope_t *scope, struct IntImage *im, REC_TYPE(rec), 
         gctx->scope = scope;
         gctx->external_ctx = external_ctx;
         gctx->rec = rec;
+        // Get name link from bound instance for observer notifications
+        if (bound_instance && bound_instance->name) {
+            ulong link = 0;
+            laure_scope_find_by_key_l(scope, bound_instance->name, &link, true);
+            gctx->name_link = link;
+        } else {
+            gctx->name_link = 0;
+        }
         gen_resp gr =  int_domain_generate(im->u_data, int_generator, gctx);
         laure_free(gctx);
         return gr;
@@ -391,6 +442,10 @@ bool array_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope,
         if (! int_domain_check_int(array->u_data.length, (int)length))
             return false;
         
+        // Domain detection temporarily disabled to fix 'each of' regression
+        // TODO: Re-implement domain detection without breaking normal array functionality
+        
+        // Regular static array creation
         array_linked_t *first = NULL;
         array_linked_t *linked = NULL;
 
@@ -727,6 +782,12 @@ gen_resp array_generate(
     REC_TYPE(rec), 
     void *external_ctx
 ) {
+    // Handle solution-collecting arrays (disabled for now to prevent segfaults)
+    // if (im->is_solution_collector) {
+    //     // Solution collection disabled temporarily
+    //     return form_gen_resp(false, respond(q_false, NULL));
+    // }
+    
     if (im->state == I) {
         uint i = 0;
         array_linked_t *linked = im->i_data.linked;
@@ -2243,7 +2304,7 @@ void laure_set_translators() {
 
 // Image eq
 
-bool image_equals(void* img1, void* img2, laure_scope_t *scope) {
+bool image_equals(void *img1, void *img2, laure_scope_t *scope) {
     laure_image_head head1 = read_head(img1);
     laure_image_head head2 = read_head(img2);
 
@@ -2319,7 +2380,7 @@ gen_resp image_generate(
 
     switch (head.t) {
         case INTEGER: {
-            return int_generate(scope, (struct IntImage*) img, rec, external_ctx);
+            return int_generate(scope, (struct IntImage*) img, rec, external_ctx, bound_instance);
         }
         case CHAR: {
             return char_generate(scope, (struct CharImage*) img, rec, external_ctx);
@@ -2485,12 +2546,30 @@ Instance *instance_deepcopy(string name, Instance *from_instance) {
         return instance_new(strdup("invalid"), NULL, laure_create_integer_u(int_domain_new()));
     }
     if (from_instance == NULL) return from_instance;
-    Instance *instance = laure_alloc(sizeof(Instance));
+    
+    MEMGUARD_CLEANUP_CONTEXT(cleanup);
+    
+    Instance *instance = MEMGUARD_ALLOC(&cleanup, sizeof(Instance));
+    if (!instance) {
+        MEMGUARD_CLEANUP(&cleanup);
+        return NULL;
+    }
+    
     instance->doc = from_instance->doc;
     instance->image = image_deepcopy(from_instance->image);
+    if (!instance->image) {
+        MEMGUARD_CLEANUP(&cleanup);
+        return NULL;
+    }
+    MEMGUARD_REGISTER_IMAGE(&cleanup, instance->image);
+    
     instance->locked = false;
     instance->name = name;
     instance->repr = from_instance->repr;
+    
+    /* Transfer ownership */
+    MEMGUARD_TRANSFER_OWNERSHIP(&cleanup);
+    MEMGUARD_CLEANUP(&cleanup);
     return instance;
 };
 
@@ -2750,6 +2829,10 @@ laure_typeset *laure_typeset_new() {
     typeset->data = NULL;
     typeset->length = 0;
     return typeset;
+}
+
+void laure_typeset_free(laure_typeset *typeset) {
+    
 }
 
 void laure_typeset_push_instance(laure_typeset *ts, Instance *instance) {

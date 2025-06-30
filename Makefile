@@ -37,6 +37,8 @@ LIB = src/parser.o \
 	  src/alloc.o \
 	  src/pprint.o \
 	  src/import.o \
+	  src/memguard.o \
+	  src/repl.o \
 	  std/integer.c \
 	  std/utility.c \
 	  std/bag.c \
@@ -123,3 +125,5 @@ src/order.o: src/laurelang.h src/laureimage.h src/order.c
 src/alloc.o: src/laurelang.h src/alloc.c
 src/pprint.o: src/laurelang.h src/pprint.c
 src/import.o: src/laurelang.h src/import.c
+src/memguard.o: src/laurelang.h src/memguard.h src/memguard.c
+src/repl.o: src/laurelang.h src/repl.h src/repl.c

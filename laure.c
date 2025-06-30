@@ -1,9 +1,12 @@
 #include "laurelang.h"
 #include "laureimage.h"
 #include "predpub.h"
+#include "repl.h"
 #include <readline/readline.h>
+#include <readline/history.h>
 #include <errno.h>
 #include <signal.h>
+#include <sys/time.h>
 
 #include <unistd.h>
 
@@ -65,7 +68,7 @@ const struct cmd_info commands[] = {
     {1, ".quit", 0, "Quits laurelang REPL."},
     {2, ".help", 0, "Shows this message."},
     {3, ".flags", 0, "Shows all available flags for laure interpreter."},
-    {4, ".scope", 0, "Shows global scope values; needed for debug."},
+    {4, ".scope", 0, "Opens interactive scope browser"},
     // {5, ...},
     {6, ".doc", 1, "Shows documentation for object."},
     {7, ".about", 0, "Shows information about reasoning system."},
@@ -167,6 +170,31 @@ void sigint_handler(int _) {
 void init_backtrace();
 
 int laure_process_query(laure_session_t *session, string line) {
+    // Check for enhanced REPL commands first
+    if (laure_repl_is_special_command(line)) {
+        if (strcmp(line, ".clear") == 0) {
+            laure_repl_clear_screen();
+            return 1;
+        } else if (strcmp(line, ".history") == 0) {
+            printf("\n%sCommand History:%s\n", REPL_INFO_COLOR, REPL_RESET_COLOR);
+            int history_len = history_length;
+            for (int i = 1; i <= history_len; i++) {
+                HIST_ENTRY *entry = history_get(i);
+                if (entry && entry->line) {
+                    printf("%s%3d%s %s\n", REPL_HINT_COLOR, i, REPL_RESET_COLOR, entry->line);
+                }
+            }
+            printf("\n");
+            return 1;
+        } else if (strcmp(line, ".timing") == 0) {
+            laure_repl_toggle_feature("timing");
+            return 1;
+        } else if (strcmp(line, ".theme") == 0) {
+            laure_repl_toggle_feature("colors");
+            laure_repl_update_prompt(session);
+            return 1;
+        }
+    }
 
     LAURE_CLOCK = clock();
 
@@ -222,30 +250,29 @@ int laure_process_query(laure_session_t *session, string line) {
             return 0;
         }
         case 2: {
-            printf("help:\n");
-            for (int i = 0; i < sizeof(commands) / sizeof(struct cmd_info); i++) {
-                struct cmd_info cmd = commands[i];
-                printf("  %s%s%s - %s\n", BOLD_WHITE, cmd.name, NO_COLOR, cmd.help);
-            }
+            laure_repl_show_help();
             break;
         }
         case 3: {
-            printf("flags:\n");
+            printf("\n%sInterpreter flags:%s\n", REPL_INFO_COLOR, REPL_RESET_COLOR);
             for (int i = 0; i < sizeof(flags) / sizeof(struct laure_flag); i++) {
                 struct laure_flag flag = flags[i];
-                printf("  %s%s%s - %s %s\n", BOLD_WHITE, flag.name, NO_COLOR, flag.doc, flag.readword ? "{arguments}" : "");
+                printf("  %s%s%s - %s%s\n", 
+                       REPL_SUCCESS_COLOR, flag.name, REPL_RESET_COLOR, 
+                       flag.doc, flag.readword ? " {arg}" : "");
             }
+            printf("\n");
             break;
         }
         case 4: {
-            laure_scope_show(session->scope);
+            laure_scope_interactive(session->scope);
             break;
         }
         case 6: {
             Instance *ins = laure_scope_find_by_key(session->scope, args.argv[1], true);
 
             if (!ins) {
-                printf("  %s%s is undefined%s\n", args.argv[1], RED_COLOR, NO_COLOR);
+                printf("\n  %s%s%s is undefined\n\n", REPL_ERROR_COLOR, args.argv[1], REPL_RESET_COLOR);
                 laure_free(args.argv);
                 return 1;
             }
@@ -253,93 +280,102 @@ int laure_process_query(laure_session_t *session, string line) {
             string doc = instance_get_doc(ins);
 
             if (!doc) {
-                printf(   "%sno documentation for this instance%s\n", RED_COLOR, NO_COLOR);
+                printf("\n  %sNo documentation available for %s%s%s\n\n", 
+                       REPL_HINT_COLOR, REPL_WARNING_COLOR, args.argv[1], REPL_RESET_COLOR);
             } else {
-                bool color_set = false;
-                laure_pprint_doc(doc, 3);
+                printf("\n%sDocumentation for %s%s%s:%s\n", 
+                       REPL_INFO_COLOR, REPL_SUCCESS_COLOR, args.argv[1], REPL_INFO_COLOR, REPL_RESET_COLOR);
+                laure_pprint_doc(doc, 2);
+                printf("\n");
             }
 
             break;
         }
         case 7: {
-            printf("  %s%sλaurelang %s%s", BOLD_DEC, LAURUS_NOBILIS, VERSION, NO_COLOR);
+            printf("\n%slaurelang %s%s", LAURUS_NOBILIS, VERSION, REPL_RESET_COLOR);
             #ifdef GIT_VER
-            printf(" (%s)\n", GIT_VER);
-            #else
-            printf("\n");
+            printf(" (%s%s%s)", REPL_HINT_COLOR, GIT_VER, REPL_RESET_COLOR);
             #endif
-            printf("  running `%s`\n", LAURE_INTERPRETER_PATH);
-            printf("  bugtracker\n    %s%s%s\n", LAURUS_NOBILIS, BUGTRACKER_URL, NO_COLOR);
-            printf("  %sbuild info%s:\n", BOLD_WHITE, NO_COLOR);
-            printf("    %sscope build%s: %s\n", 
-            BOLD_WHITE, NO_COLOR,
+            printf("\n");
+            
+            printf("  %sPath:%s %s\n", REPL_INFO_COLOR, REPL_RESET_COLOR, LAURE_INTERPRETER_PATH);
+            printf("  %sLibrary:%s %s\n", REPL_INFO_COLOR, REPL_RESET_COLOR, lib_path);
+            printf("  %sBugtracker:%s %s%s%s\n", REPL_INFO_COLOR, REPL_RESET_COLOR, 
+                   REPL_SUCCESS_COLOR, BUGTRACKER_URL, REPL_RESET_COLOR);
+            
+            printf("  %sBuild:%s %s", REPL_INFO_COLOR, REPL_RESET_COLOR,
             #ifdef FEATURE_LINKED_SCOPE
-            "linked (production)"
+            "linked"
             #else
-            "stodgy (debug)"
+            "debug"
             #endif
             );
-            printf("    %slib_path%s: `%s`\n", BOLD_WHITE, NO_COLOR, lib_path);
-            printf("    %scompiled at%s: %s %s\n", BOLD_WHITE, NO_COLOR, __DATE__, __TIME__);
+            printf(" (%s %s)\n", __DATE__, __TIME__);
+            
             if (LAURE_TIMEOUT != 0)
-                printf("  %stimeout%s: %us\n", BOLD_WHITE, NO_COLOR, LAURE_TIMEOUT);
-            else printf("  %stimeout%s: no\n", BOLD_WHITE, NO_COLOR);
-            printf("  %sflags%s: [ ", BOLD_WHITE, NO_COLOR);
-            if (FLAG_CLEAN) printf("CLEAN ");
-            if (FLAG_NOREPL) printf("NOREPL ");
-            if (FLAG_QUERY) printf("QUERY ");
-            if (FLAG_SIGNAL) printf("SIGNAL ");
-            printf("]\n");
-            printf("  %sdflags%s: [ ", BOLD_WHITE, NO_COLOR);
-            for (uint idx = 0; idx < DFLAG_N; idx++) {
-                printf("%s=%s ", DFLAGS[idx][0], DFLAGS[idx][1]);
+                printf("  %sTimeout:%s %us\n", REPL_INFO_COLOR, REPL_RESET_COLOR, LAURE_TIMEOUT);
+            else 
+                printf("  %sTimeout:%s none\n", REPL_INFO_COLOR, REPL_RESET_COLOR);
+                
+            printf("  %sFlags:%s", REPL_INFO_COLOR, REPL_RESET_COLOR);
+            if (FLAG_CLEAN || FLAG_NOREPL || FLAG_QUERY || FLAG_SIGNAL) {
+                if (FLAG_CLEAN) printf(" clean");
+                if (FLAG_NOREPL) printf(" norepl");
+                if (FLAG_QUERY) printf(" query");
+                if (FLAG_SIGNAL) printf(" signal");
+            } else {
+                printf(" none");
             }
-            printf("]\n");
+            printf("\n\n");
             break;
         }
         case 8: {
             string q = startline + 5;
             laure_parse_result result = laure_parse(q);
             if (!result.is_ok) {
-                printf("  query is invalid: %s\n", result.err);
+                printf("\n  %sInvalid query:%s %s\n\n", REPL_ERROR_COLOR, REPL_RESET_COLOR, result.err);
                 break;
             }
-            printf("\n");
+            printf("\n%sAST for '%s%s%s':%s\n", REPL_INFO_COLOR, REPL_SUCCESS_COLOR, q, REPL_INFO_COLOR, REPL_RESET_COLOR);
             laure_expression_show(result.exp, 0);
             printf("\n");
             break;
         }
         case 9: {
             if (args.argc == 1) {
-                printf("  %sUsage: .lock {names}%s\n", RED_COLOR, NO_COLOR);
+                printf("\n  %sUsage:%s .lock {names}\n\n", REPL_INFO_COLOR, REPL_RESET_COLOR);
             } else {
+                printf("\n");
                 for (int j = 1; j < args.argc; j++) {
                     string name = args.argv[j];
                     Instance *to_lock = laure_scope_find_by_key(session->scope, name, true);
                     if (! to_lock) {
-                        printf("  %s %sis undefined%s\n", name, RED_COLOR, NO_COLOR);
+                        printf("  %s%s%s is undefined\n", REPL_ERROR_COLOR, name, REPL_RESET_COLOR);
                     } else {
                         instance_lock(to_lock);
-                        printf("  %s%s %slocked%s\n", BOLD_WHITE, name, GREEN_COLOR, NO_COLOR);
+                        printf("  %s%s%s locked\n", REPL_SUCCESS_COLOR, name, REPL_RESET_COLOR);
                     }
                 }
+                printf("\n");
             }
             break;
         }
         case 10: {
             if (args.argc == 1) {
-                printf("  %sUsage: .unlock {names}%s\n", RED_COLOR, NO_COLOR);
+                printf("\n  %sUsage:%s .unlock {names}\n\n", REPL_INFO_COLOR, REPL_RESET_COLOR);
             } else {
+                printf("\n");
                 for (int j = 1; j < args.argc; j++) {
                     string name = args.argv[j];
                     Instance *to_unlock = laure_scope_find_by_key(session->scope, name, true);
                     if (! to_unlock) {
-                        printf("  %s %sis undefined%s\n", name, RED_COLOR, NO_COLOR);
+                        printf("  %s%s%s is undefined\n", REPL_ERROR_COLOR, name, REPL_RESET_COLOR);
                     } else {
                         instance_unlock(to_unlock);
-                        printf("  %s%s %sunlocked%s\n", BOLD_WHITE, name, GREEN_COLOR, NO_COLOR);
+                        printf("  %s%s%s unlocked\n", REPL_SUCCESS_COLOR, name, REPL_RESET_COLOR);
                     }
                 }
+                printf("\n");
             }
             break;
         }
@@ -350,25 +386,34 @@ int laure_process_query(laure_session_t *session, string line) {
             else value = atoi(value_s);
             if (value < 0) break;
             LAURE_TIMEOUT = (uint)value;
-            printf("  timeout was set to %us\n", LAURE_TIMEOUT);
+            if (value == 0)
+                printf("\n  %sTimeout disabled%s\n\n", REPL_SUCCESS_COLOR, REPL_RESET_COLOR);
+            else
+                printf("\n  %sTimeout set to %u seconds%s\n\n", REPL_SUCCESS_COLOR, LAURE_TIMEOUT, REPL_RESET_COLOR);
             break;
         }
         case 12: {
             #ifdef DISABLE_WS
-            printf("WS can't be enabled because of laurelang compilation settings\n");
+            printf("\n  %sWeighted search unavailable%s (compilation setting)\n\n", REPL_ERROR_COLOR, REPL_RESET_COLOR);
             #else
             if (LAURE_WS) {
                 LAURE_WS = false;
-                printf("  WS disabled.\n");
+                printf("\n  %sWeighted search disabled%s\n\n", REPL_INFO_COLOR, REPL_RESET_COLOR);
             } else {
                 LAURE_WS = true;
-                printf("  WS enabled.\n");
+                printf("\n  %sWeighted search enabled%s\n\n", REPL_SUCCESS_COLOR, REPL_RESET_COLOR);
             }
             #endif
             break;
         }
         case 13: {
-            laure_backtrace_print(LAURE_BACKTRACE);
+            if (LAURE_BACKTRACE && LAURE_BACKTRACE->cursor > 0) {
+                printf("\n%sBacktrace:%s\n", REPL_INFO_COLOR, REPL_RESET_COLOR);
+                laure_backtrace_print(LAURE_BACKTRACE);
+                printf("\n");
+            } else {
+                printf("\n  %sNo backtrace available%s\n\n", REPL_HINT_COLOR, REPL_RESET_COLOR);
+            }
             break;
         }
         default: break;
@@ -408,7 +453,17 @@ int laure_process_query(laure_session_t *session, string line) {
         control_ctx *cctx = control_new(session, session->scope, qctx, vpk, NULL, false);
 
         laure_backtrace_nullify(LAURE_BACKTRACE);
+        
+        // Start timing measurement
+        struct timeval start_time, end_time;
+        gettimeofday(&start_time, NULL);
+        
         qresp response = laure_start(cctx, expset);
+        
+        // Calculate elapsed time
+        gettimeofday(&end_time, NULL);
+        double elapsed_time = (end_time.tv_sec - start_time.tv_sec) + 
+                             (end_time.tv_usec - start_time.tv_usec) / 1000000.0;
 
         if (!laure_is_silent(cctx)) {
             if (response.state == q_error) {
@@ -416,9 +471,20 @@ int laure_process_query(laure_session_t *session, string line) {
                 if (LAURE_BACKTRACE && LAURE_BACKTRACE->cursor > 1) {
                     laure_backtrace_print(LAURE_BACKTRACE);
                 }
+                
+                // Enhanced error display
                 if (! LAURE_ACTIVE_ERROR) {
                     printf("  %serror%s: %s\n", RED_COLOR, NO_COLOR, (string)response.payload);
                 } else {
+                    // Analyze error and create enhanced context
+                    laure_repl_error_context_t *error_ctx = laure_repl_analyze_error(LAURE_ACTIVE_ERROR, startline);
+                    
+                    if (error_ctx) {
+                        laure_repl_print_error(startline, error_ctx);
+                        laure_repl_free_error_context(error_ctx);
+                    }
+                    
+                    // Also show the original error message
                     char buff[512];
                     laure_error_write(LAURE_ACTIVE_ERROR, buff, 512);
                     printf("%s\n", buff);
@@ -426,11 +492,28 @@ int laure_process_query(laure_session_t *session, string line) {
                     LAURE_ACTIVE_ERROR = NULL;
                 }
             } else if (response.state == q_yield) {
-                if (response.payload == (char*)0x1) {
-                    printf("  true\n");
-                } else if (response.payload == 0x0) {
+                // Check if we just completed a validation and need to invert semantics
+                bool invert_for_validation = cctx->validation_failed;
+                
+                if (invert_for_validation) {
+                    // If validation_failed is true, it means user's completeness claim was wrong
+                    // So the overall query statement is false, regardless of response.payload
                     code = 2;
-                    printf("  false\n");
+                    printf("  %s%s%s false\n", REPL_WARNING_COLOR, REPL_CROSS_MARK, REPL_RESET_COLOR);
+                } else {
+                    // Normal mode
+                    if (response.payload == (void*)1) {
+                        printf("  %s%s%s true\n", REPL_SUCCESS_COLOR, REPL_CHECK_MARK, REPL_RESET_COLOR);
+                    } else if (response.payload == (void*)0) {
+                        code = 2;
+                        printf("  %s%s%s false\n", REPL_WARNING_COLOR, REPL_CROSS_MARK, REPL_RESET_COLOR);
+                    }
+                }
+                
+                // Print timing info if enabled
+                if (REPL_STATE && REPL_STATE->show_timing) {
+                    laure_repl_print_timing_info(elapsed_time);
+                    printf("\n");
                 }
             }
         }
@@ -679,43 +762,39 @@ int main(int argc, char *argv[]) {
     if (FLAG_NOREPL) return 0;
     init_backtrace();
 
+    // Initialize enhanced REPL
+    repl_init();
+    laure_repl_update_prompt(session);
+    laure_repl_print_welcome();
+
     if (setjmp(JUMPBUF)) {
-        printf("  ↳ %sjumped off %s\n", YELLOW_COLOR, NO_COLOR);
+        printf(" %s↳%s true\n", YELLOW_COLOR, NO_COLOR);
     }
 
     string line;
-    while ((line = readline_wrapper()) != NULL) {
+    while ((line = laure_repl_readline()) != NULL) {
         if (!strlen(line)) {
             erase;
             up;
             continue;
         }
-        bool lp = false;
-        while (laure_parser_needs_continuation(line)) {
-            if (lastc(line) == '\\') lastc(line) = 0;
-            
-            if (lp) up;
-            up; erase;
-            printf("(%s%s%s)\n", GREEN_COLOR, line, NO_COLOR); erase;
-
-            string continuation = readline("> ");
-            if (! continuation) break;
-            
-            char nline[512];
-            snprintf(nline, 512, "%s%s", line, continuation);
-            laure_free(line);
-            
-            line = strdup( nline );
-            lp = true;
+        // Enhanced multiline input handling
+        if (laure_repl_should_continue_line(line)) {
+            char *full_line = laure_repl_handle_multiline_input(line);
+            if (full_line) {
+                laure_free(line);
+                line = full_line;
+            }
         }
         if (lastc(line) == '.') lastc(line) = 0;
         if (lastc(line) == '%') lastc(line) = '\r';
-        
-        if (lp) {up; up; erase; printf("%s%s\n", DPROMPT, line); erase;}
         int res = laure_process_query(session, line);
         if (!res) break;
         laure_free(line);
     }
+    
+    // Cleanup enhanced REPL
+    repl_cleanup();
     
     return 0;
 }

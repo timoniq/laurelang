@@ -266,6 +266,8 @@ qresp test_predicate_run(preddata *pd, control_ctx *cctx) {
         ncctx->tmp_answer_scope->next = NULL;
         ncctx->vpk = laure_vpk_create(expset);
         ncctx->this_break = false;
+        ncctx->recursion_depth = 0;
+        ncctx->max_recursion_depth = 1000;
         ncctx->vpk->sender_receiver = test_suite_receiver;
 
         struct receiver_payload *payload = laure_alloc(sizeof(struct receiver_payload));

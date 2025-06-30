@@ -4,6 +4,7 @@
 #define LLPARSER_H
 
 #include "laurelang.h"
+/* #include "memguard.h" */
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -31,16 +32,13 @@ string ELLIPSIS = NULL;
 
 char* EXPT_NAMES[] = {"set", "name", "predicate call", "declaration", "assertion", "imaging", "predicate statement", "choice (packed)", "choice (unpacked)", "naming", "value", "constraint", "complex data", "structure statement", "array", "forced unification", "quantor statement", "domain", "implication", "reference", "cut", "atom", "command", "character", "atom sign", "auto", "nested", "?"};
 
-laure_expression_t *laure_expression_create(
-    laure_expression_type t, 
-    string docstring, bool is_header, 
-    string s, uint flag, 
-    laure_expression_compact_bodyargs *ba,
-    string q
-) {
+laure_expression_t *laure_expression_create(laure_expression_type t, string docstring, bool is_header, string s, uint flag, laure_expression_compact_bodyargs *ba, string q) {
     if (! ELLIPSIS)
         ELLIPSIS = strdup("...");
+    
     laure_expression_t *exp = laure_alloc(sizeof(laure_expression_t));
+    if (!exp) return NULL;
+    
     exp->t = t;
     exp->docstring = docstring;
     exp->is_header = is_header;
@@ -48,6 +46,10 @@ laure_expression_t *laure_expression_create(
     exp->flag = flag;
     exp->ba = ba;
     exp->fullstring = strdup(q);
+    if (!exp->fullstring) {
+        laure_free(exp);
+        return NULL;
+    }
     exp->flag2 = 0;
     exp->link = NULL;
     return exp;
@@ -56,6 +58,8 @@ laure_expression_t *laure_expression_create(
 laure_expression_set *laure_expression_set_link(laure_expression_set *root, laure_expression_t *new_link) {
 
     laure_expression_set *new_branch = laure_alloc(sizeof(laure_expression_set));
+    if (!new_branch) return root;
+    
     new_branch->expression = new_link;
     new_branch->next = NULL;
 

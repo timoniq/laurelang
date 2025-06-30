@@ -348,6 +348,16 @@ Image ~ @{int, char, array}.
     f(arg) -> fail();
 }
 
+: ?functor((?('T', 'R')), 'T', 'R') -> boolean.
+?functor(f, x, y) -> b {
+    b = @true;
+    f(x, y);
+}
+?functor(f, x, y) -> b {
+    b = @false;
+    f(x, y) -> fail();
+}
+
 : #instantiated(_).
 
 #instantiated(x) { 

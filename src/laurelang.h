@@ -139,6 +139,7 @@ Instance *laure_scope_change_link_by_key(laure_scope_t *scope, string key, ulong
 Instance *laure_scope_change_link_by_link(laure_scope_t *scope, ulong link, ulong new_link, bool search_glob);
 laure_scope_t *laure_scope_create_copy(control_ctx *cctx, laure_scope_t *scope);
 void laure_scope_show(laure_scope_t *scope);
+void laure_scope_interactive(laure_scope_t *scope);
 ulong laure_scope_generate_link();
 string laure_scope_generate_unique_name();
 laure_scope_t *laure_scope_create_global();
@@ -214,8 +215,7 @@ laure_expression_t *laure_expression_set_get_by_idx(laure_expression_set *root, 
 laure_expression_set *laure_expression_set_copy(laure_expression_set *old);
 laure_expression_compact_bodyargs *laure_bodyargs_create(laure_expression_set *set, uint body_len, bool has_resp);
 void laure_expression_show(laure_expression_t *exp, uint indent);
-laure_expression_t *laure_expression_create(laure_expression_type t, char *docstring, bool is_header, char *s, uint flag, laure_expression_compact_bodyargs *ba, string q);
-laure_expression_compact_bodyargs *laure_bodyargs_create(laure_expression_set *set, uint body_len, bool has_resp);
+laure_expression_t *laure_expression_create(laure_expression_type t, string docstring, bool is_header, string s, uint flag, laure_expression_compact_bodyargs *ba, string q);
 laure_expression_set *laure_get_all_vars_in(laure_expression_t *exp, laure_expression_set *linked);
 laure_expression_set *laure_expression_set_link_branch(laure_expression_set *root, laure_expression_set *branch);
 laure_expression_set *laure_expression_compose_one(laure_expression_t *exp);
@@ -240,7 +240,7 @@ typedef struct {
 
 laure_parse_result laure_parse(char *query);
 laure_parse_many_result laure_parse_many(const string query_, char divisor, laure_expression_set *linked_opt);
-bool laure_parser_needs_continuation(char *query);
+bool laure_parser_needs_continuation(string query);
 bool laure_is_silent(control_ctx *cctx);
 Instance *laure_scope_find_var(laure_scope_t *scope, laure_expression_t *var, bool search_glob);
 
@@ -278,6 +278,7 @@ bool laure_string_pattern_match(char *s, char *p);
 #define GREEN_COLOR "\033[32;1m"
 #define YELLOW_COLOR "\033[33;1m"
 #define BLUE_COLOR "\033[34;1m"
+#define PURPLE_COLOR "\033[35;1m"
 #define GRAY_COLOR "\033[90;1m"
 #define NO_COLOR "\033[0m"
 #define BOLD_WHITE "\033[37;1m"
@@ -294,6 +295,7 @@ bool laure_string_pattern_match(char *s, char *p);
 #define BOLD_WHITE ""
 #define RED_BACK ""
 #define BLUE_COLOR ""
+#define PURPLE_COLOR ""
 #define LAURUS_NOBILIS ""
 #define BOLD_DEC ""
 #endif

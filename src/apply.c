@@ -3,6 +3,7 @@
 // * parsing docstrings
 
 #include "laurelang.h"
+#include "memguard.h"
 #include "laureimage.h"
 #include "predpub.h"
 
@@ -201,6 +202,7 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
             laure_typeset_push_decl(args_set, "@");
         } else if (aexp->t == let_auto) {
             printf("Auto cannot be used in arguments\n");
+            laure_typeset_free(args_set);
             return NULL;
         } else {
             if (aexp->t == let_name) {
@@ -212,6 +214,7 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
                     if (nesting) {
                         Instance *to_nest = laure_scope_find_by_key(scope, aexp->s, true);
                         if (!to_nest) {
+                            laure_typeset_free(args_set);
                             return NULL;
                         }
                         tname = get_nested_ins_name(to_nest, nesting, scope);
@@ -219,8 +222,10 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
                         tname = aexp->s;
                     }
                     Instance *arg = laure_scope_find_by_key(scope, tname, true);
-                    if (! arg) 
+                    if (! arg) {
+                        laure_typeset_free(args_set);
                         return NULL;
+                    }
                     laure_typeset_push_instance(args_set, arg);
                 }
             } else if (aexp->t == let_pred /* || aexp->t == let_constraint */) {
@@ -230,6 +235,7 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
                 ins->repr = predicate_repr;
                 laure_typeset_push_instance(args_set, ins);
             } else {
+                laure_typeset_free(args_set);
                 return NULL;
             }
         }
@@ -257,6 +263,7 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
                     if (resp_nesting) {
                         Instance *to_nest = laure_scope_find_by_key(scope, rexp->s, true);
                         if (!to_nest) {
+                            laure_typeset_free(args_set);
                             return NULL;
                         }
                         tname = get_nested_ins_name(to_nest, resp_nesting, scope);
@@ -264,6 +271,7 @@ void *laure_apply_pred(laure_expression_t *predicate_exp, laure_scope_t *scope) 
                     Instance *resp_ins = laure_scope_find_by_key(scope, tname, true);
                     if (! resp_ins) {
                         printf("%s is undefined; cannot consult.\n", tname);
+                        laure_typeset_free(args_set);
                         return NULL;
                     }
                     resp = laure_typedecl_instance_create(resp_ins);
@@ -563,6 +571,9 @@ string consult_single(
             printf("%sUnable to find init file %s for package.\n", RED_COLOR, p);
             printf("Package %s is skipped.%s\n", fname, NO_COLOR);
             *failed = true;
+            laure_free(rev);
+            laure_free(s);
+            laure_free(p);
             return NULL;
         }
         
@@ -662,16 +673,24 @@ string search_path(string original_path) {
     FILE *f = fopen(original_path, "r");
     if (f) {
         fclose(f);
-        return strdup(original_path);
+        return strdup(original_path);  /* Caller owns returned string */
     } else if (! endswith(original_path, LAURE_STANDARD_EXTENSION)) {
-        char buff[PATH_MAX];
+        MEMGUARD_CLEANUP_CONTEXT(cleanup);
+        char *buff = MEMGUARD_ALLOC(&cleanup, PATH_MAX);
+        if (!buff) {
+            MEMGUARD_CLEANUP(&cleanup);
+            return NULL;
+        }
         strcpy(buff, original_path);
         strcat(buff, LAURE_STANDARD_EXTENSION);
         f = fopen(buff, "r");
         if (f) {
             fclose(f);
-            return strdup(buff);
+            char *result = strdup(buff);  /* Caller owns returned string */
+            MEMGUARD_CLEANUP(&cleanup);
+            return result;
         }
+        MEMGUARD_CLEANUP(&cleanup);
         return NULL;
     }
     return NULL;

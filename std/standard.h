@@ -40,6 +40,7 @@ qresp laure_contraint_union(preddata*, control_ctx*);
 #define True respond(q_true, NULL)
 #define False respond(q_false, NULL)
 #define Continue respond(q_continue, NULL)
+#define Error(msg) respond(q_error, msg)
 #define cast_image(name, type) type *name = (type*)
 #define array_assign(ary_im, i_data) \
         

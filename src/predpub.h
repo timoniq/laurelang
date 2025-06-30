@@ -3,6 +3,9 @@
 
 #include "laurelang.h"
 
+// Forward declaration for name observer notification
+void notify_name_observers(unsigned long name_link, Instance *name_instance);
+
 typedef enum {
     q_false,    // no payload
     q_true,     // no payload
@@ -45,8 +48,16 @@ qresp respond(qresp_state s, string e);
         LAURE_ACTIVE_ERROR = laure_error_create(k, strdup(_errmsg), exp); \
         return respond(q_error, (void*)1);} while (0)
 
+#define RESPOND_ERROR_DECR_DEPTH(cctx, k, exp, ...) do {\
+        cctx->recursion_depth--; \
+        char _errmsg[error_max_length]; \
+        snprintf(_errmsg, error_max_length, __VA_ARGS__); \
+        LAURE_ACTIVE_ERROR = laure_error_create(k, strdup(_errmsg), exp); \
+        return respond(q_error, (void*)1);} while (0)
+
 #define RESPOND_TRUE            respond(q_true, NULL)
 #define RESPOND_FALSE           respond(q_false, NULL)
+#define RESPOND_FALSE_DECR_DEPTH(cctx) do { cctx->recursion_depth--; return respond(q_false, NULL); } while (0)
 #define RESPOND_YIELD(code)     respond(q_yield, code)
 #define RESPOND_BAG_FULL        respond(q_bag_full, (void*)true)
 #define RESPOND_BAG_FULL_E      respond(q_bag_full, (void*)false)
@@ -58,6 +69,19 @@ qresp respond(qresp_state s, string e);
         if(! int_check(im, bi)) {laure_free(bi->words); laure_free(bi); return respond(q_false, 0);} \
         im->state = I; \
         im->i_data = bi; \
+        /* Notify observers when a name gets instantiated */ \
+        if (pd && pd->argc > 0) { \
+            Instance *arg0 = pd_get_arg(pd, 0); \
+            if (arg0) { \
+                notify_name_observers(pd_get_arg_link(pd, 0), arg0); \
+            } \
+        } \
+        if (pd && pd->argc > 1) { \
+            Instance *arg1 = pd_get_arg(pd, 1); \
+            if (arg1) { \
+                notify_name_observers(pd_get_arg_link(pd, 1), arg1); \
+            } \
+        } \
         } while (0)
 
 typedef struct laure_control_ctx control_ctx;

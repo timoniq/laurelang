@@ -21,43 +21,43 @@ string laure_error_msg(laure_error *err) {
     char buff[128];
     switch(err->kind) {
         case syntaxic_err: {
-            strcpy(buff, "syntax");
+            strcpy(buff, "syntax error");
             break;
         }
         case type_err: {
-            strcpy(buff, "type");
+            strcpy(buff, "type error");
             break;
         }
         case too_broad_err: {
-            strcpy(buff, "too_broad");
+            strcpy(buff, "constraint error");
             break;
         }
         case undefined_err: {
-            strcpy(buff, "undefined");
+            strcpy(buff, "undefined reference");
             break;
         }
         case internal_err: {
-            strcpy(buff, "internal");
+            strcpy(buff, "internal error");
             break;
         }
         case access_err: {
-            strcpy(buff, "access");
+            strcpy(buff, "access violation");
             break;
         }
         case instance_err: {
-            strcpy(buff, "instance");
+            strcpy(buff, "instance error");
             break;
         }
         case signature_err: {
-            strcpy(buff, "signature");
+            strcpy(buff, "signature mismatch");
             break;
         }
         case runtime_err: {
-            strcpy(buff, "runtime");
+            strcpy(buff, "runtime error");
             break;
         }
         case not_implemented_err: {
-            strcpy(buff, "not_implemented");
+            strcpy(buff, "not implemented");
             break;
         }
     }

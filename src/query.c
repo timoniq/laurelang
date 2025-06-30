@@ -1,6 +1,7 @@
 #include "laurelang.h"
 #include "laureimage.h"
 #include "predpub.h"
+#include "memguard.h"
 
 #include <readline/readline.h>
 #include <sys/ioctl.h>
@@ -45,6 +46,99 @@ char *DUMMY_FLAGV = NULL;
 char *ARGN_BUFF[32];
 bool IS_BUFFN_INITTED = 0;
 qcontext *LAST_QCTX = NULL;
+
+
+// Global registry for name instantiation observers
+struct name_observer_registry {
+    unsigned long *name_links;     // Array of name links being observed
+    void **observers;              // Corresponding data structures observing each name
+    uint count;                    // Number of active observations
+    uint capacity;                 // Allocated capacity
+} g_name_observers = {NULL, NULL, 0, 0};
+
+// Register any data structure to observe a name link
+void register_name_observer(unsigned long name_link, void *observer) {
+    if (g_name_observers.count >= g_name_observers.capacity) {
+        // Expand registry
+        uint new_capacity = g_name_observers.capacity == 0 ? 8 : g_name_observers.capacity * 2;
+        g_name_observers.name_links = laure_realloc(g_name_observers.name_links, 
+                                                   sizeof(unsigned long) * new_capacity);
+        g_name_observers.observers = laure_realloc(g_name_observers.observers, 
+                                                  sizeof(void*) * new_capacity);
+        g_name_observers.capacity = new_capacity;
+    }
+    
+    g_name_observers.name_links[g_name_observers.count] = name_link;
+    g_name_observers.observers[g_name_observers.count] = observer;
+    g_name_observers.count++;
+}
+
+// Notify all observers when a name gets instantiated
+void notify_name_observers(unsigned long name_link, Instance *name_instance) {
+    for (uint i = 0; i < g_name_observers.count; i++) {
+        if (g_name_observers.name_links[i] == name_link) {
+            void *observer = g_name_observers.observers[i];
+            if (observer) {
+                // Check if this is a solution-collecting array
+                laure_image_head head = read_head(observer);
+                if (head.t == ARRAY) {
+                    struct ArrayImage *array = (struct ArrayImage*)observer;
+                    if (array->is_solution_collector) {
+                        // Collect current solution from all observed names
+                        collect_solution_from_array(array);
+                    }
+                }
+                // Future: Add support for other data structures that observe name instantiation
+            }
+        }
+    }
+}
+
+// Collect a solution tuple from the current state of observed names
+void collect_solution_from_array(struct ArrayImage *array) {
+    if (!array || !array->is_solution_collector) return;
+    
+    // Check if all observed names are instantiated
+    bool all_instantiated = true;
+    for (uint i = 0; i < array->c_data.observed_count; i++) {
+        Instance *name = array->c_data.observed_vars[i];
+        if (!name || !name->image) {
+            all_instantiated = false;
+            break;
+        }
+        // For integers, check if state is I (instantiated)
+        struct ImageHead head = read_head(name->image);
+        if (head.t == INTEGER) {
+            struct IntImage *int_img = (struct IntImage*)name->image;
+            if (int_img->state != I) {
+                all_instantiated = false;
+                break;
+            }
+        }
+    }
+    
+    if (all_instantiated) {
+        // Create a linked list of solutions, one Instance per node
+        for (uint i = 0; i < array->c_data.observed_count; i++) {
+            array_linked_t *solution_tuple = laure_alloc(sizeof(array_linked_t));
+            solution_tuple->data = array->c_data.observed_vars[i];
+            solution_tuple->next = NULL;
+            
+            // Add this solution to the array's collection
+            if (!array->c_data.solutions) {
+                array->c_data.solutions = solution_tuple;
+            } else {
+                // Append to end of solution list
+                array_linked_t *current = array->c_data.solutions;
+                while (current->next) {
+                    current = current->next;
+                }
+                current->next = solution_tuple;
+            }
+        }
+        array->c_data.solution_count++;
+    }
+}
 
 void laure_upd_scope(ulong link, laure_scope_t *to, laure_scope_t *from) {
     // unused
@@ -95,6 +189,8 @@ struct img_rec_ctx *img_rec_ctx_create(
     unsigned long link
 ) {
     struct img_rec_ctx *ctx = laure_alloc(sizeof(struct img_rec_ctx));
+    if (!ctx) return NULL;  /* Handle allocation failure */
+    
     ctx->var = var;
     ctx->cctx = cctx;
     ctx->expset = expset;
@@ -154,6 +250,9 @@ gen_resp qr_process_default(qresp response, struct img_rec_ctx* ctx) {
         || response.state == q_stop)
         && response.state != q_yield
     ) {
+        cont = false;
+    } else if (response.state == q_yield && response.payload == YIELD_FAIL) {
+        // Stop on YIELD_FAIL to prevent infinite loops in validation
         cont = false;
     } else if (ctx->cctx->cut) {
         cont = false;
@@ -363,7 +462,8 @@ void *crop_showcast(string showcast) {
 
 qresp check_interactive(string cmd, string showcast) {
     if (cmd && str_eq(cmd, ".")) {
-        return respond(q_stop, 0);
+        // User claims no more solutions - validate completeness
+        return respond(q_continue, (void*)9);  // Special validation marker
     }
     else if (! cmd || strlen(cmd) == 0) {
         up;
@@ -426,6 +526,20 @@ qresp laure_send(control_ctx *cctx) {
 
 qresp laure_showcast(control_ctx *cctx) {
 
+
+    // If validation has already failed, don't continue searching
+    if (cctx->validation_failed) {
+        return respond(q_yield, YIELD_FAIL);
+    }
+
+    // Critical validation check: if we're validating completeness and reach here again,
+    // it means we found another solution, so user's claim was wrong
+    if (cctx->validating_completeness) {
+        cctx->validating_completeness = false;  // Reset flag
+        cctx->validation_failed = true;         // Set permanent failure flag
+        return respond(q_yield, YIELD_FAIL);  // User's completeness claim was incorrect
+    }
+
     UNPACK_CCTX(cctx);
 
     string last_string = NULL;
@@ -470,7 +584,20 @@ qresp laure_showcast(control_ctx *cctx) {
             printf("%s,\n", showcast);
         } else {
             string cmd = readline(showcast);
-            return check_interactive(cmd, showcast);
+            qresp interactive_resp = check_interactive(cmd, showcast);
+            
+            // Handle completeness validation request
+            if (interactive_resp.state == q_continue && interactive_resp.payload == (void*)9) {
+                // User claimed completeness - show last solution with '.' and set validation mode
+                up;
+                erase;
+                showcast = crop_showcast(showcast);
+                printf("%s.\n", showcast);
+                cctx->validating_completeness = true;
+                return respond(q_continue, NULL);  // Continue search to validate
+            }
+            
+            return interactive_resp;
         }
         j++;
     }
@@ -480,10 +607,34 @@ qresp laure_showcast(control_ctx *cctx) {
             up;
             erase;
             string cmd = readline(last_string);
-            return check_interactive(cmd, last_string);
+            qresp interactive_resp = check_interactive(cmd, last_string);
+            
+            // Handle completeness validation request
+            if (interactive_resp.state == q_continue && interactive_resp.payload == (void*)9) {
+                // User claimed completeness - show last solution with '.' and set validation mode
+                up;
+                erase;
+                last_string = crop_showcast(last_string);
+                printf("%s.\n", last_string);
+                cctx->validating_completeness = true;
+                return respond(q_continue, NULL);  // Continue search to validate
+            }
+            
+            return interactive_resp;
         }
     }
 
+    // If we reach here in validation mode, check if validation already failed
+    if (cctx->validating_completeness) {
+        cctx->validating_completeness = false;  // Reset flag
+        // If validation failed earlier, return YIELD_FAIL
+        if (cctx->validation_failed) {
+            return respond(q_yield, YIELD_FAIL);  // User's completeness claim was incorrect
+        } else {
+            return respond(q_yield, YIELD_OK);  // User's completeness claim was correct
+        }
+    }
+    
     return RESPOND_YIELD(YIELD_OK);
 }
 
@@ -523,7 +674,13 @@ int append_vars(string **vars, int vars_len, laure_expression_set *vars_exps) {
 }
 
 var_process_kit *laure_vpk_create(laure_expression_set *expset) {
-    string *vars = laure_alloc(sizeof(string));
+    MEMGUARD_CLEANUP_CONTEXT(cleanup);
+    
+    string *vars = MEMGUARD_ALLOC(&cleanup, sizeof(string));
+    if (!vars) {
+        MEMGUARD_CLEANUP(&cleanup);
+        return NULL;
+    }
     int vars_len = 0;
 
     laure_expression_t *exp = NULL;
@@ -532,7 +689,12 @@ var_process_kit *laure_vpk_create(laure_expression_set *expset) {
         vars_len = append_vars(&vars, vars_len, vars_exps);
     });
 
-    var_process_kit *vpk = laure_alloc(sizeof(var_process_kit));
+    var_process_kit *vpk = MEMGUARD_ALLOC(&cleanup, sizeof(var_process_kit));
+    if (!vpk) {
+        MEMGUARD_CLEANUP(&cleanup);
+        return NULL;
+    }
+    
     vpk->do_process = true;
     vpk->interactive_by_name = false;
     vpk->mode = INTERACTIVE;
@@ -540,6 +702,10 @@ var_process_kit *laure_vpk_create(laure_expression_set *expset) {
     vpk->single_var_processor = default_var_processor;
     vpk->tracked_vars = vars;
     vpk->tracked_vars_len = vars_len;
+    
+    /* Transfer ownership - vpk now owns vars and itself */
+    MEMGUARD_TRANSFER_OWNERSHIP(&cleanup);
+    MEMGUARD_CLEANUP(&cleanup);
     return vpk;
 }
 
@@ -564,6 +730,7 @@ qresp laure_eval_set(_laure_eval_sub_args);
 qresp laure_eval_atom_sign(_laure_eval_sub_args);
 qresp laure_eval_command(_laure_eval_sub_args);
 qresp laure_eval_structure(_laure_eval_sub_args);
+qresp laure_eval_array(_laure_eval_sub_args);
 
 qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set *expset) {
     laure_scope_t *scope = cctx->scope;
@@ -626,6 +793,9 @@ qresp laure_eval(control_ctx *cctx, laure_expression_t *e, laure_expression_set 
         #endif
         case let_struct: {
             return laure_eval_structure(cctx, e, expset);
+        }
+        case let_array: {
+            return laure_eval_array(cctx, e, expset);
         }
         default: {
             RESPOND_ERROR(internal_err, e, "can't evaluate `%s` in this context", EXPT_NAMES[e->t]);
@@ -910,6 +1080,57 @@ laure_union_image *create_union_from_clarifiers(laure_scope_t *scope, laure_expr
     return laure_union_create(A, B);
 }
 
+/* Memory-safe version of create_union_from_clarifiers using memguard */
+laure_union_image *create_union_from_clarifiers_safe(laure_scope_t *scope, laure_expression_set *expr_set) {
+    cleanup_ctx_t cleanup;
+    cleanup_ctx_init(&cleanup);
+    
+    laure_expression_t *A_expr = expr_set->expression;
+    assert(A_expr->t == let_name);
+
+    Instance *A = laure_scope_find_by_key(scope, A_expr->s, true);
+    if (!A) return NULL;
+    
+    A = instance_deepcopy(A->name, A);
+    cleanup_register_instance(&cleanup, A);  /* Auto-cleanup on error */
+    
+    Instance *B = NULL;
+
+    if (expr_set->next->next) {
+        laure_union_image *next_union = create_union_from_clarifiers_safe(scope, expr_set->next);
+        if (!next_union) {
+            return NULL;  /* cleanup context handles A automatically */
+        }
+        
+        B = instance_new(MOCK_NAME, NULL, next_union);
+        if (!B) return NULL;
+        B->repr = union_repr;
+        cleanup_register_instance(&cleanup, B);
+        
+    } else {
+        assert(expr_set->next->expression->t == let_name);
+        B = laure_scope_find_by_key(scope, expr_set->next->expression->s, true);
+        if (!B) {
+            return NULL;  /* cleanup context handles A automatically */
+        }
+        B = instance_deepcopy(B->name, B);
+        cleanup_register_instance(&cleanup, B);
+    }
+    
+    laure_union_image *result = laure_union_create(A, B);
+    if (result) {
+        /* Success - transfer ownership to result, remove from cleanup */
+        cleanup.count = 0;  /* Prevent auto-cleanup since ownership transferred */
+    } else {
+        /* Failure - cleanup will handle A and B */
+        cleanup_ctx_destroy(&cleanup);
+        return NULL;
+    }
+    
+    cleanup_ctx_destroy(&cleanup);  /* Clean up context but not registered objects */
+    return result;
+}
+
 /* =-------=
 Imaging.
 * Never creates a choicepoint
@@ -1066,6 +1287,7 @@ qresp laure_eval_image(
             if (IMAGET(ins->image) == STRUCTURE) {
                 qresp r = structure_init(ins->image, scope);
                 if (r.state != q_true) {
+                    image_free(ins->image);
                     laure_free(ins);
                     return r;
                 }
@@ -1086,6 +1308,10 @@ qresp laure_eval_image(
                             }
                         });
                         laure_union_image *image = create_union_from_clarifiers(scope, old_var->ba->set);
+
+                        if (!image) {
+                            RESPOND_ERROR(instance_err, e, "union must be concluded on already bound instances");
+                        }
                         ins->repr = union_repr;
                         laure_free(ins->image);
                         ins->image = image;
@@ -1837,18 +2063,29 @@ Predicate/constraint call.
 qresp laure_eval_pred_call(_laure_eval_sub_args) {
     assert(e->t == let_pred_call);
     UNPACK_CCTX(cctx);
+    /* MEMGUARD_CLEANUP_CONTEXT(cleanup); */
+    
+    // Check recursion depth to prevent stack overflow
+    if (cctx->recursion_depth >= cctx->max_recursion_depth) {
+        RESPOND_ERROR(runtime_err, e, "Maximum recursion depth (%u) exceeded. Possible infinite recursion detected.", cctx->max_recursion_depth);
+    }
+    
+    // Increment recursion depth
+    cctx->recursion_depth++;
+    
+    qresp result; // To hold return value for cleanup
     string predicate_name = e->s;
     if (str_eq(e->s, RECURSIVE_AUTONAME)) {
         if (! scope->owner) 
-            RESPOND_ERROR(syntaxic_err, e, "autoname can only be used inside other predicates%s", "");
+            RESPOND_ERROR_DECR_DEPTH(cctx, syntaxic_err, e, "autoname can only be used inside other predicates%s", "");
         predicate_name = scope->owner;
     }
     Instance *predicate_ins = laure_scope_find_by_key(scope, predicate_name, true);
     if (! predicate_ins)
-        RESPOND_ERROR(undefined_err, e, "predicate %s", predicate_name);
+        RESPOND_ERROR_DECR_DEPTH(cctx, undefined_err, e, "predicate %s", predicate_name);
     enum ImageT call_t = read_head(predicate_ins->image).t;
     if (! (call_t == PREDICATE_FACT || call_t == CONSTRAINT_FACT))
-        RESPOND_ERROR(instance_err, e, "%s is neither predicate nor constraint", predicate_name);
+        RESPOND_ERROR_DECR_DEPTH(cctx, instance_err, e, "%s is neither predicate nor constraint", predicate_name);
     bool is_constraint = (call_t == CONSTRAINT_FACT);
     bool tfc = is_constraint && !qctx->constraint_mode;
 
@@ -2334,6 +2571,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
         // laure_scope_free(prev);
     }
     // laure_scope_free(init_scope);
+    cctx->recursion_depth--; // Decrement recursion depth before return
     return RESPOND_YIELD(found ? YIELD_OK : YIELD_FAIL);
 }
 
@@ -2792,12 +3030,109 @@ qresp laure_eval_structure(_laure_eval_sub_args) {
     return RESPOND_TRUE;
 }
 
+qresp laure_eval_array(_laure_eval_sub_args) {
+    assert(e->t == let_array);
+    UNPACK_CCTX(cctx);
+    
+    // Handle empty array []
+    if (!e->ba || !e->ba->set) {
+        return RESPOND_TRUE;
+    }
+    
+    // Check if this array contains variable references
+    uint element_count = laure_expression_get_count(e->ba->set);
+    bool has_variable_refs = false;
+    uint var_ref_count = 0;
+    
+    // First pass: check for variable references
+    laure_expression_t *element_expr;
+    EXPSET_ITER(e->ba->set, element_expr, {
+        if (element_expr->t == let_name) {
+            has_variable_refs = true;
+            var_ref_count++;
+        }
+    });
+    
+    // If array contains variable references, set up as solution collector
+    if (has_variable_refs) {
+        // Create array in collection mode
+        struct ArrayImage *array_img = laure_create_array_u(NULL);
+        array_img->is_solution_collector = true;
+        array_img->state = U; // Start uninstantiated, will collect solutions
+        
+        // Set up collection data
+        array_img->c_data.observed_vars = laure_alloc(sizeof(Instance*) * var_ref_count);
+        array_img->c_data.observed_count = var_ref_count;
+        array_img->c_data.solutions = NULL;
+        array_img->c_data.solution_count = 0;
+        
+        // Second pass: register variables for observation
+        uint var_idx = 0;
+        EXPSET_ITER(e->ba->set, element_expr, {
+            if (element_expr->t == let_name) {
+                // Look up or create variable and get its link
+                ulong var_link = 0;
+                Instance *var_instance = laure_scope_find_by_key_l(scope, element_expr->s, &var_link, true);
+                if (!var_instance) {
+                    var_instance = instance_new(element_expr->s, NULL, NULL);
+                    laure_cell cell = laure_scope_insert(scope, var_instance);
+                    var_link = cell.link;
+                }
+                
+                // Add to observed names list
+                array_img->c_data.observed_vars[var_idx] = var_instance;
+                var_idx++;
+                
+                // Register array as observer of this name
+                register_name_observer(var_link, array_img);
+            }
+        });
+        
+        // For now, just return success - the array is registered and will collect solutions
+        // TODO: Associate array with a variable name for proper access
+        
+        return RESPOND_TRUE;
+        
+    } else {
+        // Regular array evaluation (non-collecting)
+        array_linked_t *first_linked = NULL;
+        array_linked_t *last_linked = NULL;
+        
+        EXPSET_ITER(e->ba->set, element_expr, {
+            // Evaluate non-variable expressions
+            qresp eval_result = laure_eval(cctx, element_expr, expset);
+            if (eval_result.state == q_error) {
+                return eval_result;
+            }
+            
+            // For now, simple expressions only
+            RESPOND_ERROR(internal_err, element_expr, "complex array elements not yet supported");
+        });
+        
+        return RESPOND_TRUE;
+    }
+}
+
 control_ctx *control_new(laure_session_t *session, laure_scope_t* scope, qcontext* qctx, var_process_kit* vpk, void* data, bool no_ambig) {
-    if (! scope) return NULL;
-    control_ctx *cctx = laure_alloc(sizeof(control_ctx));
+    if (!scope) return NULL;
+    
+    MEMGUARD_CLEANUP_CONTEXT(cleanup);
+    
+    control_ctx *cctx = MEMGUARD_ALLOC(&cleanup, sizeof(control_ctx));
+    if (!cctx) {
+        MEMGUARD_CLEANUP(&cleanup);
+        return NULL;
+    }
+    
     cctx->session = session;
     cctx->scope = scope;
     cctx->tmp_answer_scope = laure_scope_new(scope->glob, scope);
+    if (!cctx->tmp_answer_scope) {
+        MEMGUARD_CLEANUP(&cleanup);
+        return NULL;
+    }
+    MEMGUARD_REGISTER(&cleanup, cctx->tmp_answer_scope);
+    
     cctx->tmp_answer_scope->next = 0;
     cctx->qctx = qctx;
     cctx->vpk = vpk;
@@ -2806,10 +3141,24 @@ control_ctx *control_new(laure_session_t *session, laure_scope_t* scope, qcontex
     cctx->no_ambig = no_ambig;
     cctx->cut = 0;
     cctx->this_break = false;
+    cctx->validating_completeness = false;
+    cctx->validation_failed = false;
+    cctx->recursion_depth = 0;
+    cctx->max_recursion_depth = 1000; // Default maximum recursion depth
+    
 #ifndef DISABLE_WS
     // docs: https://docs.laurelang.org/wiki/ws
     cctx->ws = laure_ws_create(NULL);
+    if (!cctx->ws) {
+        MEMGUARD_CLEANUP(&cleanup);
+        return NULL;
+    }
+    MEMGUARD_REGISTER(&cleanup, cctx->ws);
 #endif
+
+    /* Transfer ownership - control_ctx now owns all allocated objects */
+    MEMGUARD_TRANSFER_OWNERSHIP(&cleanup);
+    MEMGUARD_CLEANUP(&cleanup);
     return cctx;
 }
 

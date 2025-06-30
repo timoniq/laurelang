@@ -280,6 +280,11 @@ DECLARE(laure_predicate_length) {
     Instance *arr_ins = pd_get_arg(pd, 0);
     Instance *len_ins = pd->resp;
 
+    // Check if the first argument is actually an array
+    if (arr_ins->image && read_head(arr_ins->image).t != ARRAY) {
+        return respond(q_error, "length: first argument must be an array");
+    }
+
     struct ArrayImage *arr_img = (struct ArrayImage*)arr_ins->image;
     struct IntImage *len_img = (struct IntImage*)len_ins->image;
 
