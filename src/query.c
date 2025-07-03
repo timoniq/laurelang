@@ -525,21 +525,6 @@ qresp laure_send(control_ctx *cctx) {
 }
 
 qresp laure_showcast(control_ctx *cctx) {
-
-
-    // If validation has already failed, don't continue searching
-    if (cctx->validation_failed) {
-        return respond(q_yield, YIELD_FAIL);
-    }
-
-    // Critical validation check: if we're validating completeness and reach here again,
-    // it means we found another solution, so user's claim was wrong
-    if (cctx->validating_completeness) {
-        cctx->validating_completeness = false;  // Reset flag
-        cctx->validation_failed = true;         // Set permanent failure flag
-        return respond(q_yield, YIELD_FAIL);  // User's completeness claim was incorrect
-    }
-
     UNPACK_CCTX(cctx);
 
     string last_string = NULL;
@@ -587,15 +572,6 @@ qresp laure_showcast(control_ctx *cctx) {
             qresp interactive_resp = check_interactive(cmd, showcast);
             
             // Handle completeness validation request
-            if (interactive_resp.state == q_continue && interactive_resp.payload == (void*)9) {
-                // User claimed completeness - show last solution with '.' and set validation mode
-                up;
-                erase;
-                showcast = crop_showcast(showcast);
-                printf("%s.\n", showcast);
-                cctx->validating_completeness = true;
-                return respond(q_continue, NULL);  // Continue search to validate
-            }
             
             return interactive_resp;
         }
@@ -609,32 +585,11 @@ qresp laure_showcast(control_ctx *cctx) {
             string cmd = readline(last_string);
             qresp interactive_resp = check_interactive(cmd, last_string);
             
-            // Handle completeness validation request
-            if (interactive_resp.state == q_continue && interactive_resp.payload == (void*)9) {
-                // User claimed completeness - show last solution with '.' and set validation mode
-                up;
-                erase;
-                last_string = crop_showcast(last_string);
-                printf("%s.\n", last_string);
-                cctx->validating_completeness = true;
-                return respond(q_continue, NULL);  // Continue search to validate
-            }
             
             return interactive_resp;
         }
     }
 
-    // If we reach here in validation mode, check if validation already failed
-    if (cctx->validating_completeness) {
-        cctx->validating_completeness = false;  // Reset flag
-        // If validation failed earlier, return YIELD_FAIL
-        if (cctx->validation_failed) {
-            return respond(q_yield, YIELD_FAIL);  // User's completeness claim was incorrect
-        } else {
-            return respond(q_yield, YIELD_OK);  // User's completeness claim was correct
-        }
-    }
-    
     return RESPOND_YIELD(YIELD_OK);
 }
 
@@ -3141,8 +3096,6 @@ control_ctx *control_new(laure_session_t *session, laure_scope_t* scope, qcontex
     cctx->no_ambig = no_ambig;
     cctx->cut = 0;
     cctx->this_break = false;
-    cctx->validating_completeness = false;
-    cctx->validation_failed = false;
     cctx->recursion_depth = 0;
     cctx->max_recursion_depth = 1000; // Default maximum recursion depth
     

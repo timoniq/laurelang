@@ -782,6 +782,8 @@ gen_resp array_generate(
     REC_TYPE(rec), 
     void *external_ctx
 ) {
+    printf("DEBUG: array_generate called, state = %s\n", im->state == I ? "I" : "U");
+    
     // Handle solution-collecting arrays (disabled for now to prevent segfaults)
     // if (im->is_solution_collector) {
     //     // Solution collection disabled temporarily
@@ -817,13 +819,16 @@ gen_resp array_generate(
         }
         return rec(im, external_ctx);
     } else {
+        printf("DEBUG: Generating uninstantiated array, setting up domain generation\n");
         array_det ctx[1];
         ctx->final_rec = rec;
         ctx->final_external_ctx = external_ctx;
         ctx->im = im;
         ctx->scope = scope;
         Domain *len_copy = int_domain_copy(im->u_data.length);
+        printf("DEBUG: Starting int_domain_generate for array length\n");
         gen_resp response = int_domain_generate(len_copy, array_length_receiver, ctx);
+        printf("DEBUG: int_domain_generate returned, response.r = %d\n", response.r);
         int_domain_free(len_copy);
         return response;
     }

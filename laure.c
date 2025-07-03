@@ -492,22 +492,11 @@ int laure_process_query(laure_session_t *session, string line) {
                     LAURE_ACTIVE_ERROR = NULL;
                 }
             } else if (response.state == q_yield) {
-                // Check if we just completed a validation and need to invert semantics
-                bool invert_for_validation = cctx->validation_failed;
-                
-                if (invert_for_validation) {
-                    // If validation_failed is true, it means user's completeness claim was wrong
-                    // So the overall query statement is false, regardless of response.payload
+                if (response.payload == (void*)1) {
+                    printf("  %s%s%s true\n", REPL_SUCCESS_COLOR, REPL_CHECK_MARK, REPL_RESET_COLOR);
+                } else if (response.payload == (void*)0) {
                     code = 2;
                     printf("  %s%s%s false\n", REPL_WARNING_COLOR, REPL_CROSS_MARK, REPL_RESET_COLOR);
-                } else {
-                    // Normal mode
-                    if (response.payload == (void*)1) {
-                        printf("  %s%s%s true\n", REPL_SUCCESS_COLOR, REPL_CHECK_MARK, REPL_RESET_COLOR);
-                    } else if (response.payload == (void*)0) {
-                        code = 2;
-                        printf("  %s%s%s false\n", REPL_WARNING_COLOR, REPL_CROSS_MARK, REPL_RESET_COLOR);
-                    }
                 }
                 
                 // Print timing info if enabled

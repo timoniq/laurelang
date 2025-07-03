@@ -336,7 +336,7 @@ bool append_resolve(Instance *to, Instance *with, Instance *res) {
     T = img->arr_el;
     if (! to->image) to->image = laure_create_array_u(T);
     if (! with->image) with->image = laure_create_array_u(T);
-    if (! res->image) res->image = laure_create_char_u(T);
+    if (! res->image) res->image = laure_create_array_u(T);
     return true;
 }
 
@@ -344,6 +344,7 @@ DECLARE(laure_predicate_append) {
     Instance *to = pd_get_arg(pd, 0);
     Instance *with = pd_get_arg(pd, 1);
     Instance *res = pd->resp;
+    
 
     cast_image(res_img, struct ArrayImage) res->image;
     cast_image(to_img, struct ArrayImage) to->image;
@@ -459,54 +460,60 @@ DECLARE(laure_predicate_append) {
         to_img->i_data.linked = orig_linked;
         return True;
     } else if (res_img->state == I && to_img->state == U && with_img->state == U) {
-        // combinations
+        // Generate all possible combinations as choice points
         uint length = LENGTH(res->image);
-        array_linked_t *linked = LINKED(res->image);
         bool found = false;
-
+        
+        // Try all possible split points from 0 to length
         for (uint to_len = 0; to_len <= length; to_len++) {
-            STATE(with->image) = I;
-            LENGTH(to->image) = to_len;
-
-            if (STATE(to->image) == I) {
-                array_linked_t *l = LINKED(to->image);
-                array_linked_t *rl = LINKED(res->image);
-                for (int j = 0; j < LENGTH(to->image) && l; j++) {
-                    bool result = image_equals(l->data->image, rl->data->image, cctx->scope);
-                    if (! result)
-                        return False;
-                    l = l->next;
-                    rl = rl->next;
-                }
+            
+            // Create copies of the original uninstantiated images
+            void *to_img_copy = image_deepcopy(to->image);
+            void *with_img_copy = image_deepcopy(with->image);
+            
+            struct ArrayImage *to_copy = (struct ArrayImage*)to_img_copy;
+            struct ArrayImage *with_copy = (struct ArrayImage*)with_img_copy;
+            
+            // Set up this specific combination
+            to_copy->state = I;
+            to_copy->i_data.length = to_len;
+            to_copy->i_data.linked = LINKED(res->image);
+            
+            with_copy->state = I;
+            with_copy->i_data.length = length - to_len;
+            
+            // Find the split point for `with`
+            array_linked_t *with_start = LINKED(res->image);
+            for (uint i = 0; i < to_len && with_start; i++) {
+                with_start = with_start->next;
             }
-
-            STATE(to->image) = I;
-            LINKED(to->image) = LINKED(res->image);
-            LENGTH(with->image) = length - to_len;
-            LINKED(with->image) = linked;
-
-            // passing control
+            with_copy->i_data.linked = with_start;
+            
+            // Assign the images and test this solution
+            to->image = to_img_copy;
+            with->image = with_img_copy;
+            
+            // Create a new scope and test this combination
             laure_scope_t *nscope = laure_scope_create_copy(cctx, pd->scope);
-
-            laure_scope_t *old_sc = pd->scope;
-
+            
             qcontext temp[1];
             *temp = qcontext_temp(cctx->qctx->next, NULL, cctx->qctx->bag);
 
+            laure_scope_t *old_sc = pd->scope;
             qcontext *old_qc = cctx->qctx;
             cctx->qctx = temp;
             cctx->scope = nscope;
-
-            qresp result = laure_start(cctx, NULL);
-            if (result.state == q_true || (result.state == q_yield && result.payload == (void*)1)) found = true;
+            
+            qresp result = laure_start(cctx, cctx->qctx ? cctx->qctx->expset : NULL);
+            if (result.state == q_true || (result.state == q_yield && result.payload == (void*)1)) {
+                found = true;
+            }
 
             cctx->scope = old_sc;
             cctx->qctx = old_qc;
             laure_scope_free(nscope);
-
-            if (! linked) break;
-            linked = linked->next;
         }
+        
         return respond(q_yield, (void*)found);
     }
     if (! instantiated(to))

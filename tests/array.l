@@ -353,3 +353,9 @@
     a = [|_] -> fail();
     arr = [|_];
 }
+
+-- [1, 2, 3]
+: ?test_flatten(int[]).
+?test_flatten(x) {
+    flatten{int}([[1,2], [], [3]]) = x;
+}

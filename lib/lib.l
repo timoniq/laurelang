@@ -183,13 +183,13 @@ cons ~ never.
 -- flattens array to one dimension
 -- `flatten{int[]}([[1,2], [], [3], [4, 5]]) = x`
 !ordering.
-: ?flatten('T'[]) -> 'T'.
+: ?flatten('T'[][]) -> 'T'[].
 
 ?flatten([]) -> [].
 
-?flatten(array) -> flattened {
-    linked(head, tail) = array;
-    flattened = head:append(tail:flatten());
+?flatten([head|tail]) -> flattened {
+    flatten(tail) = tail_flattened;
+    append(head, tail_flattened) = flattened;
 }
 
 : ?in('T', 'T'[]).

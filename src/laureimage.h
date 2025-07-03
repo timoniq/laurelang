@@ -335,8 +335,6 @@ typedef struct laure_control_ctx {
     var_process_kit* vpk;
     void*           data;
     bool          silent, no_ambig, this_break;
-    bool          validating_completeness; // Set when validating user's completeness claim
-    bool          validation_failed;     // Set when validation detects user was wrong
     ulong cut; // scope id to cut up to
     uint recursion_depth; // Track recursion depth to prevent stack overflow
     uint max_recursion_depth; // Maximum allowed recursion depth
@@ -521,6 +519,7 @@ struct CharImage *laure_create_char_i(int c);
 struct CharImage *laure_create_charset(string charset);
 
 struct ArrayImage *laure_create_array_u(Instance *el_t);
+struct ArrayImage *array_deepcopy(struct ArrayImage *old_img);
 
 // Solution collection for arrays
 void register_array_observer(unsigned long var_link, struct ArrayImage *array);

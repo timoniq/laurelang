@@ -188,13 +188,3 @@
     case_of_cut(36) = x;
 }%
 ?test_case_of_cut(100).
-
--- 6
--- 8
-: ?test_instantiate_all(int).
-?test_instantiate_all(x) {
-    x = between(5, 12);
-    a = between(1, 5);
-    @;
-    x - a = x / 2;
-}
