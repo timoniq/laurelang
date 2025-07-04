@@ -383,7 +383,7 @@ DECLARE(laure_predicate_append) {
         // concatenate `to` and `with` arrays into `res` array
         uint res_length = LENGTH(to->image) + LENGTH(with->image);
         MUST_BE(int_domain_check_int(res_img->u_data.length, (int)res_length));
-
+        
         uint i = 0;
         bool t = false;
         array_linked_t *head = NULL;

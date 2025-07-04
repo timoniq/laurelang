@@ -1212,6 +1212,7 @@ bool string_translator(laure_expression_t *exp, void *img_, laure_scope_t *scope
             int c = laure_string_char_at_pos(exp->s + 1, bufflen, idx);
             struct CharImage *ch = laure_create_char_i(c);
             Instance *chins = instance_new(MOCK_NAME, NULL, ch);
+            chins->repr = char_repr;
             array_linked_t *l = laure_alloc(sizeof(array_linked_t));
             l->next = linked;
             l->data = chins;
@@ -3283,6 +3284,7 @@ struct ArrayIData convert_string(string unicode_string, laure_scope_t *scope) {
         array_linked_t *linked = laure_alloc(sizeof(array_linked_t));
         linked->next = i_data.linked;
         linked->data = instance_new(MOCK_NAME, NULL, laure_create_char_i(ch));
+        linked->data->repr = char_repr;
         i_data.linked = linked;
     }
     return i_data;

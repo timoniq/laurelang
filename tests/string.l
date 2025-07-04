@@ -65,7 +65,7 @@
     linked(head, tail) = x;
     other = join(tail);
     string[] arr = concat(head, other);
-    flatten{string}(arr) = y;
+    flatten{char}(arr) = y;
 }
 
 -- "hello world of frustrations"
