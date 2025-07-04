@@ -2461,7 +2461,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
             #ifndef DISABLE_ORDERING
             laure_get_ordered_predicate_body(pf->interior.plp, e->ba->body_len, argi, respi);
             #ifdef DEBUG
-            printf("DEBUG: ordered body\n");
+            debug("ordered body\n");
             expression_set_show(body);
             #endif
             #else
