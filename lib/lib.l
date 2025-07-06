@@ -310,8 +310,10 @@ pred at{int} -10 = 10
 ?filter([x|tail], f) -> fs {
     f(x);
     append([x], filter(tail, f)) = fs;
-}%
-?filter([_|tail], f) -> filter(tail, f).
+}
+?filter([x|tail], f) -> filter(tail, f) {
+    f(x) -> fail();
+}
 
 : ?reverse_predicate((?('T') -> 'R')) -> (?('R') -> 'T').
 ?reverse_predicate(pred) -> rev_pred {

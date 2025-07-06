@@ -25,18 +25,27 @@ laure_backtrace laure_backtrace_new() {
     laure_backtrace bt;
     bt.cursor = 0;
     bt.log = NULL;
-    memset(bt.chain, 0, (BACKTRACE_CHAIN_CAPACITY-1) * sizeof(struct chain_p));
+    memset(bt.chain, 0, BACKTRACE_CHAIN_CAPACITY * sizeof(struct chain_p));
+    debug("backtrace_new: initialized new backtrace\n");
     return bt;
 }
 
 void laure_backtrace_log(laure_backtrace *backtrace, string log) {
-    if (! backtrace) return;
+    if (! backtrace) {
+        debug("backtrace_log: null backtrace pointer\n");
+        return;
+    }
     backtrace->log = log;
+    debug("backtrace_log: set log to: %s\n", log ? log : "<null>");
 }
 
 void laure_backtrace_nullify(laure_backtrace *backtrace) {
-    if (! backtrace) return;
-    memset(backtrace->chain, 0, (BACKTRACE_CHAIN_CAPACITY-1) * sizeof(struct chain_p));
+    if (! backtrace) {
+        debug("backtrace_nullify: null backtrace pointer\n");
+        return;
+    }
+    debug("backtrace_nullify: clearing backtrace (was at cursor %u)\n", backtrace->cursor);
+    memset(backtrace->chain, 0, BACKTRACE_CHAIN_CAPACITY * sizeof(struct chain_p));
     backtrace->cursor = 0;
 }
 
@@ -60,36 +69,63 @@ static bool is_internal_predicate(const char* predicate_name) {
 }
 
 void laure_backtrace_add(laure_backtrace *backtrace, laure_expression_t *e) {
-    if (! backtrace) return;
-    if (! e || ! is_backtraced(e->t)) return;
-    
-    // Filter out internal predicates from reasoning chain
-    if (e->fullstring && is_internal_predicate(e->fullstring)) {
+    if (! backtrace) {
+        debug("backtrace_add: null backtrace pointer\n");
+        return;
+    }
+    if (! e || ! is_backtraced(e->t)) {
+        debug("backtrace_add: expression not backtraced (type: %d)\n", e ? e->t : -1);
         return;
     }
     
+    // Filter out internal predicates from reasoning chain
+    if (e->fullstring && is_internal_predicate(e->fullstring)) {
+        debug("backtrace_add: filtered internal predicate: %s\n", e->fullstring);
+        return;
+    }
+    
+    // Fix: Use BACKTRACE_CHAIN_CAPACITY consistently and add bounds checking
     if (backtrace->cursor >= BACKTRACE_CHAIN_LIMIT - 2) {
+        debug("backtrace_add: sliding window, cursor: %u -> %u\n", backtrace->cursor, BACKTRACE_CHAIN_LIMIT-1);
         struct chain_p nchain[BACKTRACE_CHAIN_LIMIT-1];
-        memcpy(nchain, backtrace->chain + backtrace->cursor - BACKTRACE_CHAIN_LIMIT + 1, sizeof(struct chain_p) * (BACKTRACE_CHAIN_LIMIT - 1));
+        // Fix: Ensure we don't read beyond array bounds
+        uint start_idx = backtrace->cursor >= BACKTRACE_CHAIN_LIMIT ? 
+                        backtrace->cursor - BACKTRACE_CHAIN_LIMIT + 1 : 0;
+        uint copy_count = backtrace->cursor >= BACKTRACE_CHAIN_LIMIT ? 
+                         BACKTRACE_CHAIN_LIMIT - 1 : backtrace->cursor;
+        memcpy(nchain, backtrace->chain + start_idx, sizeof(struct chain_p) * copy_count);
         memset(backtrace->chain, 0, BACKTRACE_CHAIN_CAPACITY * sizeof(struct chain_p));
-        memcpy(backtrace->chain, nchain, (BACKTRACE_CHAIN_LIMIT-1) * sizeof(struct chain_p));
-        backtrace->cursor = BACKTRACE_CHAIN_LIMIT-1;
+        memcpy(backtrace->chain, nchain, copy_count * sizeof(struct chain_p));
+        backtrace->cursor = copy_count;
     }
     if (e->fullstring) {
         if (backtrace->cursor && backtrace->chain[backtrace->cursor-1].e && str_eq(backtrace->chain[backtrace->cursor-1].e->fullstring, e->fullstring)) {
             backtrace->chain[backtrace->cursor-1].times++;
+            debug("backtrace_add: incremented repeat count for %s (times: %u)\n", e->fullstring, backtrace->chain[backtrace->cursor-1].times + 1);
         } else {
+            // Fix: Add bounds checking to prevent buffer overflow
+            if (backtrace->cursor >= BACKTRACE_CHAIN_CAPACITY) {
+                debug("backtrace_add: ERROR - cursor exceeds capacity (%u >= %u)\n", backtrace->cursor, BACKTRACE_CHAIN_CAPACITY);
+                return;
+            }
             struct chain_p p;
             p.e = e;
             p.times = 0;
             backtrace->chain[backtrace->cursor++] = p;
+            debug("backtrace_add: added new entry %s at cursor %u\n", e->fullstring, backtrace->cursor - 1);
         }
+    } else {
+        debug("backtrace_add: expression has no fullstring\n");
     }
 }
 
 // Enhanced reasoning chain display for logic programming
 void laure_backtrace_print(laure_backtrace *backtrace) {
-    if (! backtrace) return;
+    if (! backtrace) {
+        debug("backtrace_print: null backtrace pointer\n");
+        return;
+    }
+    debug("backtrace_print: cursor at %u, printing chain\n", backtrace->cursor);
     struct chain_p *chain = backtrace->chain;
     
     if (!chain[0].e) {
@@ -105,6 +141,7 @@ void laure_backtrace_print(laure_backtrace *backtrace) {
     uint i = 0;
     while (chain[0].e && i < backtrace->cursor) {
         struct chain_p p = chain[0];
+        debug("backtrace_print: processing chain entry %u: %s\n", i, p.e->fullstring ? p.e->fullstring : "<no fullstring>");
         
         // Choose appropriate reasoning symbol based on expression type
         const char* symbol = "├─";
@@ -139,8 +176,8 @@ void laure_backtrace_print(laure_backtrace *backtrace) {
                 break;
         }
         
-        // Last item gets different symbol
-        if (i == backtrace->cursor - 1 || !chain[1].e) {
+        // Last item gets different symbol - Fix: Check bounds properly
+        if (i == backtrace->cursor - 1 || (i + 1 < backtrace->cursor && !chain[1].e)) {
             if (strstr(symbol, "⊢")) symbol = "└─⊢";
             else if (strstr(symbol, "≡")) symbol = "└─≡";
             else if (strstr(symbol, "→")) symbol = "└─→";

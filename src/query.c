@@ -2063,6 +2063,7 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
     bool need_more = false;
     bool found = false;
     uint backtrace_cursor = LAURE_BACKTRACE ? LAURE_BACKTRACE->cursor : 0;
+    ulong cut_store = cctx->cut;  // Store initial cut state
 
     laure_scope_t *init_scope = laure_scope_create_copy(cctx, scope);
     for (uint variation_idx = 0; variation_idx < pred_img->variations->len; variation_idx++) {
@@ -2133,8 +2134,10 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
 
         qresp resp;
         bool do_continue = true;
-        ulong cut_store = cctx->cut;
         bool cut_case = false;
+        
+        debug("predicate call %s: entering variation %u with cut_store=%lu, current_cut=%lu, scope_idx=%lu\n", 
+              predicate_name, variation_idx, cut_store, cctx->cut, scope->idx);
 
         if (pf->t == PF_C) {
             // C source predicate
@@ -2526,6 +2529,15 @@ qresp laure_eval_pred_call(_laure_eval_sub_args) {
         // laure_scope_free(prev);
     }
     // laure_scope_free(init_scope);
+    
+    // Restore cut state if no cut was triggered in this predicate
+    if (cctx->cut == 0) {
+        cctx->cut = cut_store;
+        debug("predicate call %s: restoring cut state to %lu\n", predicate_name, cut_store);
+    } else {
+        debug("predicate call %s: leaving cut active at %lu\n", predicate_name, cctx->cut);
+    }
+    
     cctx->recursion_depth--; // Decrement recursion depth before return
     return RESPOND_YIELD(found ? YIELD_OK : YIELD_FAIL);
 }
@@ -2726,8 +2738,11 @@ Force choice
 qresp laure_eval_choice(_laure_eval_sub_args) {
     assert(e->t == let_choice_2);
     UNPACK_CCTX(cctx);
+    debug("laure_eval_choice: starting choice evaluation\n");
     laure_expression_set *set = e->ba->set;
     bool found = false;
+    ulong choice_cut_store = cctx->cut;
+    
     while (set) {
         laure_expression_set *choice = set->expression->ba->set;
         laure_scope_t *nscope = laure_scope_create_copy(cctx, scope);
@@ -2746,17 +2761,32 @@ qresp laure_eval_choice(_laure_eval_sub_args) {
         qresp response = laure_start(cctx, choice);
         laure_scope_free(nscope);
 
-        if (response.state == q_error)
+        if (response.state == q_error) {
+            debug("laure_eval_choice: choice failed with error\n");
             return response;
+        }
         
-        else if (response.state == q_true || (response.state == q_yield && response.payload == YIELD_OK))
+        else if (response.state == q_true || (response.state == q_yield && response.payload == YIELD_OK)) {
+            debug("laure_eval_choice: choice succeeded\n");
             found = true;
+            // If a cut was triggered within the choice, break early
+            if (cctx->cut != choice_cut_store) {
+                debug("laure_eval_choice: cut detected, stopping choice evaluation\n");
+                cctx->scope = scope;
+                cctx->qctx = qctx;
+                qctx->expset = old;
+                return RESPOND_YIELD(YIELD_OK);
+            }
+        } else {
+            debug("laure_eval_choice: choice failed\n");
+        }
         
         cctx->scope = scope;
         cctx->qctx = qctx;
         qctx->expset = old;
         set = set->next;
     }
+    debug("laure_eval_choice: completed, found=%s\n", found ? "true" : "false");
     return RESPOND_YIELD(YIELD_OK);
 }
 
@@ -2766,6 +2796,7 @@ Cutting tree
 qresp laure_eval_cut(_laure_eval_sub_args) {
     assert(e->t == let_cut);
     UNPACK_CCTX(cctx);
+    debug("laure_eval_cut: setting cut at scope index %lu (was %lu)\n", scope->idx, cctx->cut);
     cctx->cut = scope->idx;
     return respond(q_true, 0);
 }

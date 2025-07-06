@@ -121,10 +121,8 @@ void laure_repl_print_welcome(void) {
     if (!REPL_STATE) return;
     
     if (REPL_STATE->colors_enabled) {
-        printf("%slaurelang %s%s%s repl\n", LAURUS_NOBILIS, REPL_HINT_COLOR, VERSION, REPL_RESET_COLOR);
         printf("%sType .help for commands%s\n\n", REPL_HINT_COLOR, REPL_RESET_COLOR);
     } else {
-        printf("laurelang %s repl\n", VERSION);
         printf("Type .help for commands\n\n");
     }
 }
